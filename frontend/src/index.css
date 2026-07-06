@@ -1,0 +1,21 @@
+/* index.css — Global component styles built on tokens.css */
+
+:root {
+  color-scheme: dark;
+}
+
+/* ── Selection color ── */
+::selection {
+  background: var(--accent-subtle-bg);
+  color: var(--text-primary);
+}
+
+/* ── Link defaults ── */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+a:hover {
+  color: var(--accent-hover);
+}
