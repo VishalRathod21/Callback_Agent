@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import json
 from agents.dsa_agent import DSAInterviewAgent
 from agents.tech_agent import TechInterviewAgent
+from agents.hr_agent import HRInterviewAgent
 from services.stt_service import WhisperSTT
 
 @pytest.mark.asyncio
@@ -78,3 +79,22 @@ def test_whisper_stt_ffmpeg_check():
             with patch("whisper.load_model") as mock_load:
                 WhisperSTT(model_size="tiny")
         assert "ffmpeg is required" in str(exc_info.value)
+
+
+@pytest.mark.asyncio
+async def test_hr_agent_opening_question():
+    mock_llm_service = AsyncMock()
+    mock_llm_service.generate = AsyncMock(return_value="Tell me about a time you resolved a conflict on your team.")
+
+    agent = HRInterviewAgent(llm_service=mock_llm_service)
+
+    # Test get_opening_question with session_id
+    question = await agent.get_opening_question(
+        target_role="Product Manager",
+        session_id="session-hr-123"
+    )
+
+    assert question == "Tell me about a time you resolved a conflict on your team."
+    assert "session-hr-123" in agent._session_memory
+    assert agent._session_memory["session-hr-123"]["evaluations"] == []
+

@@ -65,9 +65,13 @@ client.interceptors.response.use(
         // Clear auth header
         delete client.defaults.headers.common['Authorization'];
         
-        // Redirect to signin page if browser environment
+        // Redirect to signin page if browser environment and not already on an auth page
         if (typeof window !== 'undefined') {
-          window.location.href = '/signin';
+          const path = window.location.pathname;
+          const isAuthPage = ['/signin', '/signup', '/forgot-password', '/reset-password', '/verify-email'].some(p => path.includes(p));
+          if (!isAuthPage) {
+            window.location.href = '/signin';
+          }
         }
         
         return Promise.reject(refreshError);

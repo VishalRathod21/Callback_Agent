@@ -1,22 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-const S = {
-  page: { minHeight: '100vh', background: 'var(--stage-black, #0b0d10)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'var(--font-sans, "Inter", sans-serif)' },
-  card: { width: '100%', maxWidth: '420px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px 36px', backdropFilter: 'blur(12px)' },
-  logo: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px', cursor: 'pointer' },
-  recDot: { width: '8px', height: '8px', borderRadius: '50%', background: 'var(--spotlight, #e8c96d)', boxShadow: '0 0 8px var(--spotlight, #e8c96d)', animation: 'pulse-dot 2s ease-in-out infinite', flexShrink: 0 },
-  wordmark: { color: 'var(--paper, #f5f0e8)', fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em' },
-  heading: { color: 'var(--paper, #f5f0e8)', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 6px 0' },
-  subtext: { color: 'var(--paper-dim, rgba(245,240,232,0.5))', fontSize: '13px', margin: '0 0 28px 0', lineHeight: 1.6 },
-  label: { display: 'block', color: 'var(--paper-dim, rgba(245,240,232,0.5))', fontSize: '11px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'var(--font-mono, monospace)' },
-  input: { width: '100%', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px 14px', color: 'var(--paper, #f5f0e8)', fontSize: '14px', outline: 'none', boxSizing: 'border-box', marginBottom: '16px', transition: 'border-color 0.2s', fontFamily: 'var(--font-sans, "Inter", sans-serif)' },
-  btn: { width: '100%', background: 'var(--spotlight, #e8c96d)', color: '#0b0d10', border: 'none', borderRadius: '8px', padding: '12px', fontSize: '14px', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em', marginTop: '4px', transition: 'opacity 0.2s' },
-  link: { color: 'var(--spotlight, #e8c96d)', cursor: 'pointer', fontSize: '13px' },
-  error: { background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', color: '#fca5a5', padding: '10px 14px', fontSize: '13px', marginBottom: '16px', lineHeight: 1.5 },
-  success: { background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', color: '#86efac', padding: '10px 14px', fontSize: '13px', marginBottom: '16px', lineHeight: 1.5 },
-};
+import Input from '../components/ui/Input';
+import Button from '../components/ui/Button';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -47,35 +33,170 @@ export default function ResetPassword() {
   };
 
   return (
-    <div style={S.page}>
-      <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} } input:focus{border-color:var(--spotlight,#e8c96d)!important} .sign-btn:hover{opacity:0.85} .sign-btn:disabled{opacity:0.5;cursor:not-allowed}`}</style>
-      <div style={S.card}>
-        <div style={S.logo} onClick={() => navigate('/')}><span style={S.recDot} /><span style={S.wordmark}>Callback</span></div>
-        <h1 style={S.heading}>Choose a new password</h1>
-        <p style={S.subtext}>Enter the reset token from your server console and set a new password.</p>
-        {error && <div style={S.error}>{error}</div>}
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--stage-black)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+      fontFamily: 'var(--font-sans)',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Abstract Glowing Spotlight Orbs */}
+      <div className="spotlight-glow" style={{ top: '15%', left: '15%', width: '400px', height: '400px', opacity: 0.8 }} />
+      <div className="spotlight-glow" style={{ bottom: '20%', right: '20%', width: '450px', height: '450px', opacity: 0.5 }} />
+
+      <div style={{
+        width: '100%',
+        maxWidth: '440px',
+        background: 'rgba(21, 24, 29, 0.4)',
+        border: '1px solid rgba(255, 255, 255, 0.05)',
+        borderTop: '3px solid var(--spotlight)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '48px 40px',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
+        zIndex: 5,
+        animation: 'fadeIn 0.6s var(--ease) forwards',
+      }}>
+        {/* Logo Wordmark */}
+        <div 
+          onClick={() => navigate('/')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginBottom: '36px',
+            cursor: 'pointer',
+            width: 'fit-content',
+            transition: 'transform 0.2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <span className="rec-dot" style={{ width: '8px', height: '8px' }} />
+          <span style={{
+            color: 'var(--paper)',
+            fontSize: 'var(--text-lg)',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            fontFamily: 'var(--font-display)',
+          }}>Callback</span>
+        </div>
+
+        <h1 style={{
+          color: 'var(--paper)',
+          fontSize: 'var(--text-xl)',
+          fontWeight: 700,
+          letterSpacing: '-0.02em',
+          margin: '0 0 8px 0',
+          fontFamily: 'var(--font-display)',
+        }}>Set new password</h1>
+        
+        <p style={{
+          color: 'var(--paper-dim)',
+          fontSize: 'var(--text-sm)',
+          margin: '0 0 32px 0',
+          lineHeight: 1.5,
+        }}>Enter the reset token that was output to the server console and set a new password.</p>
+
+        {error && (
+          <div style={{
+            background: 'var(--danger-subtle)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--rec-red)',
+            padding: '12px 16px',
+            fontSize: 'var(--text-sm)',
+            marginBottom: '24px',
+            lineHeight: 1.5,
+            fontWeight: 500,
+          }}>
+            ⚠️ {error}
+          </div>
+        )}
+
         {done ? (
-          <div style={S.success}>
-            ✓ Password reset successfully!{' '}
-            <span style={S.link} onClick={() => navigate('/signin')}>Sign in now →</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{
+              background: 'rgba(62, 207, 142, 0.08)',
+              border: '1px solid rgba(62, 207, 142, 0.25)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--prompter-green)',
+              padding: '16px',
+              fontSize: 'var(--text-sm)',
+              lineHeight: 1.6,
+              fontWeight: 500,
+            }}>
+              ✓ Password reset successfully! You can now log into your account with your new password.
+            </div>
+
+            <Button 
+              variant="primary" 
+              size="lg" 
+              fullWidth 
+              onClick={() => navigate('/signin')}
+            >
+              Sign In →
+            </Button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <label style={S.label}>Reset Token</label>
-            <input style={S.input} type="text" placeholder="Paste token from console" value={token} onChange={e => setToken(e.target.value)} />
-            <label style={S.label}>New Password</label>
-            <input style={S.input} type="password" placeholder="Min 8 characters" value={password} onChange={e => setPassword(e.target.value)} />
-            <label style={S.label}>Confirm Password</label>
-            <input style={S.input} type="password" placeholder="••••••••" value={confirm} onChange={e => setConfirm(e.target.value)} />
-            <button type="submit" className="sign-btn" style={S.btn} disabled={loading}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <Input
+              label="Reset Token"
+              type="text"
+              placeholder="Paste token from console"
+              value={token}
+              onChange={e => setToken(e.target.value)}
+            />
+
+            <Input
+              label="New Password"
+              type="password"
+              placeholder="Min 8 characters"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+
+            <Input
+              label="Confirm Password"
+              type="password"
+              placeholder="••••••••"
+              value={confirm}
+              onChange={e => setConfirm(e.target.value)}
+            />
+
+            <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} style={{ marginTop: '8px' }}>
               {loading ? 'RESETTING...' : 'RESET PASSWORD'}
-            </button>
+            </Button>
           </form>
         )}
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--paper-dim, rgba(245,240,232,0.5))' }}>
-          <span style={S.link} onClick={() => navigate('/signin')}>← Back to sign in</span>
+
+        <div style={{
+          textAlign: 'center',
+          fontSize: 'var(--text-sm)',
+          color: 'var(--paper-dim)',
+          marginTop: '28px',
+        }}>
+          <span 
+            onClick={() => navigate('/signin')}
+            style={{
+              color: 'var(--spotlight)',
+              cursor: 'pointer',
+              fontWeight: 600,
+              transition: 'color var(--duration-fast)',
+            }}
+            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-hover)'}
+            onMouseLeave={e => e.currentTarget.style.color = 'var(--spotlight)'}
+          >
+            ← Back to sign in
+          </span>
         </div>
       </div>
     </div>
   );
 }
+

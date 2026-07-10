@@ -2,75 +2,53 @@ import asyncio
 import logging
 import os
 import tempfile
-import torch
-import transformers.pytorch_utils as _pu
-
-# Patch for Coqui TTS compatibility with newer transformers packages
-if not hasattr(_pu, "isin_mps_friendly"):
-    _pu.isin_mps_friendly = torch.isin  # type: ignore[attr-defined]
 
 os.environ["COQUI_TOS_AGREED"] = "1"
+
+# Compatibility patch for Coqui TTS / transformers import error
+try:
+    import transformers.pytorch_utils
+    if not hasattr(transformers.pytorch_utils, "isin_mps_friendly"):
+        transformers.pytorch_utils.isin_mps_friendly = lambda *args, **kwargs: False
+except ImportError:
+    pass
 
 logger = logging.getLogger(__name__)
 
 
 class TTSService:
     def __init__(self):
-        logger.info("Loading TTS model (tacotron2-DDC, CPU-optimized)...")
-        # Lazy import to keep startup fast
+        logger.info("Loading TTS (tacotron2-DDC, CPU fast)...")
         from TTS.api import TTS as CoquiTTS
-        # tacotron2-DDC: ~50MB, generates in 1-3s on CPU
-        # Much faster than xtts_v2 (~2GB, 15-30s on CPU)
         self.tts = CoquiTTS(
             model_name="tts_models/en/ljspeech/tacotron2-DDC",
             progress_bar=False,
             gpu=False,
         )
-        logger.info("TTS model loaded successfully")
+        logger.info("TTS loaded OK")
 
     async def synthesize(self, text: str) -> bytes:
-        """
-        Convert text to WAV audio bytes.
-        Returns empty bytes on failure (caller handles gracefully).
-        """
         if not text or not text.strip():
             return b""
 
-        # Clean text — TTS handles plain sentences best
+        # Truncate long text — TTS takes longer on CPU for long sentences
         clean = text.strip()
-        # Truncate very long responses to prevent very long waits on CPU
-        if len(clean) > 400:
-            # Cut at last sentence boundary before 400 chars
-            cutoff = clean[:400].rfind(".")
-            if cutoff > 200:
-                clean = clean[:cutoff + 1]
-            else:
-                clean = clean[:400] + "..."
+        if len(clean) > 300:
+            cutoff = clean[:300].rfind(".")
+            clean = clean[:cutoff + 1] if cutoff > 150 else clean[:300]
 
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-            tmp_path = f.name
-
+            tmp = f.name
         try:
-            # Run in thread — TTS is CPU-bound synchronous
             await asyncio.to_thread(
-                self.tts.tts_to_file,
-                text=clean,
-                file_path=tmp_path,
+                self.tts.tts_to_file, text=clean, file_path=tmp
             )
-
-            with open(tmp_path, "rb") as f:
-                audio_bytes = f.read()
-
-            logger.info(
-                f"TTS synthesized {len(audio_bytes)} bytes "
-                f"for: '{clean[:60]}...'"
-            )
-            return audio_bytes
-
+            with open(tmp, "rb") as f:
+                data = f.read()
+            logger.info(f"TTS: {len(data)} bytes for '{clean[:50]}'")
+            return data
         except Exception as e:
-            logger.error(f"TTS synthesis failed: {e}")
+            logger.error(f"TTS error: {e}")
             return b""
-
         finally:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+            if os.path.exists(tmp): os.unlink(tmp)

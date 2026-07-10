@@ -33,6 +33,21 @@ alembic upgrade head
 echo "Starting FastAPI backend..."
 uvicorn main:app --reload --host 0.0.0.0 --port 8002 &
 
+echo "Waiting for backend to be ready (ML models can take ~60s to load)..."
+MAX_WAIT=120
+ELAPSED=0
+until curl -sf http://localhost:8002/health > /dev/null 2>&1; do
+  if [ $ELAPSED -ge $MAX_WAIT ]; then
+    echo "WARNING: Backend did not respond within ${MAX_WAIT}s — starting frontend anyway."
+    break
+  fi
+  printf "."
+  sleep 2
+  ELAPSED=$((ELAPSED + 2))
+done
+echo ""
+echo "Backend is ready!"
+
 echo "Starting React frontend..."
 cd ../frontend
 npm install

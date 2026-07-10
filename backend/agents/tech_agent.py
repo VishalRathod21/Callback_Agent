@@ -16,19 +16,19 @@ logger = logging.getLogger(__name__)
 # ── Fallback Questions ────────────────────────────────────────────────────────
 
 _FALLBACK_QUESTIONS = [
-    # Tiers 1-2: Fundamentals
-    "Let's discuss database indexes. Can you explain the difference between a clustered and non-clustered index, and how they impact read/write performance?",
-    "Could you explain the difference between optimistic and pessimistic locking, and in what scenarios you would choose one over the other?",
+    # Tiers 1-2: CS Fundamentals / Theoretical
+    "Can you explain how garbage collection works in your language of choice (e.g., Python's reference counting/generational collection vs. Go's concurrent mark-and-sweep or Java's G1GC), and how it impacts application latency?",
+    "Could you explain the difference between thread-safety models like reentrant locks, optimistic locking, and compare-and-swap (CAS) operations, and when you would use each in application code?",
     
-    # Tiers 3-4: Implementation
-    "If you had to design a cache invalidation strategy for a high-traffic product catalog, how would you approach it?",
-    "How would you handle race conditions in a microservice where multiple concurrent requests attempt to update a shared resource like a user balance?",
+    # Tiers 3-4: Application-based / Concrete Implementation
+    "If you had to integrate a third-party REST API that is notoriously slow and has strict rate-limiting, how would you design your application layer (caching, queueing, retries) to shield your users and maintain responsive UI latency?",
+    "How would you handle race conditions and concurrency control in a microservice where multiple concurrent database requests attempt to update a shared resource, like a user's wallet balance?",
     
-    # Tiers 5-6: Architecture
-    "How would you design a distributed rate limiter for an API gateway that handles millions of requests per second?",
-    "If you were introducing a message queue like Kafka to decouple ingestion from processing, how would you ensure partition scaling and consumer group ordering?",
+    # Tiers 5-6: Real-world Problem Solving & Debugging
+    "Imagine a production issue where CPU utilization spikes to 100% every day at 12 PM, but database load remains normal. How would you systematically troubleshoot and identify the root cause of this issue?",
+    "If your application began experiencing memory leaks causing container restarts every 48 hours, what profiling tools and systematic steps would you use to isolate the leak in production?",
     
-    # Tiers 7+: Failure modes / Tradeoffs / Scaling / Production Systems
+    # Tiers 7+: Scaling, Architecture & Tradeoffs
     "How would you optimize this system's data ingestion layer to handle 10x the current load under heavy write pressure?",
     "When a downstream service goes down, how would you configure circuit breakers and retry policies to prevent cascading system-wide failures?",
 ]
@@ -36,14 +36,19 @@ _FALLBACK_QUESTIONS = [
 # ── Prompts ────────────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
-You are a senior technical interviewer specializing in system design and role-specific depth.
+You are a senior technical interviewer conducting a comprehensive technical interview.
 Rules:
-- Start with the candidate's resume to ask relevant questions
-- Cover: core concepts, system design basics, role-specific tools (e.g. for ML: transformers/embeddings, for backend: DB indexing/caching)
-- 3-5 questions of increasing depth
-- Follow up on every answer ("Can you go deeper on X?")
-- Keep responses under 3 sentences\
+- Focus on four core pillars:
+  1. Theoretical & CS Fundamentals (memory management, language runtime internals, OS/concurrency, networking protocols, algorithm complexities).
+  2. Application-based implementation (framework/library trade-offs, schema choices, practical coding design, library integration).
+  3. Real-world problem solving & debugging (troubleshooting memory leaks, 100% CPU utilization spikes, race conditions, third-party API rate limits).
+  4. System design and architectural scaling.
+- Start with the candidate's resume to ask relevant questions that verify their experience.
+- Maintain a structured progression through core concepts, application details, practical debugging, and architectural trade-offs.
+- Follow up on every answer to challenge their reasoning, trade-offs, and edge cases.
+- Keep responses under 3 sentences.
 """
+
 
 _OPENING_PROMPT = """\
 You are starting a technical interview for the role of "{target_role}".
@@ -113,13 +118,14 @@ class TechInterviewAgent:
     def _get_difficulty_tier(self, question_count: int) -> str:
         """Return the target topic/difficulty tier based on current question count."""
         if question_count <= 2:
-            return "Fundamentals (Core concepts, Basic data structures, Protocol choices)"
+            return "CS Fundamentals & Theoretical Concepts (e.g., memory models, language runtime internals, threading, networking protocols, algorithm complexes)"
         elif question_count <= 4:
-            return "Implementation Details (Code efficiency, Schema design, Caching invalidation/strategies, Concurrency)"
+            return "Application-based & Practical Coding Choices (e.g., schema design, concurrent data access, caching invalidation, integration trade-offs)"
         elif question_count <= 6:
-            return "Architecture (Distributed system designs, Load balancing, Message queues, Microservice boundaries)"
+            return "Real-world Problem Solving & Debugging (e.g., troubleshooting memory leaks, CPU utilization spikes, race conditions, rate limit policies)"
         else:
-            return "Failure Modes, Tradeoffs, Scaling, and High-Traffic Production System constraints"
+            return "High-Scale System Architecture, Reliability, and Trade-offs (e.g., partitioning, event-driven scaling, cascading failures)"
+
 
     def _get_fallback_question(self, session_id: str, question_count: int) -> str:
         """Select a unique fallback question appropriate for the difficulty tier."""
@@ -273,6 +279,7 @@ Generate the opening question now."""
         resume_text: str,
         session_id: str = None,
         persona: dict = None,
+        target_role: str = "Software Engineer",
     ) -> dict:
         """Process a candidate's answer and produce the next interviewer turn dynamically."""
         if not persona:
@@ -313,7 +320,7 @@ Generate the opening question now."""
         questions_str = "; ".join(asked_questions) if asked_questions else "None"
 
         if next_count >= 6:
-            base_system_instruction = f"""You are conducting a real technical interview.
+            base_system_instruction = f"""You are conducting a real technical interview for the role of: "{target_role}".
 Interviewer Persona: "{persona['name']}" ({persona['description']})
 
 The technical interview is now COMPLETE. Do NOT ask any more questions.
@@ -337,7 +344,7 @@ Return your response ONLY as a valid JSON object matching this schema:
 }}
 Output strictly valid JSON."""
         else:
-            base_system_instruction = f"""You are conducting a real technical interview.
+            base_system_instruction = f"""You are conducting a real technical interview for the role of: "{target_role}".
 Interviewer Persona: "{persona['name']}" ({persona['description']})
 
 You MUST review the conversation history before asking the next question.
@@ -345,19 +352,30 @@ Never ask a question that has already been asked.
 Never repeat the same wording.
 Never repeat the same concept unless explicitly drilling deeper.
 
-Each new question should either:
-1. Explore a new topic
-OR
-2. Explore a deeper aspect of the previous topic
+CRITICAL BEHAVIOR RULES:
+- Never reveal or output your reasoning, thinking process, planning, or chain of thought.
+- Never output tags such as <think>, <analysis>, or similar.
+- Speak naturally and conversationally, producing only the final spoken response.
+- Ask exactly ONE focused question at a time.
+- Wait for the candidate's response before asking the next question.
+- Never generate sample answers, code templates, or script cues for the candidate.
+- Never explain what you will ask next or meta-describe the interview structure.
 
-Do not restart the interview. Do not return generic transition phrases repeatedly.
+CRITICAL REQUIREMENT:
+Each new question MUST be strictly relevant to the target job role ("{target_role}") and tailored to the candidate's resume (specifically their projects, claimed skills, and experience).
+Ensure your questions cover:
+1. CS Fundamentals & Theory: OS/threading, memory models, runtime internals, networking protocols, algorithm trade-offs.
+2. Application-based design: Schema implementation, API choices, concrete libraries, concurrency primitives.
+3. Real-world problem solving: Troubleshooting production spikes, memory leaks, Slow endpoints, caching bottlenecks, rate limit failures.
+4. Scale & Architecture: Distributed systems, microservices, queuing, partition designs.
+
 Keep your response under 3 sentences, matching your persona's voice.
 
 Interview Difficulty Progressing Tiers:
-- Questions 1-2: Fundamentals
-- Questions 3-4: Implementation
-- Questions 5-6: Architecture
-- Questions 7+: Failure Modes, Tradeoffs, Scaling, and High-Traffic Production System constraints
+- Questions 1-2: CS Fundamentals, Language internals, & Theory (tailored to resume)
+- Questions 3-4: Application-based, Practical schema choices & Concurrency (tailored to resume)
+- Questions 5-6: Real-world problem solving & Debugging production issues (tailored to resume)
+- Questions 7+: Scale, Systems design, Partitioning, & Failure modes
 
 Currently at Question Count: {next_count}
 Target Difficulty Tier: {difficulty_tier}
@@ -374,7 +392,7 @@ Current Question Count:
 
 Return your response ONLY as a valid JSON object matching this schema:
 {{
-  "response": "The next question/feedback to speak to the candidate.",
+  "response": "The next single question/feedback to speak to the candidate. Keep it concise, natural, and free of any thinking process, reasoning, tags, or sample answers.",
   "concept": "The core concept tested by this question.",
   "is_follow_up": true/false,
   "should_continue": true/false,
@@ -395,7 +413,8 @@ Output strictly valid JSON."""
             if evals:
                 evaluations_history = "\nPrevious Answer Evaluations:\n" + json.dumps(evals, indent=2)
 
-        prompt = f"""Candidate Profile:
+        prompt = f"""Candidate Profile for {target_role}:
+- Target Role: {target_role}
 - Resume Summary: {profile.get("summary")}
 - Claimed Skills: {", ".join(profile.get("skills", []))}
 - Key Projects: {", ".join(profile.get("projects", []))}
@@ -407,7 +426,7 @@ Conversation History:
 Candidate's Latest Response:
 "{candidate_response}"
 
-Evaluate the candidate's latest response and generate the next turn in the interview."""
+Evaluate the candidate's latest response and generate the next turn in the interview tailored to their resume and the role of {target_role}."""
 
         # ── LLM GENERATION & DEDUPLICATION RETRY LOOP ─────────────────────────
         max_retries = 3

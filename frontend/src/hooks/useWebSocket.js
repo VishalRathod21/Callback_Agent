@@ -1,170 +1,261 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAudioCapture } from './useAudioCapture';
+import client from '../api/client';
 
-export function useWebSocket({ sessionId, onTranscript, onAIResponse, onRoundComplete, onInterviewComplete, onSessionHistory, onRoundShouldEnd }) {
+// Deduplicate DSA submissions to prevent backend state corruption
+const activeSubmissions = new Set();
+
+client.interceptors.request.use(
+  (config) => {
+    if (config.url && config.url.includes('/dsa/submit')) {
+      if (activeSubmissions.has(config.url)) {
+        console.warn('[API Interceptor] Blocking duplicate DSA submission');
+        return Promise.reject(new Error('DUPLICATE_SUBMISSION_BLOCKED'));
+      }
+      activeSubmissions.add(config.url);
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+client.interceptors.response.use(
+  (response) => {
+    if (response.config?.url && response.config.url.includes('/dsa/submit')) {
+      activeSubmissions.delete(response.config.url);
+    }
+    return response;
+  },
+  (error) => {
+    if (error.config?.url && error.config.url.includes('/dsa/submit')) {
+      activeSubmissions.delete(error.config.url);
+    }
+    if (error.message === 'DUPLICATE_SUBMISSION_BLOCKED') {
+      return new Promise(() => {}); // Keep it pending to discard silently
+    }
+    return Promise.reject(error);
+  }
+);
+
+
+const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8002';
+
+// Turn states (mirrors backend)
+export const STATE_IDLE = 'idle';
+export const STATE_AI_SPEAKING = 'ai_speaking';
+export const STATE_LISTENING = 'listening';
+export const STATE_PROCESSING = 'processing';
+
+export function useWebSocket({
+  sessionId,
+  onAITranscript,
+  onCandidateTranscript,
+  onStateChange,
+  onRoundComplete,
+  onError,
+  volume: onVolumeChangeCallback,
+  muted,
+}) {
   const wsRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const currentSourceRef = useRef(null);
+  const audioCtxRef = useRef(null);
   const audioQueueRef = useRef([]);
-  const isPlayingRef = useRef(false);
-  const pingIntervalRef = useRef(null);
+  const playingRef = useRef(false);
+  const unlockedRef = useRef(false);
+  const reconnectRef = useRef(0);
+  const volumeRef = useRef(0);
+  const shouldEndRoundRef = useRef(false);
+
+  // Refs to stabilize callback dependencies and prevent reconnect loops
+  const startRecordingRef = useRef(null);
+  const stopRecordingRef = useRef(null);
+  const endRoundRef = useRef(null);
+  const drainQueueRef = useRef(null);
+  const sendRef = useRef(null);
+  const connectRef = useRef(null);
+
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
-  const reconnectAttemptsRef = useRef(0);
-  const MAX_RECONNECTS = 3;
+  const [turnState, setTurnState] = useState(STATE_IDLE);
+  const [volume, setVolume] = useState(0);
+  const [status, setStatus] = useState('disconnected');
 
-  // ── AUDIO CONTEXT UNLOCKING ───────────────────────────────────────────
-  const unlockAudioContext = useCallback(async () => {
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-      console.log('Playback AudioContext unlocked successfully, state:', ctx.state);
-    } catch (err) {
-      console.error('Failed to unlock playback AudioContext:', err);
-    }
-  }, []);
+  // Keep callback references fresh without triggering dependency changes
+  const callbacksRef = useRef({
+    onAITranscript,
+    onCandidateTranscript,
+    onStateChange,
+    onRoundComplete,
+    onError,
+    volume: onVolumeChangeCallback,
+  });
 
-  // ── AUDIO PLAYBACK ────────────────────────────────────────────────────
-  const stopAudioPlayback = useCallback(() => {
-    audioQueueRef.current = [];
-    isPlayingRef.current = false;
-    if (currentSourceRef.current) {
-      try {
-        currentSourceRef.current.stop();
-      } catch (e) {
-        // Already stopped or finished
-      }
-      currentSourceRef.current = null;
-    }
-  }, []);
-
-  const playNextInQueue = useCallback(async () => {
-    if (isPlayingRef.current) return;
-    if (audioQueueRef.current.length === 0) {
-      isPlayingRef.current = false;
-      return;
-    }
-
-    isPlayingRef.current = true;
-    const base64Data = audioQueueRef.current.shift();
-
-    if (!base64Data) {
-      isPlayingRef.current = false;
-      playNextInQueue();
-      return;
-    }
-
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      }
-      const ctx = audioContextRef.current;
-      if (ctx.state === 'suspended') {
-        await ctx.resume();
-      }
-
-      const binaryStr = atob(base64Data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-
-      const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      currentSourceRef.current = source;
-      
-      source.onended = () => {
-        if (currentSourceRef.current === source) {
-          currentSourceRef.current = null;
-          isPlayingRef.current = false;
-          console.log('Audio playback finished');
-          playNextInQueue();
-        }
-      };
-      
-      source.start(0);
-      console.log('Audio playback started');
-    } catch (err) {
-      console.error('Audio playback error:', err);
-      console.log('Audio playback failed');
-      isPlayingRef.current = false;
-      playNextInQueue();
-    }
-  }, []);
-
-  const playAudio = useCallback(async (base64Data) => {
-    audioQueueRef.current.push(base64Data);
-    if (!isPlayingRef.current) {
-      await playNextInQueue();
-    }
-  }, [playNextInQueue]);
-
-  const callbacksRef = useRef({});
   useEffect(() => {
     callbacksRef.current = {
-      onTranscript,
-      onAIResponse,
+      onAITranscript,
+      onCandidateTranscript,
+      onStateChange,
       onRoundComplete,
-      onInterviewComplete,
-      onSessionHistory,
-      onRoundShouldEnd
+      onError,
+      volume: onVolumeChangeCallback,
     };
-  }, [onTranscript, onAIResponse, onRoundComplete, onInterviewComplete, onSessionHistory, onRoundShouldEnd]);
+  });
 
-  // ── WEBSOCKET CONNECTION ──────────────────────────────────────────────
+  // ── Unlock AudioContext (MUST happen on user gesture) ──
+  const unlockAudio = useCallback(async () => {
+    if (unlockedRef.current) return;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      await ctx.resume();
+      await ctx.close();
+      unlockedRef.current = true;
+      console.log('[Audio] Unlocked');
+    } catch (e) {
+      console.warn('[Audio] Unlock failed:', e);
+    }
+  }, []);
+
+  // ── WebSocket Send Helper ──
+  const send = useCallback((data) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(data));
+    }
+  }, []);
+
+  // ── Audio capture integration ──
+  const { startRecording, stopRecording, destroyAll, isRecording, hasPermission, isSpeaking } = useAudioCapture({
+    onChunk: ({ data, duration_ms }) => {
+      sendRef.current?.({ type: 'audio_chunk', data, duration_ms });
+    },
+    onFlush: () => {
+      sendRef.current?.({ type: 'silence_detected' });
+    },
+    onSilenceDetected: () => {
+      sendRef.current?.({ type: 'silence_detected' });
+    },
+    onVolumeChange: (v) => {
+      setVolume(v);
+      callbacksRef.current.volume?.(v);
+    },
+    muted,
+  });
+
+  // ── Round control helpers ──
+  const startRound = useCallback((round, targetRole, resumeContext = '') => {
+    send({ type: 'start_round', round, target_role: targetRole, resume_context: resumeContext });
+  }, [send]);
+
+  const sendText = useCallback((text) => {
+    send({ type: 'candidate_text', text });
+  }, [send]);
+
+  const endRound = useCallback(() => {
+    stopRecording();
+    send({ type: 'end_round' });
+  }, [send, stopRecording]);
+
+  // ── Audio playback queue (sequential, never overlap) ──
+  const drainQueue = useCallback(async () => {
+    if (playingRef.current || audioQueueRef.current.length === 0) return;
+    playingRef.current = true;
+
+    while (audioQueueRef.current.length > 0) {
+      const item = audioQueueRef.current.shift();
+      try {
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+          audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const ctx = audioCtxRef.current;
+        if (ctx.state === 'suspended') await ctx.resume();
+
+        const bin = atob(item.data);
+        const buf = new ArrayBuffer(bin.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
+
+        const audioBuf = await ctx.decodeAudioData(buf);
+        await new Promise((resolve) => {
+          const src = ctx.createBufferSource();
+          src.buffer = audioBuf;
+          src.connect(ctx.destination);
+          src.onended = resolve;
+          src.start(0);
+        });
+      } catch (err) {
+        console.error('[Audio] Playback error:', err);
+      }
+    }
+    playingRef.current = false;
+    
+    // Auto-trigger endRound once concluding speech has finished playing
+    if (shouldEndRoundRef.current) {
+      shouldEndRoundRef.current = false;
+      endRoundRef.current?.();
+    }
+  }, []);
+
+  // ── WebSocket Connection and Message Loop ──
   const connect = useCallback(() => {
-    // Avoid creating multiple simultaneous connections (React StrictMode mounts twice)
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-      console.log('WebSocket already open or connecting, skipping new connect');
+    if (!sessionId) return;
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
       return;
     }
-    const WS_URL = `ws://localhost:8002/ws/interview/${sessionId}`;
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(`${WS_URL}/ws/interview/${sessionId}`);
     wsRef.current = ws;
-    setConnectionStatus('connecting');
+    setStatus('connecting');
 
     ws.onopen = () => {
       setIsConnected(true);
-      setConnectionStatus('connected');
-      reconnectAttemptsRef.current = 0;
-      console.log('WebSocket connected');
-
-      // Send keepalive ping every 25 seconds
-      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
-      pingIntervalRef.current = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          try { ws.send(JSON.stringify({ type: 'ping' })); } catch (e) { /* swallow send errors */ }
-        }
-      }, 25000);
+      setStatus('connected');
+      reconnectRef.current = 0;
+      console.log('[WS] Connected');
     };
 
     ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
+      let msg;
+      try { msg = JSON.parse(event.data); } catch { return; }
 
       switch (msg.type) {
         case 'connected':
-          console.log('Session ready:', msg.session_id);
+          console.log('[WS] Session ready');
+          break;
+
+        case 'state_change': {
+          const newState = msg.state;
+          console.log('[WS] State:', newState);
+          setTurnState(newState);
+          callbacksRef.current.onStateChange?.(newState, msg.message);
+          
+          // AUTO-MIC: start recording when LISTENING, stop when AI speaks
+          if (newState === 'listening') {
+            // Small delay so AudioContext is ready
+            setTimeout(() => startRecordingRef.current?.(), 150);
+          } else if (newState === 'ai_speaking' || newState === 'processing') {
+            stopRecordingRef.current?.();
+          }
+          break;
+        }
+
+        case 'ai_response':
+          callbacksRef.current.onAITranscript?.({ text: msg.text, speaker: msg.speaker });
           break;
 
         case 'transcript':
-          callbacksRef.current.onTranscript?.({ speaker: 'candidate', text: msg.text });
+          callbacksRef.current.onCandidateTranscript?.({ text: msg.text });
           break;
 
-        case 'ai_response':
-          callbacksRef.current.onAIResponse?.({ text: msg.text });
+        case 'ai_audio':
+          audioQueueRef.current.push({ data: msg.data });
+          drainQueueRef.current?.();
           break;
 
-        case 'audio':
-          // Play synthesized audio response
-          console.log('Audio message received');
-          await playAudio(msg.data);
+        case 'round_should_end':
+          shouldEndRoundRef.current = true;
+          // Fallback in case no audio is queued/played within 1.5 seconds
+          setTimeout(() => {
+            if (shouldEndRoundRef.current && !playingRef.current && audioQueueRef.current.length === 0) {
+              shouldEndRoundRef.current = false;
+              endRoundRef.current?.();
+            }
+          }, 1500);
           break;
 
         case 'round_complete':
@@ -172,121 +263,60 @@ export function useWebSocket({ sessionId, onTranscript, onAIResponse, onRoundCom
           break;
 
         case 'interview_complete':
-          callbacksRef.current.onInterviewComplete?.(msg);
-          break;
-
-        case 'session_history':
-          callbacksRef.current.onSessionHistory?.(msg);
-          break;
-
-        case 'round_should_end':
-          callbacksRef.current.onRoundShouldEnd?.(msg);
+          callbacksRef.current.onRoundComplete?.({ ...msg, next_round: 'complete' });
           break;
 
         case 'error':
-          console.error('WS server error:', msg.message);
+          console.error('[WS] Error:', msg.message);
+          callbacksRef.current.onError?.(msg.message);
           break;
 
         case 'ping':
-          // Server keepalive — respond immediately
-          try { ws.send(JSON.stringify({ type: 'pong' })); } catch (e) {}
-          break;
-
-        case 'pong':
+          sendRef.current?.({ type: 'pong' });
           break;
       }
     };
 
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-      setConnectionStatus('error');
-    };
+    ws.onerror = () => setStatus('error');
 
     ws.onclose = () => {
-      // Clear ping interval when socket closes
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-        pingIntervalRef.current = null;
-      }
       setIsConnected(false);
-      setConnectionStatus('disconnected');
-      console.log('WebSocket disconnected');
-      if (reconnectAttemptsRef.current < MAX_RECONNECTS) {
-        reconnectAttemptsRef.current++;
-        const delay = reconnectAttemptsRef.current * 1500;
-        setTimeout(() => connect(), delay);
-        setConnectionStatus(`reconnecting (${reconnectAttemptsRef.current}/${MAX_RECONNECTS})`);
+      if (reconnectRef.current < 3) {
+        reconnectRef.current++;
+        setStatus(`reconnecting...`);
+        setTimeout(() => {
+          connectRef.current?.();
+        }, reconnectRef.current * 2000);
+      } else {
+        setStatus('disconnected');
       }
     };
-  }, [sessionId, playAudio]);
+  }, [sessionId]);
 
-  // ── SEND HELPERS ──────────────────────────────────────────────────────
-  const sendMessage = useCallback((msg) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(msg));
-    }
-  }, []);
+  // Keep references updated on every render
+  startRecordingRef.current = startRecording;
+  stopRecordingRef.current = stopRecording;
+  endRoundRef.current = endRound;
+  drainQueueRef.current = drainQueue;
+  sendRef.current = send;
+  connectRef.current = connect;
 
-  const startRound = useCallback((round, targetRole, resumeContext = '') => {
-    sendMessage({ type: 'start_round', round, target_role: targetRole, resume_context: resumeContext });
-  }, [sendMessage]);
-
-  const sendAudioChunk = useCallback((base64Data, durationMs) => {
-    sendMessage({ type: 'audio_chunk', data: base64Data, duration_ms: durationMs });
-    console.log('Audio chunk sent');
-  }, [sendMessage]);
-
-  const flushAudio = useCallback(() => {
-    sendMessage({ type: 'audio_flush' });
-  }, [sendMessage]);
-
-  const endRound = useCallback(() => {
-    sendMessage({ type: 'end_round' });
-  }, [sendMessage]);
-
-  // Connect on mount, cleanup on unmount
   useEffect(() => {
     connect();
     return () => {
-      try {
-        wsRef.current?.close();
-      } catch (e) {
-        // ignore
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+        wsRef.current = null;
       }
-      if (pingIntervalRef.current) {
-        clearInterval(pingIntervalRef.current);
-        pingIntervalRef.current = null;
-      }
-      if (audioContextRef.current) {
-        try { audioContextRef.current.close(); } catch (e) { /* ignore */ }
-      }
+      audioCtxRef.current?.close();
     };
   }, [connect]);
 
-  // ── AUDIO CAPTURE (integrated) ────────────────────────────────────────
-  const { startRecording, stopRecording, isRecording, hasPermission, isMuted, toggleMute, analyser } = useAudioCapture({
-    onChunk: ({ data, duration_ms }) => sendAudioChunk(data, duration_ms),
-    onFlush: flushAudio,
-  });
-
-  const submitTypedAnswer = useCallback((text) => {
-    sendMessage({ type: 'typed_answer', text });
-  }, [sendMessage]);
-
   return {
-    isConnected,
-    connectionStatus,
-    isRecording,
-    hasPermission,
-    isMuted,
-    toggleMute,
-    analyser,
-    startRound,
-    startRecording,
-    stopRecording,
-    stopAudioPlayback,
-    endRound,
-    unlockAudioContext,
-    submitTypedAnswer,
+    isConnected, status, turnState, volume,
+    isRecording, hasPermission, isSpeaking,
+    unlockAudio, startRound, sendText, endRound,
+    startRecording, stopRecording, destroyAll,
   };
 }

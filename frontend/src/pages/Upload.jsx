@@ -2,9 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/client';
 import { useInterviewStore } from '../store/interviewStore';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Badge from '../components/ui/Badge';
 import Navbar from '../components/ui/Navbar';
@@ -13,12 +12,20 @@ const API_BASE = 'http://localhost:8002/api';
 
 const ROLES = [
   'Software Engineer',
-  'ML Engineer',
-  'Data Scientist',
   'Frontend Developer',
   'Backend Developer',
+  'Fullstack Developer',
+  'ML Engineer',
+  'Data Scientist',
+  'Data Engineer',
+  'Mobile Engineer (iOS/Android)',
   'DevOps Engineer',
+  'Cloud Architect',
+  'Cybersecurity Specialist',
+  'QA Automation Engineer',
+  'Systems Engineer',
   'Product Manager',
+  'Product Designer (UI/UX)'
 ];
 
 /* ── Terminal loading animation ── */
@@ -44,78 +51,86 @@ function TerminalLoader({ targetRole }) {
   }, [visibleCount, lines.length]);
 
   return (
-    <div style={{ textAlign: 'left', maxWidth: '540px', margin: '40px auto 0 auto', animation: 'fadeIn 0.5s var(--ease)' }}>
-      <div style={{
-        fontSize: 'var(--text-md)',
-        fontWeight: 700,
-        color: '#ffffff',
-        marginBottom: 'var(--space-4)',
-        fontFamily: 'var(--font-sans)',
-        textAlign: 'center',
-        letterSpacing: '-0.01em',
-      }}>
-        Analyzing candidate profile
-      </div>
-      
-      {/* High tech scanner terminal container */}
-      <div style={{
-        position: 'relative',
-        backgroundColor: 'var(--panel-bg)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '28px 24px',
-        border: '1.5px solid var(--card-border)',
-        boxShadow: '0 20px 40px rgba(0, 0, 0, 0.45)',
-        overflow: 'hidden',
-        minHeight: '210px',
-      }}>
-        {/* Moving scanning bar */}
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '380px', justifyContent: 'space-between', animation: 'fadeIn 0.5s var(--ease)', flex: 1 }}>
+      <div>
         <div style={{
-          position: 'absolute',
-          top: 0, left: 0, right: 0,
-          height: '2px',
-          background: 'linear-gradient(90deg, transparent, var(--spotlight), transparent)',
-          animation: 'scanner-sweep 2s linear infinite',
-          zIndex: 5,
-        }} />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-          {lines.map((line, idx) => {
-            const isVisible = idx < visibleCount;
-            const isActive = idx === visibleCount - 1;
-            return (
-              <div
-                key={idx}
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 'var(--text-xs)',
-                  color: isActive ? 'var(--spotlight)' : isVisible ? 'var(--paper)' : 'var(--paper-dimmer)',
-                  opacity: isVisible ? 1 : 0.3,
-                  transform: isVisible ? 'translateY(0)' : 'translateY(6px)',
-                  transition: 'all 250ms var(--ease)',
-                  letterSpacing: '0.02em',
-                }}
-              >
-                {line}
-                {isActive && showCursor && (
-                  <span style={{
-                    display: 'inline-block',
-                    marginLeft: '2px',
-                    animation: 'prompter-caret 1s infinite',
-                    color: 'var(--spotlight)',
-                  }}>█</span>
-                )}
-              </div>
-            );
-          })}
+          fontFamily: 'var(--font-mono)',
+          fontSize: '10px',
+          color: 'var(--spotlight)',
+          letterSpacing: '0.12em',
+          textTransform: 'uppercase',
+          marginBottom: '12px',
+          fontWeight: 700,
+        }}>
+          ATS VALIDATOR ACTIVE
         </div>
+        <h2 style={{
+          fontSize: '22px',
+          fontWeight: 800,
+          letterSpacing: '-0.02em',
+          marginBottom: '24px',
+          color: '#ffffff',
+          fontFamily: 'var(--font-sans)',
+        }}>
+          Analyzing candidate profile
+        </h2>
+        
+        {/* Terminal Container */}
+        <div style={{
+          position: 'relative',
+          backgroundColor: 'rgba(0,0,0,0.35)',
+          borderRadius: '16px',
+          padding: '24px',
+          border: '1px solid var(--card-border)',
+          overflow: 'hidden',
+          minHeight: '220px',
+        }}>
+          {/* Scanning laser sweep bar */}
+          <div className="laser-sweep-line" />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {lines.map((line, idx) => {
+              const isVisible = idx < visibleCount;
+              const isActive = idx === visibleCount - 1;
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '12px',
+                    color: isActive ? 'var(--spotlight)' : isVisible ? 'var(--paper)' : 'var(--paper-dimmer)',
+                    opacity: isVisible ? 1 : 0.35,
+                    transform: isVisible ? 'translateY(0)' : 'translateY(4px)',
+                    transition: 'all 200ms var(--ease)',
+                    letterSpacing: '0.02em',
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {line}
+                  {isActive && showCursor && (
+                    <span style={{
+                      display: 'inline-block',
+                      marginLeft: '2px',
+                      animation: 'prompter-caret 1s infinite',
+                      color: 'var(--spotlight)',
+                    }}>█</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: '11px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', paddingTop: '20px' }}>
+        Please wait while we verify your alignment to {targetRole}...
       </div>
     </div>
   );
 }
 
-/* ── Drop zone ── */
 function DropZone({ file, onFile, onRemove }) {
   const [isDrag, setIsDrag] = useState(false);
+  const [isHover, setIsHover] = useState(false);
   const inputRef = useRef(null);
 
   const handleDrag = (e) => {
@@ -175,10 +190,22 @@ function DropZone({ file, onFile, onRemove }) {
       onDragLeave={handleDrag}
       onDrop={handleDrop}
       onClick={() => inputRef.current?.click()}
+      onMouseEnter={() => setIsHover(true)}
+      onMouseLeave={() => setIsHover(false)}
       style={{
-        height: '180px',
-        background: isDrag ? 'rgba(242, 184, 75, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-        border: `1.5px dashed ${isDrag ? 'var(--spotlight)' : 'var(--card-border)'}`,
+        height: '160px',
+        background: isDrag 
+          ? 'rgba(242, 184, 75, 0.08)' 
+          : isHover 
+            ? 'rgba(255, 255, 255, 0.03)' 
+            : 'rgba(255, 255, 255, 0.02)',
+        borderWidth: '1.5px',
+        borderStyle: 'dashed',
+        borderColor: isDrag 
+          ? 'var(--spotlight)' 
+          : isHover 
+            ? 'rgba(255, 255, 255, 0.25)' 
+            : 'var(--card-border)',
         borderRadius: '12px',
         display: 'flex',
         flexDirection: 'column',
@@ -187,18 +214,6 @@ function DropZone({ file, onFile, onRemove }) {
         gap: 'var(--space-2)',
         cursor: 'pointer',
         transition: 'all 0.3s var(--ease)',
-      }}
-      onMouseEnter={e => {
-        if (!isDrag) {
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
-        }
-      }}
-      onMouseLeave={e => {
-        if (!isDrag) {
-          e.currentTarget.style.borderColor = 'var(--card-border)';
-          e.currentTarget.style.background = 'transparent';
-        }
       }}
     >
       <input
@@ -234,112 +249,121 @@ function DropZone({ file, onFile, onRemove }) {
   );
 }
 
-/* ── Result card ── */
-function ResultCard({ result, targetRole, navigate }) {
+/* ── Result details ── */
+function ResultDetails({ result, targetRole, navigate }) {
   const isPass = result.decision === 'pass';
   const score = Math.round(result.ats_score);
-  const borderColor = isPass ? 'var(--success)' : 'var(--danger)';
-  const scoreColor = isPass ? 'var(--success)' : 'var(--danger)';
+  const scoreColor = isPass ? 'var(--prompter-green)' : 'var(--rec-red)';
 
   return (
-    <Card elevated style={{ borderLeft: `4px solid ${borderColor}`, padding: '32px', animation: 'fadeIn 0.5s var(--ease)', background: 'var(--panel-bg)' }}>
-      {/* Score row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
-        <div>
-          <div style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: '10px',
-            color: 'var(--paper-dimmer)',
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            marginBottom: '8px',
-            fontWeight: 600,
-          }}>ATS compatibility match</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-            <span style={{
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '380px', justifyContent: 'space-between', animation: 'fadeIn 0.5s var(--ease)', flex: 1 }}>
+      <div>
+        {/* Score header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+          <div>
+            <div style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: '48px',
-              fontWeight: 800,
-              color: scoreColor,
-              fontVariantNumeric: 'tabular-nums',
-              lineHeight: 1,
-            }}>{score}</span>
-            <span style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '20px',
+              fontSize: '10px',
               color: 'var(--paper-dimmer)',
-              fontWeight: 500,
-            }}>/100</span>
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              marginBottom: '6px',
+              fontWeight: 700,
+            }}>ATS compatibility match</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span className={isPass ? "text-glow-green" : "text-glow-red"} style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '44px',
+                fontWeight: 800,
+                color: scoreColor,
+                fontVariantNumeric: 'tabular-nums',
+                lineHeight: 1,
+              }}>{score}</span>
+              <span style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '18px',
+                color: 'var(--paper-dimmer)',
+                fontWeight: 500,
+              }}>/100</span>
+            </div>
           </div>
+          <Badge variant={isPass ? 'success' : 'danger'}>
+            {isPass ? 'QUALIFIED' : 'NOT QUALIFIED'}
+          </Badge>
         </div>
-        <Badge variant={isPass ? 'success' : 'danger'}>
-          {isPass ? 'QUALIFIED' : 'NOT QUALIFIED'}
-        </Badge>
+
+        <div style={{ borderTop: '1px solid var(--card-border)', margin: '20px 0' }} />
+
+        {result.matched_skills?.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
+              Matched skills
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {result.matched_skills.map((skill, sIdx) => (
+                <span key={sIdx} className="glow-green" style={{ fontSize: '11px', background: 'rgba(62, 207, 142, 0.08)', color: 'var(--prompter-green)', border: '1px solid rgba(62, 207, 142, 0.2)', padding: '4px 8px', borderRadius: '6px', fontFamily: 'var(--font-mono)', boxShadow: '0 0 10px rgba(62, 207, 142, 0.15)' }}>
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.missing_skills?.length > 0 && (
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 700 }}>
+              Missing skills
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {result.missing_skills.map((skill, sIdx) => (
+                <span key={sIdx} className="glow-red" style={{ fontSize: '11px', background: 'rgba(239, 68, 68, 0.08)', color: 'var(--rec-red)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '4px 8px', borderRadius: '6px', fontFamily: 'var(--font-mono)', boxShadow: '0 0 10px rgba(226, 72, 61, 0.15)' }}>
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isPass && (
+          <p style={{ fontSize: '13px', color: 'var(--paper-dim)', marginBottom: '24px', lineHeight: 1.6 }}>
+            Your profile is currently missing core skill alignments required for the {targetRole} track. Refine your resume and try again.
+          </p>
+        )}
       </div>
 
-      <div style={{ borderTop: '1px solid var(--card-border)', margin: '20px 0' }} />
-
-      {result.matched_skills?.length > 0 && (
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 600 }}>
-            Matched skills
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {result.matched_skills.map((skill, sIdx) => (
-              <span key={sIdx} style={{ fontSize: '11px', background: 'var(--success-subtle)', color: 'var(--success)', border: '1px solid rgba(62, 207, 142, 0.2)', padding: '3px 8px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>
-                {skill}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {result.missing_skills?.length > 0 && (
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: 600 }}>
-            Missing skills
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {result.missing_skills.map((skill, sIdx) => (
-              <span key={sIdx} style={{ fontSize: '11px', background: 'var(--danger-subtle)', color: 'var(--danger)', border: '1px solid rgba(226, 72, 61, 0.2)', padding: '3px 8px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>
-                {skill}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!isPass && (
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--paper-dim)', marginBottom: '24px', lineHeight: 1.6 }}>
-          Your profile is currently missing core skill alignments required for the {targetRole} track. Refine your resume and try again.
-        </p>
-      )}
-
-      {isPass ? (
-        <Button variant="primary" size="lg" fullWidth onClick={() => navigate(`/lobby/${result.candidate_id}`)}>
-          Proceed to interview room →
-        </Button>
-      ) : (
-        <Button variant="outline" size="lg" fullWidth onClick={() => window.location.reload()}>
-          Try another role track
-        </Button>
-      )}
-    </Card>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {isPass ? (
+          <Button variant="primary" size="lg" fullWidth onClick={() => navigate(`/lobby/${result.candidate_id}`)}>
+            Proceed to interview room →
+          </Button>
+        ) : (
+          <Button variant="outline" size="lg" fullWidth onClick={() => window.location.reload()}>
+            Try another role track
+          </Button>
+        )}
+      </div>
+    </div>
   );
 }
 
 export default function Upload() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const setCandidate = useInterviewStore((state) => state.setCandidate);
 
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [targetRole, setTargetRole] = useState('Software Engineer');
+  const [targetRole, setTargetRole] = useState('');
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+
+  const [coords, setCoords] = useState({ x: 50, y: 50 });
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setCoords({ x, y });
+  };
 
   const validateAndSetFile = (f) => {
     setError('');
@@ -349,14 +373,14 @@ export default function Upload() {
     setFile(f);
   };
 
-  const handleNextStep = () => {
-    if (!name.trim() || !email.trim()) { setError('All fields are required.'); return; }
-    setError(''); setStep(2);
-  };
-
   const handleAnalyze = async () => {
+    if (!targetRole) { setError('Please select a target role.'); return; }
     if (!file) { setError('Please select a resume file.'); return; }
     setLoading(true); setError('');
+
+    const name = user?.full_name || 'Unknown';
+    const email = user?.email || '';
+
     const formData = new FormData();
     formData.append('name', name);
     formData.append('email', email);
@@ -373,15 +397,11 @@ export default function Upload() {
         role: targetRole, atsScore: data.ats_score,
         status: data.decision === 'pass' ? 'screened' : 'rejected'
       });
-      setStep('result');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Analysis failed. Please retry.');
+      setError(err.message || 'Analysis failed. Please retry.');
     } finally {
       setLoading(false);
     }
   };
-
-  const stepLabel = step === 1 ? '1' : step === 2 ? '2' : '2';
 
   return (
     <div style={{
@@ -391,133 +411,148 @@ export default function Upload() {
       display: 'flex',
       flexDirection: 'column',
       fontFamily: 'var(--font-sans)',
+      position: 'relative',
+      overflow: 'hidden',
     }}>
+      {/* Background Glowing Orbs */}
+      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(232, 201, 109, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+
       <Navbar />
 
       <main style={{
         flex: 1,
-        maxWidth: '540px',
+        maxWidth: '580px',
         width: '100%',
         margin: '0 auto',
         padding: 'var(--space-12) var(--space-6)',
+        position: 'relative',
+        zIndex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
       }}>
-        {/* Loading state */}
-        {loading ? (
-          <TerminalLoader targetRole={targetRole} />
-        ) : result ? (
-          <ResultCard result={result} targetRole={targetRole} navigate={navigate} />
-        ) : (
-          <div style={{ animation: 'fadeIn 0.4s var(--ease)' }}>
-            {/* Step indicator */}
-            <div style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
-              color: 'var(--spotlight)',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
-              marginBottom: '12px',
-              fontWeight: 700,
-            }}>
-              STEP {stepLabel} / 2
-            </div>
+        <div 
+          onMouseMove={handleMouseMove}
+          className="glass-panel"
+          style={{ 
+            position: 'relative',
+            animation: 'fadeIn 0.4s var(--ease)',
+            padding: '40px 36px',
+            minHeight: '480px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Radial Spotlight Glow */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: `radial-gradient(circle 220px at ${coords.x}% ${coords.y}%, rgba(242, 184, 75, 0.045), transparent 75%)`,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }} />
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', height: '100%', flex: 1, justifyContent: 'space-between' }}>
+          {/* Loading state */}
+          {loading ? (
+            <TerminalLoader targetRole={targetRole} />
+          ) : result ? (
+            <ResultDetails result={result} targetRole={targetRole} navigate={navigate} />
+          ) : (
+            <>
+              <div>
+                {/* Greeting chip */}
+                <div style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10px',
+                  color: 'var(--spotlight)',
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  marginBottom: '12px',
+                  fontWeight: 700,
+                }}>
+                  CANDIDATE PORTAL
+                </div>
 
-            {/* Page title */}
-            <h1 style={{
-              fontSize: 'var(--text-xl)',
-              fontWeight: 800,
-              letterSpacing: '-0.02em',
-              marginBottom: '10px',
-              fontFamily: 'var(--font-sans)',
-              color: '#ffffff',
-            }}>
-              {step === 1 ? 'Tell us about yourself' : 'Upload your resume'}
-            </h1>
-            <p style={{
-              fontSize: 'var(--text-sm)',
-              color: 'var(--paper-dim)',
-              marginBottom: '36px',
-              lineHeight: 1.5,
-            }}>
-              {step === 1
-                ? 'We need a few details before we can launch your custom assessment workspace.'
-                : 'Upload your experience outline so our AI evaluator can score ATS compatibility.'}
-            </p>
+                {/* Page title */}
+                <h1 style={{
+                  fontSize: '24px',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                  marginBottom: '10px',
+                  fontFamily: 'var(--font-sans)',
+                  color: '#ffffff',
+                }}>
+                  Upload your resume
+                </h1>
+                <p style={{
+                  fontSize: '14px',
+                  color: 'var(--paper-dim)',
+                  marginBottom: '32px',
+                  lineHeight: 1.6,
+                }}>
+                  Select your target role and upload your resume so our AI evaluator can score ATS compatibility.
+                </p>
 
-            {/* Error */}
-            {error && (
-              <div style={{
-                padding: '12px 16px',
-                background: 'var(--danger-subtle)',
-                border: '1px solid var(--danger)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: 'var(--text-sm)',
-                color: 'var(--rec-red)',
-                marginBottom: '20px',
-                fontWeight: 500,
-                animation: 'fadeIn 0.2s var(--ease)',
-              }}>
-                ⚠️ {error}
+                {/* Error */}
+                {error && (
+                  <div style={{
+                    padding: '12px 16px',
+                    background: 'var(--danger-subtle)',
+                    border: '1px solid var(--danger)',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    color: 'var(--rec-red)',
+                    marginBottom: '20px',
+                    fontWeight: 500,
+                    animation: 'fadeIn 0.2s var(--ease)',
+                  }}>
+                    ⚠️ {error}
+                  </div>
+                )}
+
+                {/* Single-step form */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <Select
+                    label="Target role"
+                    value={targetRole}
+                    onChange={setTargetRole}
+                    options={ROLES}
+                    placeholder="Select a role..."
+                  />
+                  <DropZone
+                    file={file}
+                    onFile={validateAndSetFile}
+                    onRemove={() => setFile(null)}
+                  />
+                </div>
               </div>
-            )}
 
-            {/* Step 1 */}
-            {step === 1 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <Input
-                  label="Full name"
-                  placeholder="e.g. Jane Smith"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                />
-                <Input
-                  label="Email address"
-                  type="email"
-                  placeholder="e.g. jane@example.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                />
-                <Select
-                  label="Target role"
-                  value={targetRole}
-                  onChange={setTargetRole}
-                  options={ROLES}
-                />
-                <Button variant="primary" size="lg" fullWidth onClick={handleNextStep} style={{ marginTop: '10px' }}>
-                  Continue to resume upload →
-                </Button>
-              </div>
-            )}
-
-            {/* Step 2 */}
-            {step === 2 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                <DropZone
-                  file={file}
-                  onFile={validateAndSetFile}
-                  onRemove={() => setFile(null)}
-                />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '32px' }}>
                 <Button
                   variant="primary"
                   size="lg"
                   fullWidth
-                  disabled={!file}
+                  disabled={!file || !targetRole}
                   onClick={handleAnalyze}
-                  style={{ marginTop: '10px' }}
                 >
                   Analyze resume & score matching →
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setStep(1)}
+                  onClick={() => navigate(-1)}
                   style={{ alignSelf: 'center' }}
                 >
                   ← Go Back
                 </Button>
               </div>
-            )}
+            </>
+          )}
           </div>
-        )}
+        </div>
       </main>
       
       <style>{`

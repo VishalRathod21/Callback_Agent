@@ -6,7 +6,7 @@ const ChevronIcon = () => (
   </svg>
 );
 
-export default function Select({ label, value, onChange, options = [], error, hint, style }) {
+export default function Select({ label, value, onChange, options = [], error, hint, placeholder, style }) {
   const [focused, setFocused] = useState(false);
 
   const handleChange = (e) => {
@@ -55,6 +55,11 @@ export default function Select({ label, value, onChange, options = [], error, hi
             ...style,
           }}
         >
+          {placeholder && (
+            <option value="" disabled style={{ color: 'var(--paper-dimmer)' }}>
+              {placeholder}
+            </option>
+          )}
           {options.map((opt) => {
             const val = typeof opt === 'string' ? opt : opt.value;
             const lab = typeof opt === 'string' ? opt : opt.label;

@@ -400,11 +400,12 @@ class InterviewOrchestrator:
 
         return state
 
-    async def get_state(self, session_id: str) -> InterviewState:
+    async def get_state(self, session_id: str, db = None) -> InterviewState:
         """Retrieve the current state of an interview session.
 
         Args:
             session_id: UUID of the session to look up.
+            db: Optional AsyncSession to restore session if not found in memory.
 
         Returns:
             The current InterviewState.
@@ -413,6 +414,138 @@ class InterviewOrchestrator:
             KeyError: If no session with the given ID exists.
         """
         if session_id not in self._sessions:
-            raise KeyError(f"No active session found with ID: {session_id}")
+            if db is not None:
+                await self.restore_session(session_id, db)
+            else:
+                raise KeyError(f"No active session found with ID: {session_id}")
 
         return self._sessions[session_id]
+
+    async def restore_session(self, session_id: str, db) -> None:
+        """Restore an interview session state from the database.
+
+        Args:
+            session_id: UUID of the session to look up.
+            db: AsyncSession to query the database.
+        """
+        import json
+        import random
+        from sqlalchemy import select
+        from core.models import InterviewSession, Candidate, RoundTranscript, RoundName, SessionStatus
+
+        try:
+            sid = uuid.UUID(session_id)
+        except ValueError:
+            raise KeyError(f"Invalid session ID format: {session_id}")
+
+        session = await db.get(InterviewSession, sid)
+        if not session:
+            raise KeyError(f"No session found in DB with ID: {session_id}")
+
+        candidate = await db.get(Candidate, session.candidate_id)
+        if not candidate:
+            raise KeyError(f"No candidate found for session: {session_id}")
+
+        # Try to retrieve resume text from ChromaDB or disk fallback
+        resume_text = ""
+        try:
+            from services.chroma_service import _collection
+            res = _collection.get(ids=[str(candidate.id)])
+            if res and res["documents"]:
+                resume_text = res["documents"][0]
+        except Exception as exc:
+            logger.warning("Failed to retrieve resume from ChromaDB: %s", exc)
+
+        if not resume_text and candidate.resume_path:
+            from services import resume_parser
+            try:
+                parsed = await resume_parser.parse_resume(candidate.resume_path)
+                resume_text = parsed.get("raw_text", "")
+            except Exception as exc:
+                logger.error("Failed to parse resume from disk fallback: %s", exc)
+
+        current_round_str = session.current_round.value
+        # Reconstruct rounds queue based on current round
+        if current_round_str == "dsa":
+            rounds_queue = ["technical", "hr"]
+        elif current_round_str == "technical":
+            rounds_queue = ["hr"]
+        else:
+            rounds_queue = []
+
+        # Get round transcripts to recover completed rounds, scores, and dsa submissions
+        transcripts_result = await db.execute(
+            select(RoundTranscript)
+            .where(RoundTranscript.session_id == sid)
+            .order_by(RoundTranscript.created_at.asc())
+        )
+        transcripts = list(transcripts_result.scalars().all())
+
+        round_scores = session.round_scores or {}
+        round_transcripts = {}
+        dsa_submissions = []
+        dsa_problems_completed = 0
+
+        for t in transcripts:
+            if t.round_name == "dsa":
+                try:
+                    data = json.loads(t.transcript)
+                    if isinstance(data, dict) and "evaluation" in data:
+                        dsa_submissions.append(data["evaluation"])
+                        dsa_problems_completed += 1
+                except Exception:
+                    pass
+            else:
+                if t.round_name not in round_scores and t.score is not None:
+                    round_scores[t.round_name] = float(t.score)
+                round_transcripts[t.round_name] = {
+                    "transcript": t.transcript,
+                    "evaluation": t.ai_evaluation,
+                    "score": t.score,
+                    "completed_at": t.created_at.isoformat() if t.created_at else None
+                }
+
+        personas = [
+            {
+                "name": "Senior Staff Engineer",
+                "description": "Direct and rigorous. Focuses on code efficiency, correctness, cleanliness, and direct feedback."
+            },
+            {
+                "name": "Collaborative Mentor",
+                "description": "Encourages discussion, friendly, supportive, and asks guiding questions to help the candidate arrive at the solution."
+            },
+            {
+                "name": "Deep-Dive Architect",
+                "description": "Constantly asks 'why', explores scalability, system design tradeoffs, design patterns, and alternative architectures."
+            },
+            {
+                "name": "Fast-Paced Startup Interviewer",
+                "description": "Moves rapidly between topics, focuses on speed, delivery, pragmatism, and quick, practical problem-solving."
+            },
+            {
+                "name": "Research-Oriented Interviewer",
+                "description": "Focuses heavily on fundamental reasoning, first-principles thinking, complexity theory, and theoretical understanding."
+            }
+        ]
+        selected_persona = random.choice(personas)
+
+        state: InterviewState = {
+            "candidate_id": str(candidate.id),
+            "session_id": session_id,
+            "target_role": candidate.target_role or "Software Engineer",
+            "resume_text": resume_text,
+            "current_round": current_round_str,
+            "rounds_queue": rounds_queue,
+            "round_scores": round_scores,
+            "round_transcripts": round_transcripts,
+            "overall_score": session.overall_score or 0.0,
+            "status": session.status.value,
+            "last_message": "Restored from database.",
+            "dsa_problems_total": 2,
+            "dsa_problems_completed": dsa_problems_completed,
+            "dsa_submissions": dsa_submissions,
+            "persona": selected_persona
+        }
+
+        self._sessions[session_id] = state
+        logger.info("Restored session state for %s from database.", session_id)

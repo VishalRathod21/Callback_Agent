@@ -38,7 +38,7 @@ async def get_dsa_problem(
 ):
     """Retrieve the current DSA problem. Generates a new one if not yet initialized."""
     try:
-        state = await _orchestrator.get_state(str(session_id))
+        state = await _orchestrator.get_state(str(session_id), db)
     except KeyError:
         raise HTTPException(status_code=404, detail="Interview session not found.")
 
@@ -80,7 +80,7 @@ async def get_dsa_hint(
 ):
     """Get a targeted hint for the current problem based on the candidate's code."""
     try:
-        state = await _orchestrator.get_state(str(session_id))
+        state = await _orchestrator.get_state(str(session_id), db)
     except KeyError:
         raise HTTPException(status_code=404, detail="Interview session not found.")
 
@@ -112,7 +112,7 @@ async def submit_dsa_solution(
 ):
     """Submit a solution for evaluation."""
     try:
-        state = await _orchestrator.get_state(str(session_id))
+        state = await _orchestrator.get_state(str(session_id), db)
     except KeyError:
         raise HTTPException(status_code=404, detail="Interview session not found.")
 

@@ -124,6 +124,6 @@ async def test_dynamic_difficulty_and_fallback():
         session_id=session_id
     )
 
-    assert "indexes" in result["response"].lower()
-    assert result["response"] == "Let's discuss database indexes. Can you explain the difference between a clustered and non-clustered index, and how they impact read/write performance?"
+    assert "garbage collection" in result["response"].lower()
+    assert result["response"] == "Can you explain how garbage collection works in your language of choice (e.g., Python's reference counting/generational collection vs. Go's concurrent mark-and-sweep or Java's G1GC), and how it impacts application latency?"
     assert result["should_continue"] is True

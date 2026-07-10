@@ -1,785 +1,720 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from '../api/client';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { useInterviewStore } from '../store/interviewStore';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import Badge from '../components/ui/Badge';
-import StatusIndicator from '../components/ui/StatusIndicator';
 
-function AudioVisualizer({ analyser, isRecording, isMuted }) {
-  const canvasRef = useRef(null);
+// ── TYPEWRITER HOOK ──
+function useTypewriter(text, isActive) {
+  const [displayed, setDisplayed] = useState('');
+  const indexRef = useRef(0);
+  const timerRef = useRef(null);
 
   useEffect(() => {
-    if (!analyser || !isRecording || isMuted) {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, canvas.height / 2);
-        ctx.lineTo(canvas.width, canvas.height / 2);
-        ctx.stroke();
-      }
+    if (!isActive || !text) {
+      setDisplayed(text || '');
+      indexRef.current = text?.length || 0;
       return;
     }
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    let animationId;
-
-    const draw = () => {
-      animationId = requestAnimationFrame(draw);
-      analyser.getByteTimeDomainData(dataArray);
-
-      ctx.fillStyle = '#151515';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Draw subtle grid line
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height / 2);
-      ctx.lineTo(canvas.width, canvas.height / 2);
-      ctx.stroke();
-
-      // Draw wave
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#f2b84b'; // var(--spotlight)
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = 'rgba(242, 184, 75, 0.5)';
-      ctx.beginPath();
-
-      const sliceWidth = canvas.width * 1.0 / bufferLength;
-      let x = 0;
-
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = v * canvas.height / 2;
-
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-
-        x += sliceWidth;
+    // Reset and start typing
+    setDisplayed('');
+    indexRef.current = 0;
+    const type = () => {
+      if (indexRef.current < text.length) {
+        indexRef.current++;
+        setDisplayed(text.slice(0, indexRef.current));
+        const ch = text[indexRef.current - 1];
+        const delay = ['.','?','!',','].includes(ch) ? 180 : 25 + Math.random() * 15;
+        timerRef.current = setTimeout(type, delay);
       }
-
-      ctx.lineTo(canvas.width, canvas.height / 2);
-      ctx.stroke();
-      ctx.shadowBlur = 0; // reset
     };
+    timerRef.current = setTimeout(type, 200);
+    return () => clearTimeout(timerRef.current);
+  }, [text, isActive]);
 
-    draw();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-    };
-  }, [analyser, isRecording, isMuted]);
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={600}
-      height={80}
-      style={{
-        width: '100%',
-        height: '80px',
-        borderRadius: '12px',
-        background: '#151515',
-        border: '1px solid var(--card-border)',
-        boxShadow: 'inset 0 2px 8px rgba(0, 0, 0, 0.8)',
-      }}
-    />
-  );
+  const isDone = displayed.length >= (text?.length || 0);
+  return { displayed, isDone };
 }
 
-const ROUNDS_META = [
-  { key: 'dsa',       name: 'DSA Algorithmic',     short: 'DSA' },
-  { key: 'technical', name: 'Systems & Architecture', short: 'TECH' },
-  { key: 'hr',        name: 'STAR HR Behavioural',  short: 'HR' },
+// ── SVG ICONS ──
+const MicIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="2" width="6" height="11" rx="3"/>
+    <path d="M5 10a7 7 0 0 0 14 0"/>
+    <line x1="12" y1="19" x2="12" y2="22"/>
+    <line x1="8" y1="22" x2="16" y2="22"/>
+  </svg>
+);
+
+const MicOffIcon = ({ size = 20, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="1" y1="1" x2="23" y2="23"/>
+    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"/>
+    <path d="M17 16.95A7 7 0 0 1 5 10v-1m14 0v1a7 7 0 0 1-.11 1.23"/>
+    <line x1="12" y1="19" x2="12" y2="22"/>
+    <line x1="8" y1="22" x2="16" y2="22"/>
+  </svg>
+);
+
+const AIIcon = ({ size = 28, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke={color} strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a4 4 0 0 1 4 4v1h1a3 3 0 0 1 0 6h-1v1a4 4 0 0 1-8 0v-1H7a3 3 0 0 1 0-6h1V6a4 4 0 0 1 4-4z"/>
+    <circle cx="9" cy="9" r="1" fill={color}/>
+    <circle cx="15" cy="9" r="1" fill={color}/>
+    <path d="M9 14s1 1 3 1 3-1 3-1"/>
+  </svg>
+);
+
+const UserIcon = ({ size = 28, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke={color} strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="7" r="4"/>
+    <path d="M4 21v-1a8 8 0 0 1 16 0v1"/>
+  </svg>
+);
+
+const SendIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13"/>
+    <polygon points="22,2 15,22 11,13 2,9"/>
+  </svg>
+);
+
+// Thinking messages list
+const THINKING_MESSAGES = [
+  "Analyzing your answer",
+  "Structuring follow-up",
+  "Preparing next question",
+  "Formulating perspective"
 ];
 
 export default function InterviewRoom() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const stateData = location.state || {};
 
-  const [activeRound, setActiveRound] = useState('');
-  const [roundStarted, setRoundStarted] = useState(false);
-  const [sessionSeconds, setSessionSeconds] = useState(0);
-  const [roundSeconds, setRoundSeconds] = useState(0);
-  const [currentQuestion, setCurrentQuestion] = useState('Interviewer is connecting...');
-  const [roundCompleteInfo, setRoundCompleteInfo] = useState(null);
-  const [typedAnswer, setTypedAnswer] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [shouldAutoEnd, setShouldAutoEnd] = useState(false);
-  const [aiSpeaking, setAiSpeaking] = useState(false);
-  const [voiceMode, setVoiceMode] = useState(true);
+  // State
+  const [currentRound, setCurrentRound] = useState(stateData.currentRound || 'technical');
+  const [targetRole, setTargetRole] = useState(stateData.targetRole || 'Software Engineer');
+  const [resumeContext, setResumeContext] = useState(stateData.resumeContext || '');
+  const [candidateId, setCandidateId] = useState(stateData.candidateId);
+  const [transcript, setTranscript] = useState([]);
+  const [currentQuestion, setCurrentQuestion] = useState('');
+  const [turnState, setTurnState] = useState('idle');
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [textInput, setTextInput] = useState('');
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(0);
+  const [typingQuestion, setTypingQuestion] = useState('');
+  
+  // Thinking status loop
+  const [thinkingIndex, setThinkingIndex] = useState(0);
 
-  const candidate = useInterviewStore(s => s.candidate);
-  const session = useInterviewStore(s => s.session);
-  const transcript = useInterviewStore(s => s.transcript);
-  const setSession = useInterviewStore(s => s.setSession);
-  const addTranscript = useInterviewStore(s => s.addTranscript);
-  const setRecording = useInterviewStore(s => s.setRecording);
-  const setConnected = useInterviewStore(s => s.setConnected);
+  // Cycle thinking message
+  useEffect(() => {
+    if (turnState !== 'processing') return;
+    const interval = setInterval(() => {
+      setThinkingIndex(prev => (prev + 1) % THINKING_MESSAGES.length);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, [turnState]);
 
-  const roundTimerRef = useRef(null);
-  const transcriptEndRef = useRef(null);
+  // Fetch session parameters on reload if location.state is lost
+  useEffect(() => {
+    if (!candidateId) {
+      axios.get(`/interviews/${sessionId}`)
+        .then((res) => {
+          const data = res.data;
+          if (data.candidate_id) setCandidateId(data.candidate_id);
+          if (data.current_round) setCurrentRound(data.current_round);
+          if (data.target_role) setTargetRole(data.target_role);
+          if (data.resume_text) setResumeContext(data.resume_text);
+        })
+        .catch((err) => console.error('[InterviewRoom] Failed to fetch session:', err));
+    }
+  }, [sessionId, candidateId]);
+
+  // Refs
+  const videoRef        = useRef(null);
+  const cameraStreamRef = useRef(null);
+  const transcriptRef   = useRef(null);
   const roundStartedRef = useRef(false);
   const audioUnlockedRef = useRef(false);
+  const barRefsArr      = useRef([]);
+  const rafRef          = useRef(null);
 
-  useEffect(() => { transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [transcript]);
-  useEffect(() => { const t = setInterval(() => setSessionSeconds(p => p + 1), 1000); return () => clearInterval(t); }, []);
+  // Typewriter — active when AI is speaking
+  const { displayed: typedQuestion, isDone: typingDone } = useTypewriter(
+    typingQuestion,
+    turnState === 'ai_speaking'
+  );
 
+  // When new question arrives, trigger typewriter
   useEffect(() => {
-    const check = async () => {
-      try {
-        const r = await axios.get(`/interviews/${sessionId}`);
-        const d = r.data;
-        setSession({ id: d.session_id, currentRound: d.current_round, roundScores: d.round_scores, status: d.status });
-        if (d.current_round === 'dsa') navigate(`/interview/${sessionId}/dsa`, { replace: true });
-        else setActiveRound(d.current_round);
-      } catch (e) { console.error('Session sync failed:', e); }
-    };
-    check();
-  }, [sessionId, navigate, setSession]);
+    if (currentQuestion) setTypingQuestion(currentQuestion);
+  }, [currentQuestion]);
 
-  const handleInterviewComplete = () => { candidate?.id ? navigate(`/report/${candidate.id}`) : navigate('/'); };
+  // Timer
+  useEffect(() => {
+    const id = setInterval(() => setElapsedSec(s => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
+  const formatTime = s => {
+    const m = String(Math.floor(s / 60)).padStart(2, '0');
+    const sec = String(s % 60).padStart(2, '0');
+    return `${m}:${sec}`;
+  };
+
+  // Camera stream setup
+  useEffect(() => {
+    navigator.mediaDevices.getUserMedia({
+      video: { width: 320, height: 240, facingMode: 'user' },
+      audio: false,
+    })
+    .then(stream => {
+      cameraStreamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+      setCameraReady(true);
+    })
+    .catch(() => setCameraError(true));
+    return () => cameraStreamRef.current?.getTracks().forEach(t => t.stop());
+  }, []);
+
+  // WebSocket + audio hook
   const {
-    isConnected, connectionStatus, isRecording, hasPermission, isMuted, toggleMute, analyser,
-    startRound, startRecording, stopRecording, stopAudioPlayback, endRound, unlockAudioContext, submitTypedAnswer
+    isConnected, status, isRecording, hasPermission, isSpeaking,
+    startRound, sendText, endRound, startRecording, stopRecording, destroyAll,
   } = useWebSocket({
     sessionId,
-    onTranscript: (msg) => { if (voiceMode || msg.speaker !== 'candidate') addTranscript(msg); },
-    onAIResponse: (msg) => {
-      setCurrentQuestion(msg.text);
-      addTranscript({ speaker: 'interviewer', text: msg.text });
-      setIsAnalyzing(false);
-      setAiSpeaking(true);
-      setTimeout(() => setAiSpeaking(false), 3000);
+    onAITranscript: ({ text }) => {
+      setCurrentQuestion(text);
+      addTranscript('interviewer', text);
     },
+    onCandidateTranscript: ({ text }) => addTranscript('candidate', text),
+    onStateChange: (state) => setTurnState(state),
     onRoundComplete: (data) => {
-      const cs = useInterviewStore.getState().session;
-      const ss = useInterviewStore.getState().setSession;
-      const rn = cs?.currentRound || 'dsa';
-      ss({ ...cs, roundScores: { ...(cs?.roundScores || {}), [rn]: data.score }, currentRound: data.next_round, status: 'completed' });
-      setRoundCompleteInfo({ score: data.score, feedback: data.feedback, nextRound: data.next_round });
-      setIsAnalyzing(false);
+      stopRecording();
+      const nextR = data.next_round;
+      if (nextR && nextR !== 'complete') {
+        setCurrentRound(nextR);
+        setTranscript([]);
+        setCurrentQuestion('');
+        setTypingQuestion('');
+        setTurnState('idle');
+        roundStartedRef.current = false;
+      } else {
+        navigate(`/report/${candidateId}`, { state: { roundData: data } });
+      }
     },
-    onInterviewComplete: handleInterviewComplete,
-    onSessionHistory: (msg) => {
-      if (msg.round) { setActiveRound(msg.round); setRoundStarted(true); roundStartedRef.current = true; }
-      if (msg.current_question) setCurrentQuestion(msg.current_question);
-      if (msg.history) useInterviewStore.setState({ transcript: msg.history });
-    },
-    onRoundShouldEnd: () => setShouldAutoEnd(true),
+    onError: (msg) => console.error('[Interview]', msg),
+    volume: v => setVolume(v),
+    muted,
   });
 
-  const handleSubmitTypedAnswer = () => {
-    const t = typedAnswer.trim();
-    if (!t || isAnalyzing) return;
-    setIsAnalyzing(true);
-    addTranscript({ speaker: 'candidate', text: t });
-    submitTypedAnswer(t);
-    setTypedAnswer('');
+  const addTranscript = (speaker, text) => {
+    setTranscript(prev => [...prev, { speaker, text, time: formatTime(elapsedSec) }]);
   };
 
-  useEffect(() => { setRecording(isRecording); }, [isRecording, setRecording]);
-  useEffect(() => { setConnected(isConnected); }, [isConnected, setConnected]);
-
+  // Auto-scroll transcript
   useEffect(() => {
-    if (isConnected && !roundStartedRef.current && activeRound) {
-      roundStartedRef.current = true; setRoundStarted(true);
-      startRound(activeRound, candidate?.target_role || 'Software Engineer', session?.orchestrator_state?.resume_text || '');
-      if (voiceMode) startRecording();
+    transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: 'smooth' });
+  }, [transcript.length]);
+
+  // Auto-start round when connected
+  useEffect(() => {
+    if (isConnected && !roundStartedRef.current) {
+      if (!location.state && !candidateId) return;
+      roundStartedRef.current = true;
+      startRound(currentRound, targetRole, resumeContext);
     }
-  }, [isConnected, activeRound, candidate, session, startRound, startRecording, voiceMode]);
+  }, [isConnected, startRound, currentRound, targetRole, resumeContext, candidateId, location.state]);
 
-  useEffect(() => {
-    if (roundStarted && !roundCompleteInfo) { roundTimerRef.current = setInterval(() => setRoundSeconds(p => p + 1), 1000); }
-    else { if (roundTimerRef.current) clearInterval(roundTimerRef.current); }
-    return () => { if (roundTimerRef.current) clearInterval(roundTimerRef.current); };
-  }, [roundStarted, roundCompleteInfo]);
+  // Cleanup on unmount
+  useEffect(() => () => destroyAll?.(), []);
 
+  // Waveform animation
   useEffect(() => {
-    if (roundCompleteInfo) {
-      const t = setTimeout(() => {
-        setRoundCompleteInfo(null); setRoundStarted(false); roundStartedRef.current = false; setRoundSeconds(0);
-        if (roundCompleteInfo.nextRound && roundCompleteInfo.nextRound !== 'complete') setActiveRound(roundCompleteInfo.nextRound);
-        else setActiveRound('');
-      }, 3500);
-      return () => clearTimeout(t);
+    const bars = barRefsArr.current;
+    let frame = 0;
+    const animate = () => {
+      frame++;
+      bars.forEach((b, i) => {
+        if (!b) return;
+        let h, bg;
+        const wave = Math.sin((i / bars.length) * Math.PI * 2 + frame / 15);
+        const wave2 = Math.sin((i / bars.length) * Math.PI + frame / 20);
+        if (turnState === 'listening' && isRecording && !muted) {
+          const v = volume + 0.05;
+          h = 4 + wave * wave2 * 44 * v * (0.5 + Math.random() * 0.5);
+          bg = 'var(--success)'; // Green
+        } else if (turnState === 'ai_speaking') {
+          h = 6 + (wave * 0.5 + 0.5) * 32;
+          bg = 'var(--accent)'; // Gold
+        } else if (turnState === 'processing') {
+          h = 4; // Flat / still during thinking state
+          bg = 'rgba(255, 255, 255, 0.04)';
+        } else {
+          h = 4 + Math.sin(i * 0.4 + frame / 40) * 2;
+          bg = 'rgba(255, 255, 255, 0.06)';
+        }
+        b.style.height = Math.max(4, Math.min(48, h)) + 'px';
+        b.style.background = bg;
+      });
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [turnState, isRecording, muted, volume]);
+
+  const handleMicToggle = async () => {
+    if (!audioUnlockedRef.current) {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        await ctx.resume();
+        await ctx.close();
+        audioUnlockedRef.current = true;
+      } catch(e) {}
     }
-  }, [roundCompleteInfo]);
-
-  useEffect(() => {
-    if (shouldAutoEnd) {
-      const timer = setTimeout(() => {
-        if (voiceMode) stopRecording();
-        endRound();
-        setShouldAutoEnd(false);
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [shouldAutoEnd, stopRecording, endRound, voiceMode]);
-
-  const handleStartRound = async (rn) => {
-    if (!isConnected) return;
-    if (voiceMode && !audioUnlockedRef.current) { try { await unlockAudioContext(); audioUnlockedRef.current = true; } catch {}  }
-    stopAudioPlayback(); setRoundCompleteInfo(null); setActiveRound(rn); setRoundStarted(true); setRoundSeconds(0);
-    setCurrentQuestion('Interviewer is starting the round...');
-    setSession({ ...session, currentRound: rn, status: 'active' });
-    startRound(rn, candidate?.target_role || 'Software Engineer', session?.orchestrator_state?.resume_text || '');
-    if (voiceMode) startRecording();
+    setMuted(m => !m);
+    if (muted && turnState === 'listening') startRecording();
   };
 
-  const handleEndRound = () => { if (voiceMode) stopRecording(); endRound(); };
+  // State configurations (including Thinking status label states)
+  const stateConfig = {
+    ai_speaking: { label: 'AI SPEAKING', color: 'var(--accent)', pulse: true },
+    listening:   { label: muted ? 'MUTED' : 'LISTENING', color: muted ? 'var(--accent)' : 'var(--success)', pulse: !muted },
+    processing:  { label: THINKING_MESSAGES[thinkingIndex].toUpperCase(), color: 'var(--accent)', pulse: false },
+    idle:        { label: 'CONNECTING', color: 'var(--text-muted)', pulse: false },
+  };
+  const cfg = stateConfig[turnState] || stateConfig.idle;
 
-  const fmt = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60; return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${ss.toString().padStart(2,'0')}`; };
-
-  const activeRoundMeta = ROUNDS_META.find(r => r.key === activeRound);
-  const activeRoundIndex = ROUNDS_META.findIndex(r => r.key === activeRound);
-  const roundLabel = activeRoundMeta
-    ? `ROUND ${activeRoundIndex + 2} / 3 — ${activeRoundMeta.name}`
-    : 'INTERVIEW SESSION';
-
-  if (!isConnected) {
-    return (
-      <div style={{ width: '100vw', height: '100vh', background: 'var(--stage-black)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', fontFamily: 'var(--font-sans)', color: 'var(--paper)' }}>
-        <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2.5px solid var(--card-border)', borderTopColor: 'var(--spotlight)', animation: 'spin 0.8s linear infinite' }} />
-        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>Connecting to interview room...</div>
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)' }}>STATUS: {(connectionStatus || 'CONNECTING').toUpperCase()}</div>
-      </div>
-    );
-  }
+  const BARS = 48;
+  barRefsArr.current = barRefsArr.current.slice(0, BARS);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--stage-black)', color: 'var(--paper)', fontFamily: 'var(--font-sans)', overflow: 'hidden' }}>
+    <div className="landing-root" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div className="noise-overlay" />
+      
+      {/* ── DRIVER AURORA BACKGROUNDS (Dimmed subtly in thinking state) ── */}
+      <div className="aurora-container" style={{ transition: 'opacity 500ms ease' }}>
+        <div className="aurora-blob aurora-1" style={{ opacity: turnState === 'processing' ? 0.04 : 0.08 }} />
+        <div className="aurora-blob aurora-2" style={{ opacity: turnState === 'processing' ? 0.04 : 0.08 }} />
+      </div>
 
-      {/* ── ROW 1: STATUS BAR ── */}
-      <div style={{
-        height: '52px',
-        background: 'var(--panel-bg)',
-        borderBottom: '1px solid var(--card-border)',
-        padding: '0 var(--space-6)',
+      {/* ── TOP BAR (STICKY GLASS) ── */}
+      <div className="glass-panel" style={{
+        height: '56px',
+        borderRadius: 0,
+        borderLeft: 'none',
+        borderRight: 'none',
+        borderTop: 'none',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        padding: '0 24px',
         flexShrink: 0,
+        zIndex: 10,
+        background: 'rgba(10, 10, 11, 0.55)',
+        backdropFilter: 'blur(30px) saturate(180%)'
       }}>
-        {/* Left: REC + timer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span className="rec-dot" style={{ display: 'inline-block', flexShrink: 0 }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--rec-red)', fontWeight: 700, letterSpacing: '0.06em' }}>LIVE REHEARSAL</span>
-          <span className="mono-data" style={{ fontSize: '13px', color: '#ffffff', fontWeight: 600, marginLeft: '6px' }}>{fmt(sessionSeconds)}</span>
+        {/* Left: REC Status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ position: 'relative', width: '8px', height: '8px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--danger)', animation: 'breathing-pulse 1.8s ease-in-out infinite' }} />
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--danger)', fontWeight: 700, letterSpacing: '0.06em' }}>REC</span>
+          </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+            {formatTime(elapsedSec)}
+          </span>
         </div>
 
-        {/* Center */}
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--paper-dim)', letterSpacing: '0.08em', fontWeight: 600 }}>
-          {roundLabel.toUpperCase()}
-        </span>
-
-        {/* Right: connection */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: isConnected ? 'var(--prompter-green)' : 'var(--spotlight)', display: 'inline-block', boxShadow: isConnected ? '0 0 6px var(--prompter-green)' : 'none' }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: isConnected ? 'var(--prompter-green)' : 'var(--spotlight)', fontWeight: 700 }}>
-            {isConnected ? 'STABLE' : 'RECONNECTING'}
+        {/* Center: turn state badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '99px', background: `${cfg.color}08`, border: `1px solid ${cfg.color}25` }}>
+          {cfg.pulse && (
+            <motion.div
+              style={{ width: '6px', height: '6px', borderRadius: '50%', background: cfg.color }}
+              animate={{ opacity: [0.3, 1, 0.3] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            />
+          )}
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', fontWeight: 700, color: cfg.color, letterSpacing: '0.04em' }}>
+            {cfg.label}
           </span>
+        </div>
+
+        {/* Right: Round Info + End Interview */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {currentRound === 'technical' ? 'Technical Round' : 'HR Round'}
+          </span>
+          <button
+            onClick={endRound}
+            style={{
+              height: '30px',
+              padding: '0 14px',
+              background: 'rgba(226, 72, 61, 0.08)',
+              border: '1px solid rgba(226, 72, 61, 0.2)',
+              borderRadius: '6px',
+              color: 'var(--danger)',
+              fontSize: '11px',
+              fontWeight: 600,
+              fontFamily: 'inherit',
+              cursor: 'pointer',
+              transition: 'all 200ms ease'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(226, 72, 61, 0.15)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(226, 72, 61, 0.08)'; }}
+          >
+            End Interview
+          </button>
         </div>
       </div>
 
-      {/* ── ROW 2: MAIN PANEL ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }} className="main-room-split">
-
-        {/* LEFT RAIL */}
-        <div style={{
-          width: '240px',
-          flexShrink: 0,
-          background: 'var(--panel-bg)',
-          borderRight: '1px solid var(--card-border)',
-          padding: '24px 20px',
+      {/* ── MAIN WORKSPACE ── */}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '320px 1fr', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+        
+        {/* ── LEFT SIDEBAR: Camera & Live Transcript ── */}
+        <div className="glass-panel" style={{
+          borderRadius: 0,
+          borderTop: 'none',
+          borderBottom: 'none',
+          borderLeft: 'none',
+          borderRight: '1px solid var(--border-glass)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '24px',
-        }} className="room-left-rail">
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>Evaluation Timeline</div>
-
-          {/* Round timeline */}
-          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            <div style={{ position: 'absolute', left: '3px', top: '10px', bottom: '10px', width: '1.5px', background: 'var(--card-border)' }} />
-
-            {ROUNDS_META.map(r => {
-              const done = session?.roundScores?.[r.key] !== undefined;
-              const act = activeRound === r.key;
-              const status = done ? 'complete' : act ? 'active' : 'idle';
-              return (
-                <div key={r.key} style={{ zIndex: 1 }}>
-                  <StatusIndicator
-                    status={status}
-                    label={r.name}
-                    sublabel={done ? `${Math.round(session.roundScores[r.key])}% Score` : act ? 'In progress' : 'Staged'}
-                  >
-                    {done && <Badge variant="success">{Math.round(session.roundScores[r.key])}%</Badge>}
-                  </StatusIndicator>
-                  {!done && !act && !activeRound && (
-                    <Button variant="outline" size="sm" onClick={() => handleStartRound(r.key)} style={{ marginTop: '8px', marginLeft: '20px', fontSize: '11px', height: '28px', padding: '0 10px' }}>
-                      Start round →
-                    </Button>
-                  )}
+          overflow: 'hidden',
+          background: 'rgba(10, 10, 11, 0.35)',
+          backdropFilter: 'blur(30px) saturate(180%)'
+        }}>
+          {/* Camera Frame */}
+          <div style={{ padding: '16px', borderBottom: '1px solid var(--border-glass)', flexShrink: 0 }}>
+            <div style={{
+              background: '#000',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              aspectRatio: '4/3',
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+              position: 'relative',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+            }}>
+              {!cameraError ? (
+                <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <UserIcon size={24} color="var(--text-muted)" />
+                  </div>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>CAMERA BLOCKED</span>
                 </div>
-              );
-            })}
+              )}
+              {/* Mic state badge overlay */}
+              <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(10,10,11,0.85)', backdropFilter: 'blur(4px)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: isRecording && isSpeaking && !muted ? 'var(--success)' : 'var(--text-muted)' }} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '8px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                  {muted ? 'MUTED' : isRecording ? (isSpeaking ? 'SPEAKING' : 'LISTENING') : 'OFF'}
+                </span>
+              </div>
+            </div>
           </div>
 
-          {/* Session ID */}
-          <div style={{ marginTop: 'auto', borderTop: '1px solid var(--card-border)', paddingTop: '16px' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', fontWeight: 500 }}>
-              SESSION: {sessionId?.substring(0, 12).toUpperCase() || 'N/A'}
+          {/* Transcript Panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', flex: 1 }}>
+            <div style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', borderBottom: '1px solid var(--border-glass)', flexShrink: 0 }}>
+              Live Transcript
+            </div>
+            <div ref={transcriptRef} style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <AnimatePresence initial={false}>
+                {transcript.map((entry, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: entry.speaker === 'interviewer' ? 'var(--accent)' : 'var(--success)' }}>
+                        {entry.speaker === 'interviewer' ? 'AI' : 'YOU'}
+                      </span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)' }}>{entry.time}</span>
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{entry.text}</div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+              
+              {/* Skeleton shimmer line inside live transcript during Thinking state */}
+              {turnState === 'processing' && (
+                <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)' }}>AI</span>
+                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)', animation: 'breathing-pulse 1.2s infinite' }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ height: '8px', width: '90%', borderRadius: '4px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1.5s infinite linear' }} />
+                    <div style={{ height: '8px', width: '70%', borderRadius: '4px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1.5s infinite linear 300ms' }} />
+                  </div>
+                </div>
+              )}
+
+              {transcript.length === 0 && turnState !== 'processing' && (
+                <div style={{ padding: '40px 0', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                  Transcript will stream here...
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* CENTER PANEL */}
-        <div style={{ flex: 1, background: 'transparent', display: 'flex', flexDirection: 'column', padding: '32px', overflow: 'hidden', position: 'relative' }}>
+        {/* ── RIGHT MAIN PANEL: AI Speaker and Waveform ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           
-          {/* Spotlight drift glow */}
-          <div className="spotlight-glow" style={{ top: '30%', left: '50%' }} />
-
-          {/* AI Avatar Orb */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px', flexShrink: 0, zIndex: 2 }}>
-            <div style={{
-              width: '94px', height: '94px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(242, 184, 75, 0.04) 0%, rgba(242, 184, 75, 0.15) 100%)',
-              border: `2px solid ${aiSpeaking ? 'var(--spotlight)' : 'var(--card-border)'}`,
-              boxShadow: aiSpeaking 
-                ? '0 0 35px rgba(242, 184, 75, 0.4), inset 0 0 20px rgba(242, 184, 75, 0.2)' 
-                : '0 8px 30px rgba(0, 0, 0, 0.25)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              position: 'relative',
-              transition: 'all 0.5s var(--ease)',
-              flexShrink: 0,
-            }}
-            >
-              {/* Outer pulsing ring */}
-              <div style={{
-                position: 'absolute',
-                top: '-8px', left: '-8px', right: '-8px', bottom: '-8px',
-                borderRadius: '50%',
-                border: '1.5px solid var(--spotlight)',
-                opacity: aiSpeaking ? 0.65 : 0.2,
-                animation: 'pulse-ring 2.2s cubic-bezier(0.215, 0.610, 0.355, 1) infinite',
-              }} />
-
-              {/* Concentric orbital details */}
-              <div style={{
-                position: 'absolute',
-                top: '12px', left: '12px', right: '12px', bottom: '12px',
-                borderRadius: '50%',
-                border: '1px dashed rgba(242, 184, 75, 0.35)',
-                transform: aiSpeaking ? 'rotate(360deg)' : 'none',
-                animation: aiSpeaking ? 'spin 7s linear infinite' : 'none',
-              }} />
-
-              {/* Core active voice dot */}
-              <div style={{
-                width: '30px', height: '30px',
-                borderRadius: '50%',
-                background: aiSpeaking 
-                  ? 'radial-gradient(circle, var(--spotlight) 0%, var(--stage-black) 80%)'
-                  : 'radial-gradient(circle, var(--paper-dimmer) 0%, var(--panel-bg) 80%)',
-                boxShadow: aiSpeaking ? '0 0 15px var(--spotlight)' : 'none',
-                margin: 'auto',
-              }} />
-            </div>
-            <div style={{ 
-              fontFamily: 'var(--font-mono)', 
-              fontSize: '10px', 
-              color: aiSpeaking ? 'var(--spotlight)' : 'var(--paper-dim)', 
-              marginTop: '12px', 
-              letterSpacing: '0.12em',
-              fontWeight: 700,
-            }}>
-              {aiSpeaking ? 'AI_INTERVIEWER_SPEAKING' : 'PROMPTER_READY'}
-            </div>
-          </div>
-
-          {/* Current question */}
-          <div style={{ textAlign: 'center', marginBottom: '32px', flexShrink: 0, zIndex: 2 }}>
-            <p style={{
-              fontSize: '18px',
-              fontWeight: 500,
-              color: '#ffffff',
-              lineHeight: 1.6,
-              maxWidth: '640px',
-              margin: '0 auto',
-            }}>
-              {activeRound
-                ? (roundStarted ? `"${currentQuestion}"` : `Ready to start the ${activeRoundMeta?.name || activeRound} round.`)
-                : 'Staging workspace. Select a structured round category on the left to begin.'}
-            </p>
-          </div>
-
-          {/* Transcript */}
-          <div style={{ 
-            maxHeight: '320px', 
-            overflowY: 'auto', 
-            borderTop: '1.5px solid var(--card-border)', 
-            flex: 1, 
-            paddingTop: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            zIndex: 2,
-          }}>
-            {transcript.map((item, idx) => {
-              const isCand = item.speaker === 'candidate';
-              return (
-                <div key={idx} style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: isCand ? 'flex-end' : 'flex-start',
-                  width: '100%',
-                  animation: 'fadeIn 0.3s var(--ease) both',
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    color: isCand ? 'var(--prompter-green)' : 'var(--spotlight)',
-                    marginBottom: '4px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em'
-                  }}>
-                    {isCand ? 'You (Candidate)' : 'AI Interviewer'}
-                  </div>
-                  <div style={{ 
-                    fontSize: 'var(--text-sm)', 
-                    color: isCand ? '#ffffff' : 'var(--paper-dim)', 
-                    lineHeight: 1.5,
-                    background: isCand ? 'rgba(62, 207, 142, 0.08)' : 'var(--panel-bg)',
-                    border: `1px solid ${isCand ? 'rgba(62, 207, 142, 0.2)' : 'var(--card-border)'}`,
-                    padding: '10px 16px',
-                    borderRadius: '12px',
-                    maxWidth: '80%',
-                    wordBreak: 'break-word',
-                  }}>
-                    {item.text}
-                  </div>
-                </div>
-              );
-            })}
-            {isAnalyzing && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0' }}>
-                <div style={{ width: '12px', height: '12px', borderRadius: '50%', border: '2px solid var(--card-border)', borderTopColor: 'var(--spotlight)', animation: 'spin 0.8s linear infinite' }} />
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>ANALYZING TRANSCRIPT SPEECH...</span>
-              </div>
-            )}
-            {roundCompleteInfo && (
-              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(62, 207, 142, 0.06)', border: '1px solid rgba(62, 207, 142, 0.15)', borderRadius: '12px', marginTop: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Badge variant="success">ROUND COMPLETE</Badge>
-                  <span style={{ fontSize: 'var(--text-sm)', color: '#ffffff', fontWeight: 600 }}>Score: {Math.round(roundCompleteInfo.score)}%</span>
-                </div>
-                {roundCompleteInfo.feedback && (
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dim)', margin: 0, lineHeight: 1.5 }}>
-                    {roundCompleteInfo.feedback}
-                  </p>
+          {/* AI Center Speaking Orb & Question */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 60px' }}>
+            
+            {/* Speaking Orb Container */}
+            <div style={{ position: 'relative', marginBottom: '24px' }}>
+              
+              {/* Outer glow aura rings for speaking and listening */}
+              <AnimatePresence>
+                {turnState === 'ai_speaking' && (
+                  <>
+                    <motion.div
+                      style={{ position: 'absolute', inset: -20, borderRadius: '50%', background: 'radial-gradient(circle, rgba(242, 184, 75, 0.08) 0%, transparent 70%)', zIndex: -1 }}
+                      animate={{ scale: [1, 1.25, 1], opacity: [0.4, 0.8, 0.4] }}
+                      transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <motion.div
+                      style={{ position: 'absolute', inset: -40, borderRadius: '50%', background: 'radial-gradient(circle, rgba(242, 184, 75, 0.04) 0%, transparent 70%)', zIndex: -1 }}
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.5, 0.2] }}
+                      transition={{ duration: 3.2, delay: 0.5, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                  </>
                 )}
+                {turnState === 'listening' && !muted && (
+                  <motion.div
+                    style={{ position: 'absolute', inset: -24, borderRadius: '50%', background: 'radial-gradient(circle, rgba(62, 207, 142, 0.08) 0%, transparent 70%)', zIndex: -1 }}
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.9, 0.5] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Rotating conic-gradient border for Thinking (processing) state */}
+              {turnState === 'processing' && (
+                <motion.div
+                  style={{
+                    position: 'absolute',
+                    inset: -3,
+                    borderRadius: '50%',
+                    background: 'conic-gradient(from 0deg, var(--accent) 0%, transparent 60%, var(--accent) 100%)',
+                    zIndex: 0
+                  }}
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 2.5, ease: "linear" }}
+                />
+              )}
+
+              {/* Core Avatar Sphere */}
+              <motion.div
+                style={{
+                  width: '96px',
+                  height: '96px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'rgba(21, 24, 29, 0.75)',
+                  border: turnState === 'processing' ? '2px solid transparent' : `2px solid ${
+                    turnState === 'ai_speaking' ? 'var(--accent)'
+                    : turnState === 'listening' ? 'var(--success)'
+                    : 'rgba(255,255,255,0.06)'
+                  }`,
+                  boxShadow: turnState === 'ai_speaking'
+                    ? '0 0 30px rgba(242, 184, 75, 0.2)'
+                    : turnState === 'listening'
+                    ? '0 0 30px rgba(62, 207, 142, 0.2)'
+                    : '0 8px 32px rgba(0, 0, 0, 0.3)',
+                  backdropFilter: 'blur(20px)',
+                  transition: 'border-color 300ms ease, box-shadow 300ms ease',
+                  position: 'relative',
+                  zIndex: 1
+                }}
+                animate={turnState === 'ai_speaking' ? { scale: [1, 1.03, 1] } : {}}
+                transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <AIIcon size={36} color={
+                  turnState === 'ai_speaking' ? 'var(--accent)'
+                  : turnState === 'listening' ? 'var(--success)' : 'var(--text-muted)'
+                } />
+              </motion.div>
+
+              {/* Float state tag */}
+              <div style={{
+                position: 'absolute',
+                bottom: '-6px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: turnState === 'ai_speaking' ? 'var(--accent)'
+                            : turnState === 'listening' ? 'var(--success)' : 'var(--border-strong)',
+                borderRadius: '99px',
+                padding: '2px 10px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '8px',
+                color: turnState === 'ai_speaking' ? '#0A0A0B' : '#ffffff',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                whiteSpace: 'nowrap',
+                transition: 'all 300ms ease',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex: 2
+              }}>
+                {turnState === 'ai_speaking' ? 'SPEAKING'
+                 : turnState === 'listening' ? 'LISTENING'
+                 : turnState === 'processing' ? 'PROCESSING'
+                 : 'STANDBY'}
               </div>
-            )}
-            <div ref={transcriptEndRef} />
+            </div>
+
+            {/* Display Question text */}
+            <div style={{ maxWidth: '640px', textAlign: 'center', minHeight: '120px', marginTop: '16px' }}>
+              {turnState === 'processing' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '15px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
+                    {THINKING_MESSAGES[thinkingIndex]}...
+                  </span>
+                  <div style={{ width: '48px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: '100%', background: 'var(--accent)', borderRadius: '99px', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1s infinite linear' }} />
+                  </div>
+                </div>
+              ) : typedQuestion ? (
+                <span style={{ fontSize: '18px', fontWeight: 500, lineHeight: 1.7, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)' }}>
+                  {typedQuestion}
+                  {!typingDone && <span className="cursor-blink" style={{ display: 'inline-block', width: '2px', height: '16px', background: 'var(--text-primary)', marginLeft: '2px', verticalAlign: 'text-bottom', animation: 'cursor-blink 0.9s ease infinite' }} />}
+                </span>
+              ) : (
+                <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {isConnected ? 'Preparing stage rounds...' : 'Establishing secure handshake...'}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Text input (non-voice mode) */}
-          {!voiceMode && roundStarted && !roundCompleteInfo && (
-            <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px', flexShrink: 0, zIndex: 2 }}>
-              <textarea
-                value={typedAnswer}
-                onChange={e => setTypedAnswer(e.target.value)}
-                onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); handleSubmitTypedAnswer(); } }}
-                disabled={isAnalyzing}
-                placeholder="Type your rehearsal line... (Ctrl+Enter to submit)"
+          {/* ── WAVEFORM INTEGRATION ── */}
+          <div style={{ padding: '0 40px', background: 'transparent' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyComposite: 'center', gap: '3px', height: '48px', justifyContent: 'center' }}>
+              {Array.from({ length: BARS }).map((_, i) => (
+                <div key={i}
+                     ref={el => { barRefsArr.current[i] = el; }}
+                     style={{ width: '3px', borderRadius: '99px', height: '4px', background: 'rgba(255,255,255,0.06)', transition: 'background 200ms ease' }} />
+              ))}
+            </div>
+          </div>
+
+          {/* ── CONTROLS BAR (GLASS FOOTER) ── */}
+          <div style={{
+            padding: '16px 32px 24px',
+            background: 'rgba(10, 10, 11, 0.45)',
+            borderTop: '1px solid var(--border-glass)',
+            backdropFilter: 'blur(30px) saturate(180%)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '700px', margin: '0 auto' }}>
+              {/* Mic mute button */}
+              <button
+                onClick={handleMicToggle}
+                title={muted ? 'Unmute microphone' : 'Mute microphone'}
                 style={{
-                  width: '100%', minHeight: '86px', maxHeight: '150px',
-                  background: 'var(--panel-bg)',
-                  border: '1.5px solid var(--card-border)',
-                  borderRadius: '12px',
-                  color: 'var(--paper)',
-                  padding: '12px 16px',
-                  fontSize: 'var(--text-sm)',
-                  fontFamily: 'var(--font-sans)',
-                  lineHeight: 1.5,
-                  resize: 'vertical',
-                  outline: 'none',
-                  transition: 'all 0.25s var(--ease)',
-                  boxSizing: 'border-box',
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: '50%',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  border: 'none',
+                  transition: 'all 200ms ease',
+                  background: muted ? 'rgba(242, 184, 75, 0.08)' : isRecording ? 'rgba(62, 207, 142, 0.08)' : 'rgba(255,255,255,0.02)',
+                  outline: muted ? '2px solid var(--accent)' : isRecording ? '2px solid var(--success)' : '2px solid rgba(255,255,255,0.06)',
                 }}
-                onFocus={e => {
-                  e.target.style.borderColor = 'var(--spotlight)';
-                  e.target.style.boxShadow = '0 0 10px rgba(242, 184, 75, 0.1)';
-                }}
-                onBlur={e => {
-                  e.target.style.borderColor = 'var(--card-border)';
-                  e.target.style.boxShadow = 'none';
+              >
+                {muted
+                  ? <MicOffIcon size={18} color="var(--accent)" />
+                  : <MicIcon size={18} color={isRecording ? 'var(--success)' : 'var(--text-muted)'} />}
+              </button>
+
+              {/* Text input */}
+              <input
+                value={textInput}
+                onChange={e => setTextInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && textInput.trim()) handleTextSend(); }}
+                placeholder={turnState === 'ai_speaking' ? "Wait for AI to finish speaking..." : "Type response and press Enter..."}
+                disabled={turnState === 'ai_speaking' || turnState === 'processing'}
+                className="glass-input"
+                style={{
+                  flex: 1,
+                  height: '48px',
+                  fontSize: '13px',
+                  opacity: (turnState === 'ai_speaking' || turnState === 'processing') ? 0.45 : 1,
+                  transition: 'all 200ms ease'
                 }}
               />
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button variant="primary" size="md" disabled={!typedAnswer.trim() || isAnalyzing} onClick={handleSubmitTypedAnswer}>
-                  {isAnalyzing ? 'Evaluating line...' : 'Submit Line'}
-                </Button>
-              </div>
+
+              {/* Send button */}
+              <button
+                onClick={handleTextSend}
+                disabled={!textInput.trim() || turnState === 'ai_speaking'}
+                style={{
+                  height: '48px',
+                  padding: '0 20px',
+                  background: 'var(--accent)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#0A0A0B',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  opacity: (!textInput.trim() || turnState === 'ai_speaking') ? 0.4 : 1,
+                  transition: 'all 150ms ease'
+                }}
+              >
+                <SendIcon size={14} /> Send
+              </button>
             </div>
-          )}
 
-          {/* Voice input (voice mode) */}
-          {voiceMode && roundStarted && !roundCompleteInfo && (
-            <div style={{
-              marginTop: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              padding: '20px',
-              background: 'var(--panel-bg)',
-              border: '1.5px solid var(--card-border)',
-              borderRadius: '16px',
-              alignItems: 'center',
-              flexShrink: 0,
-              zIndex: 2,
-              animation: 'fadeIn 0.3s ease',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{
-                    width: '10px',
-                    height: '10px',
-                    borderRadius: '50%',
-                    background: isRecording ? 'var(--rec-red)' : 'var(--paper-dimmer)',
-                    boxShadow: isRecording ? '0 0 8px var(--rec-red)' : 'none',
-                    display: 'inline-block'
-                  }} />
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: isRecording ? '#ffffff' : 'var(--paper-dimmer)' }}>
-                    {isRecording ? 'LIVE MICROPHONE RECORDING' : 'MICROPHONE STANDBY'}
-                  </span>
-                </div>
-                
-                {isRecording && (
-                  <button
-                    onClick={toggleMute}
-                    style={{
-                      background: isMuted ? 'var(--rec-red)' : 'rgba(255, 255, 255, 0.08)',
-                      color: '#ffffff',
-                      border: '1px solid var(--card-border)',
-                      borderRadius: '8px',
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    {isMuted ? '🔇 MUTED (UNMUTE)' : '🎙️ MUTE MIC'}
-                  </button>
-                )}
-              </div>
-
-              <div style={{ width: '100%' }}>
-                <AudioVisualizer analyser={analyser} isRecording={isRecording} isMuted={isMuted} />
-              </div>
-
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '100%' }}>
-                {!isRecording ? (
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={async () => {
-                      try {
-                        await unlockAudioContext();
-                        audioUnlockedRef.current = true;
-                        startRecording();
-                      } catch (err) {
-                        console.error('Mic start error:', err);
-                      }
-                    }}
-                    style={{
-                      background: 'var(--spotlight)',
-                      color: '#000',
-                      boxShadow: '0 4px 15px rgba(242, 184, 75, 0.2)',
-                    }}
-                  >
-                    🎙️ Start Speaking
-                  </Button>
-                ) : (
-                  <Button
-                    variant="danger"
-                    size="md"
-                    onClick={() => {
-                      stopRecording();
-                    }}
-                  >
-                    ⏹️ Stop & Send Response
-                  </Button>
-                )}
-              </div>
-              <p style={{ fontSize: '11px', color: 'var(--paper-dimmer)', margin: 0, fontFamily: 'var(--font-mono)', textAlign: 'center' }}>
-                Your voice is processed in real-time. Speak clearly and click Stop when you finish your response.
-              </p>
+            {/* Connection status line */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', maxWidth: '700px', margin: '8px auto 0', fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)' }}>
+              <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: isConnected ? 'var(--success)' : 'var(--text-muted)' }} />
+              <span>{status.toUpperCase()}</span>
+              {hasPermission === false && (
+                <span style={{ color: 'var(--danger)', marginLeft: '8px' }}>— MIC ACCESS BLOCKED: Allow mic permissions</span>
+              )}
+              <span style={{ marginLeft: 'auto' }}>SESSION: {sessionId?.slice(0, 8)}</span>
             </div>
-          )}
-        </div>
-
-        {/* RIGHT RAIL */}
-        <div style={{
-          width: '220px',
-          flexShrink: 0,
-          background: 'var(--panel-bg)',
-          borderLeft: '1px solid var(--card-border)',
-          padding: '24px 20px',
-        }} className="room-right-rail">
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '20px', fontWeight: 700 }}>Scoring Metrics</div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {ROUNDS_META.map(r => {
-              const score = session?.roundScores?.[r.key];
-              if (score === undefined) return null;
-              const pct = Math.round(score);
-              const scoreColor = pct >= 75 ? 'var(--prompter-green)' : pct >= 50 ? 'var(--spotlight)' : 'var(--rec-red)';
-              return (
-                <div key={r.key} style={{ animation: 'fadeIn 0.35s var(--ease) both' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', fontWeight: 600 }}>{r.short}</span>
-                    <span className="mono-data" style={{ fontSize: '16px', fontWeight: 800, color: scoreColor }}>{pct}%</span>
-                  </div>
-                  <div style={{ height: '4px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${pct}%`, background: scoreColor, borderRadius: 'var(--radius-full)', boxShadow: `0 0 6px ${scoreColor}` }} />
-                  </div>
-                </div>
-              );
-            })}
-
-            {!session?.roundScores && (
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textAlign: 'center', marginTop: '16px', lineHeight: 1.5 }}>
-                Rounds indicators<br/>will display here<br/>upon completion.
-              </div>
-            )}
           </div>
         </div>
       </div>
-
-      {/* ── ROW 3: CONTROL BAR ── */}
-      <div style={{
-        height: '72px',
-        background: 'var(--panel-bg)',
-        borderTop: '1px solid var(--card-border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '24px',
-        flexShrink: 0,
-        position: 'relative',
-      }}>
-        <div style={{ position: 'absolute', left: '24px' }} className="control-left-status">
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', fontWeight: 500 }}>
-            SESSION STATUS
-          </span>
-        </div>
-
-        {activeRound && roundStarted && (
-          <Button variant="danger" size="sm" onClick={handleEndRound}>End Current Round</Button>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--paper-dim)', fontWeight: 600 }}>INPUT MODE:</span>
-          <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', borderRadius: '20px', padding: '3px', border: '1px solid var(--card-border)' }}>
-            <button
-              onClick={() => {
-                setVoiceMode(false);
-                stopRecording();
-              }}
-              style={{
-                border: 'none',
-                background: !voiceMode ? 'var(--spotlight)' : 'transparent',
-                color: !voiceMode ? '#000000' : 'var(--paper-dim)',
-                fontWeight: !voiceMode ? 700 : 500,
-                fontSize: '11px',
-                padding: '4px 12px',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-mono)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              KEYBOARD
-            </button>
-            <button
-              onClick={async () => {
-                setVoiceMode(true);
-                if (roundStarted && !roundCompleteInfo) {
-                  try {
-                    await unlockAudioContext();
-                    audioUnlockedRef.current = true;
-                    startRecording();
-                  } catch (e) {
-                    console.error('Failed to start voice mode:', e);
-                  }
-                }
-              }}
-              style={{
-                border: 'none',
-                background: voiceMode ? 'var(--spotlight)' : 'transparent',
-                color: voiceMode ? '#000000' : 'var(--paper-dim)',
-                fontWeight: voiceMode ? 700 : 500,
-                fontSize: '11px',
-                padding: '4px 12px',
-                borderRadius: '16px',
-                cursor: 'pointer',
-                fontFamily: 'var(--font-mono)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              VOICE
-            </button>
-          </div>
-        </div>
-
-        <div style={{ position: 'absolute', right: '24px' }}>
-          {session?.currentRound === 'complete' && (
-            <Button variant="primary" size="sm" onClick={handleInterviewComplete}>
-              View final evaluation report →
-            </Button>
-          )}
-        </div>
-      </div>
-      
-      <style>{`
-        @keyframes pulse-ring {
-          0% { transform: scale(0.95); opacity: 0.8; }
-          50% { transform: scale(1.1); opacity: 0.1; }
-          100% { transform: scale(1.2); opacity: 0; }
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        @media (max-width: 992px) {
-          .room-left-rail, .room-right-rail { display: none !important; }
-          .control-left-status { display: none !important; }
-        }
-      `}</style>
     </div>
   );
+
+  function handleTextSend() {
+    if (!textInput.trim()) return;
+    addTranscript('candidate', textInput);
+    sendText(textInput);
+    setTextInput('');
+  }
 }

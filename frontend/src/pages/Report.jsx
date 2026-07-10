@@ -34,7 +34,7 @@ function ScoreRing({ score }) {
           cy="50"
           r="40"
           fill="none"
-          stroke="var(--card-border)"
+          stroke="rgba(255, 255, 255, 0.04)"
           strokeWidth="6"
         />
         <circle
@@ -47,12 +47,15 @@ function ScoreRing({ score }) {
           strokeDasharray="251.2"
           strokeDashoffset={strokeOffset}
           strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)' }}
+          style={{ 
+            transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)',
+            filter: 'drop-shadow(0 0 4px var(--spotlight))'
+          }}
         />
       </svg>
       <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '24px', fontWeight: 800, color: 'var(--paper)', lineHeight: 1 }}>{score}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', marginTop: '2px' }}>score</span>
+        <span className="text-glow-gold" style={{ fontFamily: 'var(--font-mono)', fontSize: '28px', fontWeight: 800, color: 'var(--spotlight)', lineHeight: 1 }}>{score}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--paper-dimmer)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>score</span>
       </div>
     </div>
   );
@@ -72,7 +75,7 @@ function ScoreBar({ score, color }) {
 
   return (
     <div ref={ref} style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden', flex: 1 }}>
-      <div style={{ height: '100%', width: `${width}%`, background: color, borderRadius: 'var(--radius-full)', transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)' }} />
+      <div style={{ height: '100%', width: `${width}%`, background: color, borderRadius: 'var(--radius-full)', transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: `0 0 8px ${color}` }} />
     </div>
   );
 }
@@ -127,8 +130,13 @@ export default function Report() {
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: 'var(--space-4)', background: 'var(--stage-black)', color: 'var(--paper)' }}>
-        <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--spotlight)', boxShadow: '0 0 10px var(--spotlight)', animation: 'pulse-red 1.2s infinite ease-in-out' }} />
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Compiling analytical scorecard...</p>
+        <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(242,184,75,0.15)' }} />
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid transparent', borderTopColor: 'var(--spotlight)', animation: 'spin 1s linear infinite' }} />
+          <div style={{ position: 'absolute', inset: '10px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'rgba(242,184,75,0.4)', animation: 'spin 1.5s linear infinite reverse' }} />
+        </div>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Generating your report...</p>
+        <p style={{ fontSize: '10px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>Compiling scorecard &amp; narrative summary</p>
       </div>
     );
   }
@@ -186,10 +194,14 @@ export default function Report() {
   ];
 
   return (
-    <div style={{ background: 'var(--stage-black)', color: 'var(--paper)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden' }}>
+    <div style={{ background: 'var(--stage-black)', color: 'var(--paper)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden', position: 'relative' }}>
+      {/* Background Glowing Orbs */}
+      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(232, 201, 109, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+
       <Navbar />
 
-      <main style={{ flex: 1, maxWidth: '820px', width: '100%', margin: '0 auto', padding: 'var(--space-12) var(--space-6)', animation: 'fadeIn 0.5s var(--ease)' }}>
+      <main style={{ flex: 1, maxWidth: '820px', width: '100%', margin: '0 auto', padding: 'var(--space-12) var(--space-6)', animation: 'fadeIn 0.5s var(--ease)', position: 'relative', zIndex: 1 }}>
 
         {/* Breadcrumb */}
         <div style={{
@@ -270,16 +282,17 @@ export default function Report() {
               Rehearsal History
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '100px', padding: '0 8px', borderBottom: '1px solid var(--card-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '100px', padding: '0 8px', borderBottom: '1px solid var(--card-border)', marginBottom: '12px' }}>
               {historicalScores.map((h, i) => (
                 <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '8px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: h.highlight ? 'var(--spotlight)' : 'var(--paper-dimmer)' }}>{h.val}</span>
+                  <span className={h.highlight ? "text-glow-gold" : ""} style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: h.highlight ? 700 : 400, color: h.highlight ? 'var(--spotlight)' : 'var(--paper-dimmer)' }}>{h.val}</span>
                   <div style={{
                     width: '16px',
                     height: `${h.val}px`,
-                    background: h.highlight ? 'var(--spotlight)' : 'var(--card-border)',
+                    background: h.highlight ? 'var(--spotlight)' : 'rgba(255, 255, 255, 0.08)',
                     borderRadius: '4px 4px 0 0',
-                    transition: 'all 0.3s var(--ease)',
+                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                    boxShadow: h.highlight ? '0 0 10px rgba(242, 184, 75, 0.35)' : 'none',
                   }} />
                 </div>
               ))}

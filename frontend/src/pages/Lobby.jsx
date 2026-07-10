@@ -90,10 +90,14 @@ export default function Lobby() {
   ];
 
   return (
-    <div style={{ backgroundColor: 'var(--stage-black)', color: 'var(--paper)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden' }}>
+    <div style={{ backgroundColor: 'var(--stage-black)', color: 'var(--paper)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden', position: 'relative' }}>
+      {/* Background Glowing Orbs */}
+      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(232, 201, 109, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+
       <Navbar />
 
-      <main style={{ flex: 1, maxWidth: '960px', width: '100%', margin: '0 auto', padding: 'var(--space-10) var(--space-6) var(--space-20)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', animation: 'fadeIn 0.5s var(--ease)' }}>
+      <main style={{ flex: 1, maxWidth: '960px', width: '100%', margin: '0 auto', padding: 'var(--space-10) var(--space-6) var(--space-20)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', animation: 'fadeIn 0.5s var(--ease)', position: 'relative', zIndex: 1 }}>
         
         {/* Header card */}
         <Card style={{ padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-6)', background: 'var(--panel-bg)' }} hoverable={false}>
@@ -108,7 +112,7 @@ export default function Lobby() {
           <div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right', marginBottom: '4px', fontWeight: 600 }}>Screening score</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', justifyContent: 'flex-end' }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '48px', fontWeight: 800, color: tierColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{score.toFixed(0)}</span>
+              <span className={isPass ? "text-glow-green" : "text-glow-red"} style={{ fontFamily: 'var(--font-mono)', fontSize: '48px', fontWeight: 800, color: tierColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{score.toFixed(0)}</span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', color: 'var(--paper-dimmer)', fontWeight: 500 }}>%</span>
             </div>
           </div>
@@ -143,21 +147,29 @@ export default function Lobby() {
                         alignItems: 'center',
                         gap: '14px',
                         padding: '12px 16px',
-                        border: '1.5px solid var(--card-border)',
+                        border: '1px solid rgba(255, 255, 255, 0.04)',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
                         borderRadius: '12px',
-                        transition: 'all 0.3s var(--ease)',
+                        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                         cursor: 'default',
                         position: 'relative',
                         overflow: 'hidden',
-                        background: 'var(--card-bg)',
+                        background: 'rgba(21, 24, 29, 0.3)',
+                        backdropFilter: 'blur(10px)',
                       }}
                       onMouseEnter={e => {
                         e.currentTarget.style.borderColor = 'var(--spotlight)';
+                        e.currentTarget.style.borderTopColor = 'rgba(242, 184, 75, 0.3)';
                         e.currentTarget.style.transform = 'translateX(4px)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.background = 'rgba(28, 32, 38, 0.45)';
                       }}
                       onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'var(--card-border)';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.04)';
+                        e.currentTarget.style.borderTopColor = 'rgba(255, 255, 255, 0.08)';
                         e.currentTarget.style.transform = 'translateX(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.background = 'rgba(21, 24, 29, 0.3)';
                       }}
                     >
                       <div style={{ color: 'var(--spotlight)', display: 'flex', zIndex: 1 }}>{item.icon}</div>

@@ -1,183 +1,199 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 
-export function useAudioCapture({ onChunk, onFlush }) {
-  const mediaRecorderRef = useRef(null);
-  const streamRef = useRef(null);
-  const chunksRef = useRef([]);
-  const audioContextRef = useRef(null);
-  const sourceNodeRef = useRef(null);
-  const analyserNodeRef = useRef(null);
+const SILENCE_MS = 1800;   // 1.8s silence → auto submit
+const CHUNK_MS   = 400;    // collect audio every 400ms
 
-  const [isRecording, setIsRecording] = useState(false);
+export function useAudioCapture({ onChunk, onSilenceDetected, onVolumeChange, muted }) {
+  const recorderRef   = useRef(null);
+  const streamRef     = useRef(null);
+  const audioCtxRef   = useRef(null);
+  const analyserRef   = useRef(null);
+  const silTimerRef   = useRef(null);
+  const rafRef        = useRef(null);
+  const chunkTimeRef  = useRef(null);
+  const activeRef     = useRef(false);   // tracks if we WANT to be recording
+  const hasSpokenRef  = useRef(false);   // tracks if speech was detected at least once in the current session
+  const startTimeRef  = useRef(0);       // tracks when recording actually started
+
+  const [isRecording,   setIsRecording]   = useState(false);
   const [hasPermission, setHasPermission] = useState(null);
-  const [isMuted, setIsMuted] = useState(false);
-  const [analyser, setAnalyser] = useState(null);
+  const [isSpeaking,    setIsSpeaking]    = useState(false);
 
-  const startRecording = useCallback(async () => {
-    try {
-      // Request mic with settings optimized for speech
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          channelCount: 1,
-          sampleRate: 16000,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        }
-      });
-      streamRef.current = stream;
-      setHasPermission(true);
-      console.log('Microphone permission granted');
-
-      // Web Audio API Setup for Visualizer
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      const audioCtx = new AudioCtx();
-      audioContextRef.current = audioCtx;
-
-      const analyserNode = audioCtx.createAnalyser();
-      analyserNode.fftSize = 256;
-      analyserNodeRef.current = analyserNode;
-      setAnalyser(analyserNode);
-
-      const sourceNode = audioCtx.createMediaStreamSource(stream);
-      sourceNodeRef.current = sourceNode;
-      sourceNode.connect(analyserNode);
-
-      // Detect supported MIME type automatically (prefer audio/webm;codecs=opus)
-      let mimeType = '';
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        mimeType = 'audio/webm;codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-        mimeType = 'audio/webm';
-      } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
-        mimeType = 'audio/ogg;codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
-        mimeType = 'audio/ogg';
-      }
-
-      const recorderOptions = mimeType ? { mimeType } : {};
-      const recorder = new MediaRecorder(stream, recorderOptions);
-      mediaRecorderRef.current = recorder;
-      chunksRef.current = [];
-
-      recorder.ondataavailable = (event) => {
-        // Ignore tiny empty chunks (< 100 bytes)
-        if (event.data && event.data.size > 100) {
-          chunksRef.current.push(event.data);
-
-          // Convert chunk to base64 and send
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            if (reader.result) {
-              const base64 = reader.result.split(',')[1];
-              if (base64) {
-                console.log('Audio chunk generated');
-                onChunk({
-                  data: base64,
-                  duration_ms: 500, // Send chunks every 500ms
-                });
-              }
-            }
-          };
-          reader.readAsDataURL(event.data);
-        }
-      };
-
-      recorder.onstop = () => {
-        // Flush remaining audio when recording stops
-        if (chunksRef.current.length > 0) {
-          onFlush();
-        }
-        setIsRecording(false);
-        console.log('Recording stopped');
-      };
-
-      // Collect audio in 500ms timeslices for low latency
-      recorder.start(500);
-      setIsRecording(true);
-      console.log('Recording started');
-
-      // Apply initial mute state
-      stream.getAudioTracks().forEach((track) => {
-        track.enabled = !isMuted;
-      });
-
-    } catch (err) {
-      console.error('Mic access error:', err);
-      setHasPermission(false);
-      setIsRecording(false);
-    }
-  }, [onChunk, onFlush, isMuted]);
-
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch (e) {
-        console.warn('Error stopping MediaRecorder:', e);
-      }
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        try {
-          track.stop();
-        } catch (e) {
-          console.warn('Error stopping track:', e);
-        }
-      });
-      streamRef.current = null;
-    }
-    if (sourceNodeRef.current) {
-      try {
-        sourceNodeRef.current.disconnect();
-      } catch (e) {}
-      sourceNodeRef.current = null;
-    }
-    if (audioContextRef.current) {
-      try {
-        audioContextRef.current.close();
-      } catch (e) {}
-      audioContextRef.current = null;
-    }
-    setAnalyser(null);
-    setIsRecording(false);
-    console.log('Recording stopped');
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    setIsMuted((prevMuted) => {
-      const nextMuted = !prevMuted;
-      if (streamRef.current) {
-        streamRef.current.getAudioTracks().forEach((track) => {
-          track.enabled = !nextMuted;
-        });
-      }
-      return nextMuted;
-    });
-  }, []);
-
-  // Cleanup on unmount
+  // Sync mute state changes with active stream tracks
   useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try {
-          mediaRecorderRef.current.stop();
-        } catch (e) {}
+    if (streamRef.current) {
+      streamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !muted;
+      });
+    }
+  }, [muted]);
+
+  // ── Silence timer helpers ──────────────────────────────────
+  const clearSilTimer = () => {
+    if (silTimerRef.current) {
+      clearTimeout(silTimerRef.current);
+      silTimerRef.current = null;
+    }
+  };
+  const startSilTimer = useCallback(() => {
+    clearSilTimer();
+    silTimerRef.current = setTimeout(() => {
+      if (activeRef.current) {
+        onSilenceDetected?.();
       }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => {
-          try {
-            track.stop();
-          } catch (e) {}
-        });
+    }, SILENCE_MS);
+  }, [onSilenceDetected]);
+
+  // ── Volume analysis loop ───────────────────────────────────
+  const startVolumeLoop = useCallback((stream) => {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtxRef.current = ctx;
+    const src = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.minDecibels = -90;
+    analyser.maxDecibels = -10;
+    analyser.smoothingTimeConstant = 0.85;
+    src.connect(analyser);
+    analyserRef.current = analyser;
+
+    const data = new Uint8Array(analyser.fftSize);
+    const tick = () => {
+      if (!activeRef.current) return;
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        sum += Math.abs(data[i] - 128);
       }
-      if (audioContextRef.current) {
-        try {
-          audioContextRef.current.close();
-        } catch (e) {}
+      const avgDeviation = sum / data.length;
+
+      // Scale volume for UI visualizer
+      const volume = Math.min(1.0, avgDeviation / 40.0);
+      onVolumeChange?.(volume);
+
+      // Speaking threshold (deviation > 3.0 represents voice presence)
+      const speaking = avgDeviation > 3.0;
+      setIsSpeaking(speaking);
+
+      if (speaking) {
+        // Only trigger spoken-once state after the initial 1.0s settling window
+        if (Date.now() - startTimeRef.current > 1000) {
+          hasSpokenRef.current = true;
+        }
+        clearSilTimer();
+      } else {
+        if (hasSpokenRef.current) {
+          if (!silTimerRef.current) startSilTimer();
+        }
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }, [onVolumeChange, startSilTimer]);
+
+  // ── Create and start a MediaRecorder ──────────────────────
+  const startRecorderOnStream = useCallback((stream) => {
+    const mime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']
+      .find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : {});
+    recorderRef.current = rec;
+    chunkTimeRef.current = Date.now();
+
+    rec.ondataavailable = (e) => {
+      if (!e.data || e.data.size < 50 || !activeRef.current) return;
+      const elapsed = Date.now() - (chunkTimeRef.current || Date.now());
+      chunkTimeRef.current = Date.now();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const b64 = reader.result?.split(',')[1];
+        if (b64 && activeRef.current) onChunk({ data: b64, duration_ms: elapsed });
+      };
+      reader.readAsDataURL(e.data);
+    };
+
+    rec.onerror = () => {
+      // Auto-restart recorder on error
+      console.warn('[MIC] Recorder error — restarting');
+      if (activeRef.current && streamRef.current) {
+        setTimeout(() => startRecorderOnStream(streamRef.current), 200);
       }
     };
+
+    rec.onstop = () => {
+      // If we still want to record, restart immediately
+      if (activeRef.current && streamRef.current?.active) {
+        setTimeout(() => startRecorderOnStream(streamRef.current), 100);
+      }
+    };
+
+    rec.start(CHUNK_MS);
+  }, [onChunk]);
+
+  // ── PUBLIC: startRecording ─────────────────────────────────
+  const startRecording = useCallback(async () => {
+    if (activeRef.current) return;  // already recording
+    activeRef.current = true;
+    setIsRecording(true);
+    hasSpokenRef.current = false; // Reset speech detection for the new recording session
+    startTimeRef.current = Date.now();
+
+    try {
+      // Reuse existing stream if still alive
+      if (!streamRef.current || !streamRef.current.active) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            channelCount: 1,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          }
+        });
+        streamRef.current = stream;
+        setHasPermission(true);
+      }
+
+      // Sync stream tracks with current mute state
+      streamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !muted;
+      });
+
+      // Always restart volume analysis context for each turn
+      if (audioCtxRef.current) {
+        try { audioCtxRef.current.close(); } catch (e) {}
+        audioCtxRef.current = null;
+      }
+      startVolumeLoop(streamRef.current);
+      startRecorderOnStream(streamRef.current);
+
+    } catch (err) {
+      console.error('[MIC] Permission denied:', err);
+      setHasPermission(false);
+      activeRef.current = false;
+      setIsRecording(false);
+    }
+  }, [startVolumeLoop, startRecorderOnStream, muted]);
+
+  // ── PUBLIC: stopRecording ──────────────────────────────────
+  const stopRecording = useCallback(() => {
+    activeRef.current = false;
+    setIsRecording(false);
+    setIsSpeaking(false);
+    clearSilTimer();
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (recorderRef.current && recorderRef.current.state !== 'inactive') {
+      recorderRef.current.stop();
+    }
+    // Do NOT kill the stream — keep it alive for instant restart
   }, []);
 
-  return { startRecording, stopRecording, isRecording, hasPermission, isMuted, toggleMute, analyser };
+  // ── PUBLIC: destroyAll (on page unmount only) ──────────────
+  const destroyAll = useCallback(() => {
+    stopRecording();
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    audioCtxRef.current?.close();
+    audioCtxRef.current = null;
+  }, [stopRecording]);
+
+  return { startRecording, stopRecording, destroyAll, isRecording, hasPermission, isSpeaking };
 }

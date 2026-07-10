@@ -3,6 +3,22 @@ import client from '../api/client';
 
 const AuthContext = createContext(null);
 
+// Retry a request fn up to `maxAttempts` times with exponential backoff.
+// Only retries on network errors (ERR_CONNECTION_REFUSED, etc.), not 4xx/5xx.
+async function fetchWithRetry(fn, maxAttempts = 5, baseDelayMs = 1000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const isNetworkError = !err.response; // axios sets err.response for HTTP errors
+      if (!isNetworkError || attempt === maxAttempts) throw err;
+      const delay = baseDelayMs * Math.pow(2, attempt - 1);
+      console.info(`[AuthContext] Backend not ready yet, retrying in ${delay}ms... (attempt ${attempt}/${maxAttempts})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser]               = useState(null);
   const [isLoading, setIsLoading]     = useState(true); // true until initial /me check finishes
@@ -44,13 +60,13 @@ export function AuthProvider({ children }) {
 
     (async () => {
       try {
-        const res = await client.get('/auth/me');
+        const res = await fetchWithRetry(() => client.get('/auth/me'));
         setUser(res.data);
         scheduleRefresh();
       } catch {
         // token invalid or expired; try silent refresh
         try {
-          const ref = await client.post('/auth/refresh');
+          const ref = await fetchWithRetry(() => client.post('/auth/refresh'));
           setAccessToken(ref.data.access_token);
           setUser(ref.data.user);
           scheduleRefresh();

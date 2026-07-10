@@ -128,6 +128,7 @@ async def get_interview_session(
 
     # Try to load candidate
     candidate = await db.get(Candidate, session.candidate_id)
+    resume_text = await _get_resume_text(candidate) if candidate else ""
 
     # Attempt to load orchestrator state
     from api.websocket import _orchestrator
@@ -142,6 +143,7 @@ async def get_interview_session(
         "candidate_id": str(session.candidate_id),
         "candidate_name": candidate.name if candidate else None,
         "target_role": candidate.target_role if candidate else None,
+        "resume_text": resume_text,
         "current_round": session.current_round.value,
         "round_scores": session.round_scores or {},
         "overall_score": session.overall_score or 0.0,

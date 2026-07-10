@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Editor from '@monaco-editor/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from '../api/client';
 import { useInterviewStore } from '../store/interviewStore';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -36,7 +37,9 @@ function LangTab({ lang, active, onClick }) {
         transition: 'all 0.25s var(--ease)',
       }}
     >
-      {lang.toUpperCase()}
+      <span className={active ? "text-glow-gold" : ""}>
+        {lang.toUpperCase()}
+      </span>
     </button>
   );
 }
@@ -62,6 +65,7 @@ export default function DSARound() {
   const [error, setError] = useState('');
   const [evaluation, setEvaluation] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isHintLoading, setIsHintLoading] = useState(false);
   const [hint, setHint] = useState(null);
   const [sessionSeconds, setSessionSeconds] = useState(0);
   const [showEvalPanel, setShowEvalPanel] = useState(false);
@@ -80,7 +84,7 @@ export default function DSARound() {
             setCandidate({ id: data.candidate_id, name: data.candidate_name, role: data.target_role, status: data.status });
           }
         })
-        .catch(() => setError('Failed to resolve interview workspace context.'));
+        .catch((err) => setError(err.message || 'Failed to resolve interview workspace context.'));
     }
   }, [sessionId, session, candidate, setSession, setCandidate]);
 
@@ -92,8 +96,8 @@ export default function DSARound() {
         setProblem(res.data);
         if (res.data?.starter_code) setCode(res.data.starter_code[language] || '');
         startTranscriptIndexRef.current = transcript.length;
-      } catch {
-        setError('Error loading the assessment problem. Please try again.');
+      } catch (err) {
+        setError(err.message || 'Error loading the assessment problem. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -106,10 +110,10 @@ export default function DSARound() {
     return () => clearInterval(t);
   }, []);
 
-  const { isConnected, connectionStatus, isRecording, hasPermission, startRecording, stopRecording, unlockAudioContext } = useWebSocket({
+  const { isConnected, status: connectionStatus, isRecording, hasPermission, startRecording, stopRecording, unlockAudio: unlockAudioContext } = useWebSocket({
     sessionId,
-    onTranscript: (msg) => addTranscript(msg),
-    onAIResponse: (msg) => addTranscript({ speaker: 'interviewer', text: msg.text }),
+    onCandidateTranscript: (msg) => addTranscript({ speaker: 'candidate', text: msg.text }),
+    onAITranscript: (msg) => addTranscript({ speaker: 'interviewer', text: msg.text }),
   });
 
   useEffect(() => { setRecording(isRecording); }, [isRecording, setRecording]);
@@ -133,13 +137,16 @@ export default function DSARound() {
   };
 
   const handleGetHint = async () => {
-    if (!problem) return;
+    if (!problem || isHintLoading) return;
     try {
+      setIsHintLoading(true);
       const response = await axios.post(`/interviews/${sessionId}/dsa/hint`, { current_code: code, language });
       setHint(response.data.hint);
       if (hintTimeoutRef.current) clearTimeout(hintTimeoutRef.current);
       hintTimeoutRef.current = setTimeout(() => setHint(null), 12000);
-    } catch {}
+    } catch {} finally {
+      setIsHintLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -166,7 +173,7 @@ export default function DSARound() {
         }
       }, 2500);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to submit code solution.');
+      setError(err.message || 'Failed to submit code solution.');
     } finally {
       setIsSubmitting(false);
     }
@@ -193,89 +200,108 @@ export default function DSARound() {
   const diffVariant = diffMap[problem?.difficulty?.toLowerCase()] || 'warning';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--stage-black)', color: 'var(--paper)', fontFamily: 'var(--font-sans)', overflow: 'hidden' }}>
+    <div className="landing-root" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+      <div className="noise-overlay" />
+      
+      {/* Drifting subtle auroras */}
+      <div className="aurora-container">
+        <div className="aurora-blob aurora-1" style={{ opacity: 0.06 }} />
+        <div className="aurora-blob aurora-2" style={{ opacity: 0.06 }} />
+      </div>
 
-      {/* ── ROW 1: STATUS BAR ── */}
-      <div style={{
+      {/* ── ROW 1: STATUS BAR (STICKY GLASS) ── */}
+      <div className="glass-panel" style={{
         height: '52px',
-        background: 'var(--panel-bg)',
-        borderBottom: '1px solid var(--card-border)',
-        padding: '0 var(--space-6)',
+        borderRadius: 0,
+        borderTop: 'none',
+        borderLeft: 'none',
+        borderRight: 'none',
+        padding: '0 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexShrink: 0,
+        zIndex: 10,
+        background: 'rgba(10, 10, 11, 0.55)',
+        backdropFilter: 'blur(30px) saturate(180%)'
       }}>
-        {/* Left: REC + timer */}
+        {/* Left: Live status + timer */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span className="rec-dot" style={{ display: 'inline-block', flexShrink: 0 }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--rec-red)', fontWeight: 700, letterSpacing: '0.06em' }}>LIVE REHEARSAL</span>
-          <span className="mono-data" style={{ fontSize: '13px', color: '#ffffff', fontWeight: 600, marginLeft: '6px' }}>{formatTime(sessionSeconds)}</span>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--danger)', animation: 'breathing-pulse 1.8s ease-in-out infinite' }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--danger)', fontWeight: 700, letterSpacing: '0.06em' }}>LIVE REHEARSAL</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: '#ffffff', fontWeight: 600, marginLeft: '6px', fontVariantNumeric: 'tabular-nums' }}>
+            {formatTime(sessionSeconds)}
+          </span>
         </div>
 
         {/* Center */}
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--paper-dim)', letterSpacing: '0.08em', fontWeight: 600 }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.08em', fontWeight: 700 }}>
           ROUND 1 / 3 — DSA SANDBOX COMPILER
         </span>
 
         {/* Right: problem progress */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--paper-dim)', fontWeight: 600 }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
             PROBLEM {problemIndex + 1} / 2
           </span>
-          <div style={{ width: '80px', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${(problemIndex + 1) / 2 * 100}%`, background: 'var(--spotlight)', borderRadius: 'var(--radius-full)' }} />
+          <div style={{ width: '80px', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${(problemIndex + 1) / 2 * 100}%`, background: 'var(--accent)', borderRadius: '99px' }} />
           </div>
         </div>
       </div>
 
-      {/* ── ROW 2: MAIN PANEL ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }} className="dsa-split-editor">
-
-        {/* LEFT: Problem panel */}
-        <div style={{
+      {/* ── ROW 2: MAIN WORKSPACE ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+        
+        {/* LEFT: Glass Problem Statement Panel */}
+        <div className="glass-panel" style={{
           width: '380px',
+          borderRadius: 0,
+          borderTop: 'none',
+          borderBottom: 'none',
+          borderLeft: 'none',
+          borderRight: '1px solid var(--border-glass)',
           flexShrink: 0,
-          background: 'var(--panel-bg)',
-          borderRight: '1px solid var(--card-border)',
+          background: 'rgba(10, 10, 11, 0.35)',
+          backdropFilter: 'blur(30px) saturate(180%)',
           overflowY: 'auto',
-          padding: '28px var(--space-6)',
+          padding: '24px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '24px',
-        }} className="dsa-left-rail">
+          gap: '24px'
+        }}>
           {loading ? (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--paper-dimmer)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)' }}>
               {'> BOOTSTRAPPING CODING RUNTIME...'}
             </div>
           ) : error ? (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--rec-red)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--danger)' }}>
               {'> ERR: '}{error}
             </div>
           ) : problem ? (
             <>
-              {/* Difficulty + title */}
+              {/* Difficulty badge + Title */}
               <div>
                 <Badge variant={diffVariant}>{problem.difficulty}</Badge>
-                <h2 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em', marginTop: '12px', color: '#ffffff' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em', marginTop: '12px', color: '#ffffff', fontFamily: 'var(--font-display)' }}>
                   {problem.title}
                 </h2>
               </div>
 
               {/* Description */}
-              <div style={{ fontSize: '14px', color: 'var(--paper-dim)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+              <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.65, whiteSpace: 'pre-line' }}>
                 {problem.description}
               </div>
 
-              {/* Examples */}
+              {/* Test Cases */}
               {problem.examples?.length > 0 && (
                 <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', fontWeight: 700 }}>Test Case Examples</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', fontWeight: 700 }}>Test Case Examples</div>
                   {problem.examples.map((ex, idx) => (
-                    <div key={idx} style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', padding: '12px 14px', fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--paper-dim)', marginBottom: '10px' }}>
-                      <div><span style={{ color: 'var(--spotlight)' }}>Input:</span> {ex.input}</div>
-                      <div><span style={{ color: 'var(--spotlight)' }}>Output:</span> {ex.output}</div>
-                      {ex.explanation && <div style={{ marginTop: '6px', color: 'var(--paper-dimmer)', fontSize: '11px' }}>// {ex.explanation}</div>}
+                    <div key={idx} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                      <div><span style={{ color: 'var(--accent)' }}>Input:</span> {ex.input}</div>
+                      <div><span style={{ color: 'var(--accent)' }}>Output:</span> {ex.output}</div>
+                      {ex.explanation && <div style={{ marginTop: '6px', color: 'var(--text-muted)', fontSize: '10px' }}>// {ex.explanation}</div>}
                     </div>
                   ))}
                 </div>
@@ -284,51 +310,77 @@ export default function DSARound() {
               {/* Constraints */}
               {problem.constraints?.length > 0 && (
                 <div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', fontWeight: 700 }}>Complexity Constraints</div>
-                  <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', fontWeight: 700 }}>Complexity Constraints</div>
+                  <ul style={{ margin: 0, paddingLeft: '16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {problem.constraints.map((c, idx) => (
-                      <li key={idx} style={{ fontSize: '13px', color: 'var(--paper-dim)' }}>{c}</li>
+                      <li key={idx} style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{c}</li>
                     ))}
                   </ul>
                 </div>
               )}
             </>
           ) : (
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 'var(--text-xs)', color: 'var(--rec-red)' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--danger)' }}>
               {'> FAILED TO RETRIEVE PROBLEM SCHEMA.'}
             </div>
           )}
         </div>
 
-        {/* RIGHT: Editor */}
+        {/* RIGHT: Editor Dashboard */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-          {/* Language tabs */}
-          <div style={{ display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--card-border)', height: '48px', padding: '0 var(--space-4)', background: 'var(--panel-bg)', flexShrink: 0 }}>
+          
+          {/* Language Tabs Panel */}
+          <div className="glass-panel" style={{
+            height: '48px',
+            borderRadius: 0,
+            borderTop: 'none',
+            borderLeft: 'none',
+            borderRight: 'none',
+            borderBottom: '1px solid var(--border-glass)',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 16px',
+            background: 'rgba(10, 10, 11, 0.4)',
+            backdropFilter: 'blur(20px)',
+            flexShrink: 0
+          }}>
             <LangTab lang="python" active={language === 'python'} onClick={() => handleLanguageChange('python')} />
             <LangTab lang="javascript" active={language === 'javascript'} onClick={() => handleLanguageChange('javascript')} />
           </div>
 
-          {/* Hint banner */}
-          {hint && (
-            <div style={{
-              background: 'rgba(242, 184, 75, 0.08)',
-              borderBottom: '1px solid rgba(242, 184, 75, 0.2)',
-              padding: '10px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              color: 'var(--spotlight)',
-              fontSize: '13px',
-              flexShrink: 0,
-              animation: 'fadeIn 0.2s var(--ease)'
-            }}>
-              <span>💡 Hint: {hint}</span>
-              <Button variant="ghost" size="sm" onClick={() => setHint(null)} style={{ color: 'var(--spotlight)', padding: '0 8px', height: '24px' }}>✕</Button>
-            </div>
-          )}
+          {/* Hint Banner Overlay */}
+          <AnimatePresence>
+            {hint && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="glass-panel"
+                style={{
+                  borderRadius: 0,
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderBottom: '1px solid rgba(242, 184, 75, 0.2)',
+                  background: 'rgba(242, 184, 75, 0.08)',
+                  padding: '10px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  color: 'var(--accent)',
+                  fontSize: '13px',
+                  flexShrink: 0,
+                  zIndex: 8,
+                }}
+              >
+                <span className="text-glow-gold">💡 Hint: {hint}</span>
+                <button onClick={() => setHint(null)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: '0 8px', fontSize: '14px' }}>✕</button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Monaco editor */}
-          <div style={{ flex: 1, overflow: 'hidden', background: '#090916' }}>
+          {/* Monaco Editor Container */}
+          <div style={{ flex: 1, overflow: 'hidden', background: '#0A0A0B' }}>
             <Editor
               height="100%"
               language={language}
@@ -338,117 +390,136 @@ export default function DSARound() {
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
-                fontFamily: 'JetBrains Mono, Fira Code, monospace',
+                fontFamily: 'JetBrains Mono, monospace',
                 lineHeight: 22,
                 padding: { top: 16 },
                 scrollbar: { vertical: 'visible', horizontal: 'visible' },
-                backgroundColor: '#090916',
+                backgroundColor: '#0A0A0B',
               }}
             />
           </div>
 
-          {/* Evaluation slide-up panel */}
-          {showEvalPanel && evaluation && (
-            <div style={{
-              position: 'absolute',
-              bottom: 0, left: 0, right: 0,
-              height: '170px',
-              background: 'var(--panel-bg)',
-              borderTop: '1px solid var(--card-border)',
-              padding: '20px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              animation: 'slideUp 250ms var(--ease)',
-              zIndex: 10,
-            }}>
-              {/* Row 1: result label + complexity badges */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: evaluation.correct ? 'var(--prompter-green)' : 'var(--rec-red)' }}>
-                  {evaluation.correct ? '✓ SOLUTIONS ACCEPTED' : '✗ EVALUATION FAILED'}
-                </span>
-                <Badge variant="default">TIME: {evaluation.time_complexity || 'N/A'}</Badge>
-                <Badge variant="default">SPACE: {evaluation.space_complexity || 'N/A'}</Badge>
-              </div>
-              {/* Row 2: feedback */}
-              <div style={{ fontSize: '13px', color: 'var(--paper-dim)', lineHeight: 1.5 }}>
-                {evaluation.feedback}
-              </div>
-              {/* Row 3: next */}
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--paper-dimmer)' }}>
-                {evaluation.round_complete ? 'All requirements met. Closing DSA Round...' : 'Loading next problem challenge...'}
-              </div>
-            </div>
-          )}
+          {/* Evaluation slide-up dashboard panel */}
+          <AnimatePresence>
+            {showEvalPanel && evaluation && (
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="glass-panel"
+                style={{
+                  position: 'absolute',
+                  bottom: 0, left: 0, right: 0,
+                  height: '170px',
+                  borderRadius: 0,
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  borderBottom: 'none',
+                  borderTop: '1px solid var(--border-glass)',
+                  background: 'rgba(10, 10, 11, 0.9)',
+                  backdropFilter: 'blur(30px) saturate(180%)',
+                  padding: '20px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  zIndex: 10,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className={evaluation.correct ? "text-glow-green" : "text-glow-red"} style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', fontWeight: 700, color: evaluation.correct ? 'var(--success)' : 'var(--danger)' }}>
+                    {evaluation.correct ? '✓ SOLUTIONS ACCEPTED' : '✗ EVALUATION FAILED'}
+                  </span>
+                  <Badge variant="default">TIME: {evaluation.time_complexity || 'N/A'}</Badge>
+                  <Badge variant="default">SPACE: {evaluation.space_complexity || 'N/A'}</Badge>
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {evaluation.feedback}
+                </div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>
+                  {evaluation.round_complete ? 'All requirements met. Closing DSA Round...' : 'Loading next problem challenge...'}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* ── ROW 3: CONTROL BAR ── */}
-      <div style={{
+      {/* ── ROW 3: CONTROL BAR (GLASS FOOTER) ── */}
+      <div className="glass-panel" style={{
         height: '64px',
-        background: 'var(--panel-bg)',
-        borderTop: '1px solid var(--card-border)',
-        padding: '0 var(--space-6)',
+        borderRadius: 0,
+        borderBottom: 'none',
+        borderLeft: 'none',
+        borderRight: 'none',
+        borderTop: '1px solid var(--border-glass)',
+        padding: '0 24px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexShrink: 0,
-        position: 'relative',
+        zIndex: 10,
+        background: 'rgba(10, 10, 11, 0.55)',
+        backdropFilter: 'blur(30px) saturate(180%)',
+        position: 'relative'
       }}>
-        {/* Left: mic button */}
+        {/* Left: Speak explain code */}
         <Button
           variant={isRecording ? 'danger' : 'outline'}
           size="sm"
           onClick={handleToggleMic}
-          icon={<MicIcon color={isRecording ? 'var(--rec-red)' : 'currentColor'} />}
-          style={isRecording ? { borderColor: 'var(--rec-red)', background: 'rgba(226, 72, 61, 0.08)' } : { height: '36px' }}
+          icon={<MicIcon color={isRecording ? 'var(--danger)' : 'currentColor'} />}
+          style={isRecording ? { borderColor: 'var(--danger)', background: 'rgba(226, 72, 61, 0.08)' } : { height: '36px' }}
         >
           {isRecording ? 'Listening (Click to stop)' : 'Explain code approach'}
         </Button>
 
-        {/* Center: transcript toast */}
+        {/* Center: Live speech transcription overlay */}
         {isRecording && lastCandidateLine && (
           <div style={{
             position: 'absolute',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'var(--card-bg)',
-            border: '1px solid var(--card-border)',
-            borderRadius: 'var(--radius-full)',
+            background: 'rgba(10, 10, 11, 0.85)',
+            border: '1px solid var(--border-glass)',
+            borderRadius: '99px',
             padding: '6px 16px',
-            fontSize: 'var(--text-xs)',
-            color: 'var(--spotlight)',
+            fontSize: '12px',
+            color: 'var(--accent)',
             fontFamily: 'var(--font-mono)',
             maxWidth: '380px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            boxShadow: '0 0 10px rgba(242, 184, 75, 0.1)',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
           }}>
             🎙️ {lastCandidateLine.text}
           </div>
         )}
 
-        {/* Right: hint + submit */}
+        {/* Right: Hint + Submit */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <Button variant="outline" size="sm" onClick={handleGetHint} style={{ height: '36px' }}>Get hint</Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleGetHint} 
+            disabled={isHintLoading}
+            style={{ height: '36px' }}
+          >
+            {isHintLoading ? 'Synthesizing hint...' : 'Get hint'}
+          </Button>
           <Button
             variant="primary"
             size="md"
             onClick={handleSubmit}
             disabled={isSubmitting || loading}
             loading={isSubmitting}
+            style={{ height: '36px' }}
           >
-            Submit solution →
+            {isSubmitting ? 'Reviewing your code...' : 'Submit solution →'}
           </Button>
         </div>
       </div>
-      
-      <style>{`
-        @media (max-width: 992px) {
-          .dsa-left-rail { display: none !important; }
-        }
-      `}</style>
     </div>
   );
 }

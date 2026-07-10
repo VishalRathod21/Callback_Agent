@@ -1,78 +1,68 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import Navbar from '../components/ui/Navbar';
+import Button from '../components/ui/Button';
 
 const plans = [
   {
     id: 'free',
-    name: 'Free',
+    name: 'Free Starter',
     price: '$0',
     period: 'forever',
     tag: 'GET STARTED',
-    tagColor: 'rgba(255,255,255,0.08)',
-    tagTextColor: 'var(--paper-dim, rgba(245,240,232,0.5))',
-    borderColor: 'rgba(255,255,255,0.08)',
+    tagColor: 'rgba(255,255,255,0.04)',
+    tagTextColor: 'var(--paper-dim)',
+    borderColor: 'rgba(255,255,255,0.06)',
     features: [
       '3 practice sessions / month',
-      'Technical round only',
-      'Text-only answers',
-      'Basic feedback report',
+      'Technical round simulation',
+      'Text-based chat interaction',
+      'Basic response evaluation report',
     ],
-    cta: 'Start Free',
-    ctaStyle: {
-      background: 'rgba(255,255,255,0.06)',
-      color: 'var(--paper, #f5f0e8)',
-      border: '1px solid rgba(255,255,255,0.12)',
-    },
+    cta: 'Start Rehearsal',
+    ctaVariant: 'outline',
     highlight: false,
   },
   {
     id: 'pro',
-    name: 'Pro',
+    name: 'Pro Stage',
     price: '$19',
     period: 'per month',
-    tag: 'MOST POPULAR',
-    tagColor: 'rgba(232,201,109,0.12)',
-    tagTextColor: 'var(--spotlight, #e8c96d)',
-    borderColor: 'rgba(232,201,109,0.35)',
+    tag: 'RECOMMENDED',
+    tagColor: 'rgba(242, 184, 75, 0.1)',
+    tagTextColor: 'var(--spotlight)',
+    borderColor: 'rgba(242, 184, 75, 0.35)',
     features: [
       'Unlimited practice sessions',
-      'Technical + HR rounds',
-      'Voice answers (Whisper STT)',
-      'AI voice feedback (TTS)',
-      'Full evaluation report',
-      'Session history & replay',
+      'Technical + Behavioral (HR) rounds',
+      'Voice input answer evaluation',
+      'AI audio feedback reports',
+      'Complete scoring dashboard',
+      'Session history analytics',
     ],
-    cta: 'Start Pro',
-    ctaStyle: {
-      background: 'var(--spotlight, #e8c96d)',
-      color: '#0b0d10',
-      border: 'none',
-    },
+    cta: 'Unlock Pro Stage',
+    ctaVariant: 'primary',
     highlight: true,
   },
   {
     id: 'team',
-    name: 'Team',
+    name: 'Production Team',
     price: '$49',
     period: 'per month',
-    tag: 'FOR ORGS',
-    tagColor: 'rgba(255,255,255,0.08)',
-    tagTextColor: 'var(--paper-dim, rgba(245,240,232,0.5))',
-    borderColor: 'rgba(255,255,255,0.08)',
+    tag: 'FOR ORGANIZATIONS',
+    tagColor: 'rgba(255,255,255,0.04)',
+    tagTextColor: 'var(--paper-dim)',
+    borderColor: 'rgba(255,255,255,0.06)',
     features: [
-      'Everything in Pro',
-      'Up to 10 seats',
-      'Admin dashboard',
-      'Candidate comparison reports',
-      'Priority support',
+      'Everything in Pro Stage',
+      'Up to 10 active candidate seats',
+      'Centralized admin dashboard',
+      'Candidate comparison matrices',
+      'Priority live pipeline support',
     ],
     cta: 'Contact Sales',
-    ctaStyle: {
-      background: 'rgba(255,255,255,0.06)',
-      color: 'var(--paper, #f5f0e8)',
-      border: '1px solid rgba(255,255,255,0.12)',
-    },
+    ctaVariant: 'outline',
     highlight: false,
   },
 ];
@@ -88,87 +78,203 @@ export default function Pricing() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--stage-black, #0b0d10)', fontFamily: 'var(--font-sans, "Inter", sans-serif)', padding: '80px 24px' }}>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--stage-black)',
+      fontFamily: 'var(--font-sans)',
+      color: 'var(--paper)',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
       <style>{`
-        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        .plan-card { transition: transform 0.2s, box-shadow 0.2s; }
-        .plan-card:hover { transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
-        .cta-btn { cursor: pointer; width: 100%; padding: 12px; border-radius: 8px; font-size: 14px; font-weight: 700; letter-spacing: 0.04em; transition: opacity 0.2s; }
-        .cta-btn:hover { opacity: 0.85; }
-        .check { color: var(--spotlight, #e8c96d); font-size: 14px; }
+        .pricing-card {
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          background: rgba(21, 24, 29, 0.35);
+          position: relative;
+        }
+        .pricing-card:hover {
+          transform: translateY(-8px);
+          background: rgba(21, 24, 29, 0.5);
+        }
+        .pricing-card.highlight {
+          background: rgba(242, 184, 75, 0.02);
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+        }
+        .pricing-card.highlight:hover {
+          background: rgba(242, 184, 75, 0.04);
+          box-shadow: 0 20px 50px rgba(242, 184, 75, 0.1);
+        }
       `}</style>
 
-      {/* Navbar-lite */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1100px', margin: '0 auto 80px auto' }}>
-        <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--paper, #f5f0e8)', fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--spotlight, #e8c96d)', boxShadow: '0 0 8px var(--spotlight, #e8c96d)', animation: 'pulse-dot 2s ease-in-out infinite', display: 'inline-block' }} />
-          Callback
-        </button>
-        <button onClick={() => navigate(isAuthenticated ? '/upload' : '/signin')} style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', padding: '8px 18px', color: 'var(--paper, #f5f0e8)', fontSize: '13px', cursor: 'pointer' }}>
-          {isAuthenticated ? 'Dashboard' : 'Sign In'}
-        </button>
-      </div>
+      {/* Main Navigation */}
+      <Navbar />
 
-      {/* Hero text */}
-      <div style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto 64px auto' }}>
-        <div style={{ display: 'inline-block', background: 'rgba(232,201,109,0.1)', border: '1px solid rgba(232,201,109,0.2)', borderRadius: '20px', padding: '4px 14px', fontSize: '11px', fontFamily: 'var(--font-mono, monospace)', color: 'var(--spotlight, #e8c96d)', letterSpacing: '0.08em', marginBottom: '20px' }}>
-          SIMPLE PRICING
-        </div>
-        <h1 style={{ color: 'var(--paper, #f5f0e8)', fontSize: 'clamp(32px, 5vw, 52px)', fontWeight: 800, letterSpacing: '-0.03em', margin: '0 0 16px 0', lineHeight: 1.1 }}>
-          Rehearse without limits
-        </h1>
-        <p style={{ color: 'var(--paper-dim, rgba(245,240,232,0.5))', fontSize: '16px', lineHeight: 1.6, margin: 0 }}>
-          Start free, upgrade when you're ready for the full stage.
-        </p>
-      </div>
+      {/* Background Glowing Spotlight Motif */}
+      <div className="spotlight-glow" style={{ top: '10%', left: '50%', transform: 'translateX(-50%)', width: '700px', height: '500px', opacity: 0.8 }} />
 
-      {/* Plans grid */}
-      <div style={{ display: 'flex', gap: '24px', maxWidth: '1100px', margin: '0 auto', flexWrap: 'wrap', justifyContent: 'center' }}>
-        {plans.map(plan => (
-          <div
-            key={plan.id}
-            className="plan-card"
-            style={{
-              flex: '1 1 300px',
-              maxWidth: '340px',
-              background: plan.highlight ? 'rgba(232,201,109,0.04)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${plan.borderColor}`,
-              borderRadius: '16px',
-              padding: '32px 28px',
-            }}
-          >
-            {/* Tag */}
-            <div style={{ display: 'inline-block', background: plan.tagColor, borderRadius: '20px', padding: '3px 12px', fontSize: '10px', fontFamily: 'var(--font-mono, monospace)', color: plan.tagTextColor, letterSpacing: '0.1em', marginBottom: '20px' }}>
-              {plan.tag}
-            </div>
-
-            <div style={{ color: 'var(--paper, #f5f0e8)', fontSize: '20px', fontWeight: 700, marginBottom: '8px' }}>{plan.name}</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '4px' }}>
-              <span style={{ color: 'var(--paper, #f5f0e8)', fontSize: '42px', fontWeight: 800, letterSpacing: '-0.03em' }}>{plan.price}</span>
-              <span style={{ color: 'var(--paper-dim, rgba(245,240,232,0.4))', fontSize: '13px' }}>/ {plan.period}</span>
-            </div>
-
-            <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)', margin: '24px 0' }} />
-
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 28px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {plan.features.map(f => (
-                <li key={f} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: 'var(--paper-dim, rgba(245,240,232,0.7))', lineHeight: 1.4 }}>
-                  <span className="check">✓</span>
-                  {f}
-                </li>
-              ))}
-            </ul>
-
-            <button className="cta-btn" style={plan.ctaStyle} onClick={() => handleCta(plan.id)}>
-              {plan.cta.toUpperCase()}
-            </button>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '140px 24px 80px' }}>
+        
+        {/* Header Hero Title */}
+        <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 64px' }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(242, 184, 75, 0.08)',
+            border: '1px solid rgba(242, 184, 75, 0.18)',
+            borderRadius: 'var(--radius-full)',
+            padding: '6px 16px',
+            fontSize: 'var(--text-xs)',
+            fontFamily: 'var(--font-mono)',
+            color: 'var(--spotlight)',
+            fontWeight: 600,
+            letterSpacing: '0.08em',
+            marginBottom: '20px',
+          }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--spotlight)', animation: 'tag-blink-anim 2s ease infinite' }} />
+            SUBSCRIPTION PLANS
           </div>
-        ))}
-      </div>
+          
+          <h1 style={{
+            color: 'var(--paper)',
+            fontSize: 'clamp(36px, 5vw, 56px)',
+            fontWeight: 800,
+            letterSpacing: '-0.03em',
+            margin: '0 0 16px',
+            lineHeight: 1.1,
+            fontFamily: 'var(--font-display)',
+          }}>
+            Rehearse without limitations
+          </h1>
+          
+          <p style={{
+            color: 'var(--paper-dim)',
+            fontSize: '16px',
+            lineHeight: 1.6,
+            margin: 0,
+          }}>
+            Start free to get comfortable. Upgrade to Pro when you're ready to perform on the real stage.
+          </p>
+        </div>
 
-      <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: '12px', marginTop: '48px', fontFamily: 'var(--font-mono, monospace)' }}>
-        All plans include a 14-day money-back guarantee. No questions asked.
-      </p>
+        {/* Pricing Cards Grid */}
+        <div style={{
+          display: 'flex',
+          gap: '24px',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          alignItems: 'stretch',
+        }}>
+          {plans.map(plan => (
+            <div
+              key={plan.id}
+              className={`pricing-card ${plan.highlight ? 'highlight' : ''}`}
+              style={{
+                flex: '1 1 320px',
+                maxWidth: '350px',
+                border: `1px solid ${plan.borderColor}`,
+                borderRadius: 'var(--radius-lg)',
+                padding: '40px 32px',
+                display: 'flex',
+                flexDirection: 'column',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+              }}
+            >
+              {/* Plan top bar / tag */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <span style={{
+                  background: plan.tagColor,
+                  borderRadius: 'var(--radius-full)',
+                  padding: '4px 12px',
+                  fontSize: '9px',
+                  fontFamily: 'var(--font-mono)',
+                  color: plan.tagTextColor,
+                  fontWeight: 700,
+                  letterSpacing: '0.08em',
+                }}>
+                  {plan.tag}
+                </span>
+                {plan.highlight && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--spotlight)',
+                    fontWeight: 700,
+                  }}>
+                    ★ BEST VALUE
+                  </span>
+                )}
+              </div>
+
+              {/* Title & Price */}
+              <div style={{ color: 'var(--paper)', fontSize: '22px', fontWeight: 700, marginBottom: '12px', fontFamily: 'var(--font-display)' }}>
+                {plan.name}
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '28px' }}>
+                <span style={{
+                  color: 'var(--paper)',
+                  fontSize: '44px',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                }}>{plan.price}</span>
+                <span style={{ color: 'var(--paper-dimmer)', fontSize: 'var(--text-sm)' }}>/ {plan.period}</span>
+              </div>
+
+              <div style={{ height: '1.5px', background: 'var(--card-border)', marginBottom: '28px' }} />
+
+              {/* Features List */}
+              <ul style={{
+                listStyle: 'none',
+                padding: 0,
+                margin: '0 0 40px 0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                flexGrow: 1,
+              }}>
+                {plan.features.map(feat => (
+                  <li key={feat} style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    fontSize: '13.5px',
+                    color: 'var(--paper-dim)',
+                    lineHeight: 1.45,
+                  }}>
+                    <span style={{ color: plan.highlight ? 'var(--spotlight)' : 'var(--prompter-green)', fontWeight: 'bold' }}>✓</span>
+                    <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* CTA Button */}
+              <Button
+                variant={plan.ctaVariant}
+                size="lg"
+                fullWidth
+                onClick={() => handleCta(plan.id)}
+              >
+                {plan.cta}
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        {/* Footnote */}
+        <p style={{
+          textAlign: 'center',
+          color: 'var(--paper-dimmer)',
+          fontSize: 'var(--text-xs)',
+          marginTop: '64px',
+          fontFamily: 'var(--font-mono)',
+        }}>
+          All tiers support candidate screening evaluation schemas. Cancellation is active immediately.
+        </p>
+
+      </div>
     </div>
   );
 }
+

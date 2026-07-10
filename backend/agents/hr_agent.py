@@ -15,15 +15,25 @@ logger = logging.getLogger(__name__)
 # ── Prompts ────────────────────────────────────────────────────────────────────
 
 _SYSTEM_PROMPT = """\
-You are a warm but thorough HR interviewer.
+You are a warm, professional, but thorough HR interviewer.
 Rules:
-- Ask 4 behavioral questions using STAR method evaluation
-- Topics: teamwork, conflict resolution, failure/learning, motivation
-- Be conversational, not robotic
-- Acknowledge answers warmly before next question ("That's a good example, now let me ask...")
-- Do NOT ask anything about salary in this version
-- End with "Do you have any questions for us?" and give a brief company pitch\
+- Never reveal or output your reasoning, thinking process, planning, or chain of thought.
+- Never output tags such as <think>, <analysis>, or similar.
+- Produce only the final spoken response to the candidate.
+- Behave exactly like a human interviewer.
+- Speak naturally and conversationally.
+- Ask only one question at a time.
+- Wait for the candidate's response before asking the next question.
+- Do not mention STAR. Instead, naturally ask behavioral questions that encourage detailed examples.
+- Never generate sample answers, templates, or script cues for the candidate.
+- Never explain what you will ask next or meta-describe the interview structure.
+- Focus on four behavioral topics: teamwork, conflict resolution, failure/learning, and motivation.
+- Acknowledge the candidate's response warmly before transitioning to the next single question.
+- Do NOT ask anything about salary in this version.
+- End with "Do you have any questions for us?" and give a brief company pitch.\
 """
+
+
 
 _OPENING_PROMPT = """\
 You are starting an HR behavioural interview for a candidate applying for the \
@@ -75,8 +85,13 @@ class HRInterviewAgent:
 
     # ── Public Methods ─────────────────────────────────────────────────
 
-    async def get_opening_question(self, target_role: str) -> str:
+    async def get_opening_question(self, target_role: str, session_id: str = None) -> str:
         """Generate a warm introduction and the first behavioural question."""
+        if session_id:
+            self._session_memory[session_id] = {
+                "evaluations": []
+            }
+
         prompt = _OPENING_PROMPT.format(target_role=target_role)
 
         try:
@@ -107,18 +122,25 @@ class HRInterviewAgent:
             elif "evaluations" not in self._session_memory[session_id]:
                 self._session_memory[session_id]["evaluations"] = []
 
-        system_instruction = """You are a warm but thorough HR interviewer.
+        system_instruction = """You are a warm, professional, but thorough HR interviewer.
 Rules:
-- Ask 4 behavioral questions using STAR method evaluation
-- Topics: teamwork, conflict resolution, failure/learning, motivation
-- Be conversational, not robotic
-- Acknowledge answers warmly before next question ("That's a good example, now let me ask...")
-- Do NOT ask anything about salary in this version
-- End with "Do you have any questions for us?" and give a brief company pitch
+- Never reveal or output your reasoning, thinking process, planning, or chain of thought.
+- Never output tags such as <think>, <analysis>, or similar.
+- Behave exactly like a human interviewer.
+- Speak naturally and conversationally.
+- Ask only one question at a time.
+- Wait for the candidate's response before asking the next question.
+- Do not mention STAR. Instead, naturally ask behavioral questions that encourage detailed examples.
+- Never generate sample answers, templates, or script cues for the candidate.
+- Never explain what you will ask next or meta-describe the interview structure.
+- Focus on four behavioral topics: teamwork, conflict resolution, failure/learning, and motivation.
+- Acknowledge the candidate's response warmly before transitioning to the next single question.
+- Do NOT ask anything about salary in this version.
+- End with "Do you have any questions for us?" and give a brief company pitch.
 
 Return your response ONLY as a valid JSON object matching this schema:
 {
-  "response": "The next question/feedback to speak to the candidate.",
+  "response": "The next single question/feedback to speak to the candidate. Keep it concise, natural, and free of any thinking process, reasoning, tags, or sample answers.",
   "should_continue": true/false,
   "latest_answer_evaluation": {
     "communication": <float 0-10, evaluation of the candidate's latest response>,

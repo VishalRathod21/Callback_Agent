@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import client from '../api/client';
+import Button from '../components/ui/Button';
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
@@ -20,47 +21,171 @@ export default function VerifyEmail() {
       .catch(err => { setStatus('error'); setMessage(err.message || 'Verification failed.'); });
   }, [searchParams]);
 
-  const S = {
-    page: { minHeight: '100vh', background: 'var(--stage-black, #0b0d10)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'var(--font-sans, "Inter", sans-serif)' },
-    card: { width: '100%', maxWidth: '420px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '40px 36px', backdropFilter: 'blur(12px)', textAlign: 'center' },
-    icon: { fontSize: '48px', marginBottom: '20px' },
-    heading: { color: 'var(--paper, #f5f0e8)', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 12px 0' },
-    subtext: { color: 'var(--paper-dim, rgba(245,240,232,0.5))', fontSize: '13px', lineHeight: 1.6, marginBottom: '24px' },
-    btn: { background: 'var(--spotlight, #e8c96d)', color: '#0b0d10', border: 'none', borderRadius: '8px', padding: '11px 24px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', letterSpacing: '0.04em' },
-    logo: { display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '32px', cursor: 'pointer', justifyContent: 'center' },
-    recDot: { width: '8px', height: '8px', borderRadius: '50%', background: 'var(--spotlight, #e8c96d)', boxShadow: '0 0 8px var(--spotlight, #e8c96d)', animation: 'pulse-dot 2s ease-in-out infinite' },
-    wordmark: { color: 'var(--paper, #f5f0e8)', fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em' },
-  };
-
   return (
-    <div style={S.page}>
-      <style>{`@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-      <div style={S.card}>
-        <div style={S.logo} onClick={() => navigate('/')}><span style={S.recDot} /><span style={S.wordmark}>Callback</span></div>
+    <div style={{
+      minHeight: '100vh',
+      background: 'var(--stage-black)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px',
+      fontFamily: 'var(--font-sans)',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Abstract Glowing Spotlight Orbs */}
+      <div className="spotlight-glow" style={{ top: '15%', left: '15%', width: '400px', height: '400px', opacity: 0.8 }} />
+      <div className="spotlight-glow" style={{ bottom: '20%', right: '20%', width: '450px', height: '450px', opacity: 0.5 }} />
+
+      <div style={{
+        width: '100%',
+        maxWidth: '440px',
+        background: 'rgba(21, 24, 29, 0.4)',
+        border: '1px solid rgba(255, 255, 255, 0.05)',
+        borderTop: '3px solid var(--spotlight)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '48px 40px',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
+        zIndex: 5,
+        textAlign: 'center',
+        animation: 'fadeIn 0.6s var(--ease) forwards',
+      }}>
+        {/* Logo Wordmark */}
+        <div 
+          onClick={() => navigate('/')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            marginBottom: '40px',
+            cursor: 'pointer',
+            justifyContent: 'center',
+            transition: 'transform 0.2s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <span className="rec-dot" style={{ width: '8px', height: '8px' }} />
+          <span style={{
+            color: 'var(--paper)',
+            fontSize: 'var(--text-lg)',
+            fontWeight: 700,
+            letterSpacing: '-0.02em',
+            fontFamily: 'var(--font-display)',
+          }}>Callback</span>
+        </div>
+
         {status === 'verifying' && (
-          <>
-            <div style={S.icon}>⟳</div>
-            <h1 style={S.heading}>Verifying your email…</h1>
-            <p style={S.subtext}>Please wait a moment.</p>
-          </>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              border: '3px solid var(--card-border)',
+              borderTopColor: 'var(--spotlight)',
+              animation: 'spin 0.8s linear infinite',
+            }} />
+            <h1 style={{
+              color: 'var(--paper)',
+              fontSize: 'var(--text-xl)',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}>Verifying email…</h1>
+            <p style={{
+              color: 'var(--paper-dim)',
+              fontSize: 'var(--text-sm)',
+              margin: 0,
+              lineHeight: 1.5,
+            }}>Checking activation details. Just a moment.</p>
+          </div>
         )}
+
         {status === 'success' && (
-          <>
-            <div style={S.icon}>✓</div>
-            <h1 style={S.heading}>Email verified!</h1>
-            <p style={S.subtext}>Your account is fully activated. You're ready to rehearse.</p>
-            <button style={S.btn} onClick={() => navigate('/upload')}>GO TO DASHBOARD</button>
-          </>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(62, 207, 142, 0.08)',
+              border: '1px solid rgba(62, 207, 142, 0.25)',
+              color: 'var(--prompter-green)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              fontWeight: 'bold',
+            }}>✓</div>
+            <h1 style={{
+              color: 'var(--paper)',
+              fontSize: 'var(--text-xl)',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}>Verification successful!</h1>
+            <p style={{
+              color: 'var(--paper-dim)',
+              fontSize: 'var(--text-sm)',
+              margin: 0,
+              lineHeight: 1.5,
+            }}>Your account is activated and ready. Let's start practicing.</p>
+            
+            <Button 
+              variant="primary" 
+              size="lg" 
+              fullWidth 
+              onClick={() => navigate('/upload')}
+              style={{ marginTop: '12px' }}
+            >
+              GO TO DASHBOARD
+            </Button>
+          </div>
         )}
+
         {status === 'error' && (
-          <>
-            <div style={S.icon}>✕</div>
-            <h1 style={S.heading}>Verification failed</h1>
-            <p style={S.subtext}>{message || 'The verification link may have expired or is invalid.'}</p>
-            <button style={S.btn} onClick={() => navigate('/signin')}>BACK TO SIGN IN</button>
-          </>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: 'rgba(226, 72, 61, 0.08)',
+              border: '1px solid rgba(226, 72, 61, 0.25)',
+              color: 'var(--rec-red)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+              fontWeight: 'bold',
+            }}>✕</div>
+            <h1 style={{
+              color: 'var(--paper)',
+              fontSize: 'var(--text-xl)',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}>Verification failed</h1>
+            <p style={{
+              color: 'var(--paper-dim)',
+              fontSize: 'var(--text-sm)',
+              margin: 0,
+              lineHeight: 1.5,
+            }}>{message || 'The verification link is invalid or may have expired.'}</p>
+            
+            <Button 
+              variant="secondary" 
+              size="lg" 
+              fullWidth 
+              onClick={() => navigate('/signin')}
+              style={{ marginTop: '12px' }}
+            >
+              BACK TO SIGN IN
+            </Button>
+          </div>
         )}
       </div>
     </div>
   );
 }
+

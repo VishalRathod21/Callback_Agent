@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import shutil
-import subprocess
 import tempfile
 
 import whisper
@@ -10,87 +9,53 @@ import whisper
 logger = logging.getLogger(__name__)
 
 
-def _check_ffmpeg():
-    if not shutil.which("ffmpeg"):
-        raise RuntimeError(
-            "ffmpeg is required. Run: sudo apt install ffmpeg\n"
-            "Whisper cannot process browser audio without ffmpeg."
-        )
-
-
 class WhisperSTT:
     def __init__(self, model_size: str = "base"):
-        _check_ffmpeg()
-        logger.info(f"Loading Whisper model '{model_size}' on CPU...")
+        if not shutil.which("ffmpeg"):
+            raise RuntimeError(
+                "ffmpeg is required. Run: sudo apt install ffmpeg"
+            )
+        logger.info(f"Loading Whisper '{model_size}' on CPU...")
         self.model = whisper.load_model(model_size, device="cpu")
-        logger.info(f"Whisper '{model_size}' loaded successfully")
+        logger.info("Whisper loaded OK")
 
     async def transcribe_bytes(self, audio_bytes: bytes) -> dict:
-        """
-        Transcribe raw audio bytes (any format browser sends — WebM, Opus, OGG).
-        Converts to 16kHz mono WAV using ffmpeg before passing to Whisper.
-        """
-        if not audio_bytes or len(audio_bytes) < 100:
+        if not audio_bytes or len(audio_bytes) < 200:
             return {"text": "", "language": "en"}
 
-        # Write raw bytes to temp file
-        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as raw_f:
-            raw_f.write(audio_bytes)
-            raw_path = raw_f.name
+        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as f:
+            f.write(audio_bytes)
+            raw_path = f.name
 
         wav_path = raw_path + ".wav"
-
         try:
-            # Convert browser audio → 16kHz mono WAV (Whisper requirement)
             proc = await asyncio.create_subprocess_exec(
-                "ffmpeg", "-y",
-                "-i", raw_path,
-                "-ar", "16000",   # 16kHz sample rate
-                "-ac", "1",       # mono channel
-                "-f", "wav",
-                wav_path,
+                "ffmpeg", "-y", "-i", raw_path,
+                "-ar", "16000", "-ac", "1", "-f", "wav", wav_path,
                 stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
             )
-            _, stderr = await proc.communicate()
+            await proc.wait()
 
-            if proc.returncode != 0:
-                err_msg = stderr.decode('utf-8', errors='ignore') if stderr else 'No stderr output'
-                logger.error(f"ffmpeg conversion failed with return code {proc.returncode}. stderr: {err_msg}")
+            if proc.returncode != 0 or not os.path.exists(wav_path):
                 return {"text": "", "language": "en"}
 
-            # Check output file has actual content
-            if not os.path.exists(wav_path) or os.path.getsize(wav_path) < 1000:
-                logger.warning("Converted WAV file is too small — likely silence")
+            if os.path.getsize(wav_path) < 1000:
                 return {"text": "", "language": "en"}
 
-            # Run Whisper transcription in a thread (CPU-bound)
             result = await asyncio.to_thread(
-                self.model.transcribe,
-                wav_path,
-                fp16=False,         # CPU does not support fp16
-                language=None,      # auto-detect language
-                task="transcribe",
+                self.model.transcribe, wav_path,
+                fp16=False, language=None, task="transcribe"
             )
-
             text = result.get("text", "").strip()
-            lang = result.get("language", "en")
-            logger.info(f"STT transcribed: '{text}' (lang: {lang})")
-            return {"text": text, "language": lang}
+            logger.info(f"STT: '{text}'")
+            return {"text": text, "language": result.get("language", "en")}
 
         except Exception as e:
             logger.error(f"STT error: {e}")
             return {"text": "", "language": "en"}
-
         finally:
-            for path in [raw_path, wav_path]:
+            for p in [raw_path, wav_path]:
                 try:
-                    if os.path.exists(path):
-                        os.unlink(path)
-                except Exception:
-                    pass
-
-    async def transcribe_file(self, file_path: str) -> dict:
-        """Transcribe from a file path directly."""
-        with open(file_path, "rb") as f:
-            return await self.transcribe_bytes(f.read())
+                    if os.path.exists(p): os.unlink(p)
+                except: pass
