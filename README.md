@@ -1,4 +1,4 @@
-# 🎙️ InterviewAI
+# 🎙️ Callback Rehearsal / InterviewAI
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%20%2F%20Vite-61DAFB.svg?style=flat-square&logo=react&logoColor=black)](https://react.dev)
@@ -7,7 +7,18 @@
 [![Whisper STT](https://img.shields.io/badge/SpeechToText-Whisper--Base-brightgreen.svg?style=flat-square&logo=openai&logoColor=white)](https://github.com/openai/whisper)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-InterviewAI is an immersive, AI-powered mock interview preparation platform. It simulates realistic, multi-round technical interviews, assessing candidates on Algorithmic Coding (DSA), Systems Architecture & Design, and Behavioral HR qualifications using the STAR methodology. The platform features an advanced audio engine for real-time speech processing, voice synthesis, and interactive visualization.
+**Callback Rehearsal** (InterviewAI) is a state-of-the-art, immersive AI-powered mock interview simulation platform. It replicates a high-fidelity, multi-round technical and behavioral hiring cycle. Using resume profiling, semantic RAG-based context injection, and agentic workflows, it tailors every question specifically to the candidate's target role and background.
+
+---
+
+## ✨ Core Highlights
+
+*   **Resume Screening & RAG Integration**: Extracts skills and experience profiles from uploaded resumes, parsing them into Chroma Vector DB to inject relevant candidate history during rounds.
+*   **DSA / Algorithmic Coding Round**: Generates custom coding problems based on candidate tier. Includes a live code editor with diagnostic hints, evaluation metrics, and runtime complexity breakdown.
+*   **Systems Architecture Round**: Simulates design reviews targeting technical systems, microservices, and design patterns customized to target roles.
+*   **Behavioral HR (STAR Methodology)**: Evaluates corporate fit, leadership, and emotional intelligence using custom behavioral prompts aligned with the STAR framework.
+*   **Pacing & Articulation Analytics**: Monitors spoken verbal delivery, tracking total words spoken, filler words (e.g., *"like"*, *"um"*, *"ah"*, *"so"*), and calculates filler ratios to grade articulation.
+*   **Rich Glassmorphic Design**: Sleek, modern dark-theme user experience built with customized CSS, micro-interactions, responsive score charts, and real-time audio visualizers.
 
 ---
 
@@ -60,98 +71,11 @@ graph TD
     WSC -->|Synthesized Voice Bytes| TTS
 ```
 
-The system is split into three primary layers:
-1.  **Frontend Client (React SPA)**: Renders the user interfaces, records and visualizes microphone audio, and handles real-time bidirectional WebSocket communication.
-2.  **FastAPI Application Server**: Exposes REST API endpoints for candidate profiles, session management, and report generation, while coordinating real-time WebSocket state machines, local Whisper Speech-to-Text (STT), and local Coqui Text-to-Speech (TTS) synthesis.
-3.  **Multi-Agent Orchestration & Infrastructure Layer**: Employs distinct specialist LLM agents for each interview stage. Candidate resumes are processed via ChromaDB for semantic RAG-based context injection, and interview transcripts, scores, and status updates are persisted in PostgreSQL.
-
 ---
 
-## 📁 Repository Layout & Code Architecture
+## 🎙️ Real-time Audio & Dialogue Pipeline
 
-### 1. Backend Core (`backend/`)
-*   `main.py`: Entrypoint configuring CORSMiddleware, global app states, routers, and standard exception handlers.
-*   `api/`: Defines communication layers.
-    *   `websocket.py`: Connection lifecycle, message routing (`start_round`, `candidate_text`, `audio_chunk`, `end_round`), and session state transitions.
-    *   `routes/`: Modular REST routers for `auth` (JWT lifecycle), `candidates` (resume parsers), `interviews` (session control), `dsa` (problem loading & evaluation), and `reports` (grades retrieval).
-*   `agents/`: Intelligent multi-agent backend.
-    *   `orchestrator.py`: Tracks rounds queue (`dsa`, `technical`, `hr`), restores session state from database checkpoints, and calculates final ratings.
-    *   `dsa_agent.py`: Generates custom DSA problems and evaluates approaches, correctness, and complexity.
-    *   `tech_agent.py`: Drives technical system design rounds using resume profile keywords.
-    *   `hr_agent.py`: Formulates situational STAR questions assessing cultural fit.
-    *   `report_agent.py`: Synthesizes session transcripts into markdown reports.
-*   `services/`:
-    *   `llm_service.py`: LLM provider client supporting Groq/Gemini models with fallback logic.
-    *   `stt_service.py`: Runs local OpenAI Whisper for offline, high-speed transcription.
-    *   `tts_service.py`: Voice synthesis using local Coqui TTS models.
-    *   `chroma_service.py`: Manages ChromaDB document vector embeddings.
-*   `core/`: Core settings config, DB setup (`database.py`), SQLAlchemy models (`models.py`), Pydantic schemas (`schemas.py`), and real-time verbal pacing analysis (`communication_analyzer.py`).
-
-### 2. Frontend Client (`frontend/`)
-*   `src/pages/`:
-    *   `Landing.jsx`: Premium landing page featuring dynamic glassmorphism and anchor scroll routes.
-    *   `Upload.jsx`: Secure candidate resume uploader.
-    *   `Lobby.jsx`: Interactive interview lobby and audio diagnostic checks.
-    *   `DSARound.jsx`: Code editor panel, hint console, and execution panel.
-    *   `InterviewRoom.jsx`: Fully animated, speech-focused mock room.
-    *   `Report.jsx`: Performance grading dashboard with animated scores.
-*   `src/hooks/`:
-    *   `useAudioCapture.js`: Captures raw mic input, calculates decibel volume, and manages silence detection timers.
-    *   `useWebSocket.js`: Manages socket channels, audio playback queues, and API request interceptors.
-*   `src/context/`:
-    *   `AuthContext.jsx`: Provides JWT token refresh hooks and routes protection.
-*   `src/store/`:
-    *   `interviewStore.js`: Zustand store for state management.
-
----
-
-## 🗄️ Database Architecture
-
-InterviewAI utilizes a PostgreSQL database. Below is the relational entity model:
-
-```mermaid
-erDiagram
-    candidates ||--o{ interview_sessions : starts
-    interview_sessions ||--o{ round_transcripts : records
-    
-    candidates {
-        uuid id PK
-        string email UK
-        string name
-        string target_role
-        string resume_path
-        string status "enum: idle, screening, interviewing, completed"
-        datetime created_at
-    }
-    
-    interview_sessions {
-        uuid id PK
-        uuid candidate_id FK
-        string status "enum: active, completed, cancelled"
-        string current_round "enum: dsa, technical, hr"
-        json round_scores "dsa, technical, and hr ratings"
-        float overall_score
-        string feedback_summary
-        datetime started_at
-        datetime ended_at
-    }
-
-    round_transcripts {
-        integer id PK
-        uuid session_id FK
-        string round_name "enum: dsa, technical, hr"
-        text transcript "JSON list of dialogues or code submissions"
-        json ai_evaluation "rubrics scoring data"
-        float score
-        datetime created_at
-    }
-```
-
----
-
-## 🎙️ Real-time Audio Streaming Pipeline
-
-Bidirectional voice interaction operates over standard WebSockets (`/ws/interview/{session_id}`):
+Voice mode streams audio bidirectionally over WebSockets (`/ws/interview/{session_id}`):
 
 ```mermaid
 sequenceDiagram
@@ -185,54 +109,210 @@ sequenceDiagram
     Server-->>Client: Send 'state_change' (listening)
 ```
 
-1.  **MediaRecorder & Streaming**: The frontend captures microphone streams, segmenting audio into `400ms` Base64 encoded Opus chunks sent via WebSockets.
-2.  **Silence & Turn Detection**: The client analyzer calculates decibel ranges. If silence lasts for `1.8 seconds` after speaking, the client fires a `silence_detected` event.
-3.  **FFmpeg Transcoding**: The backend compiles incoming audio segments. On flush/silence signals, the combined Opus buffer is converted using `ffmpeg` into a single-channel `16kHz WAV` audio format.
-4.  **STT & Agent Prompting**: Local Whisper transcribes the WAV file. The result is pushed to the active LLM Agent (DSA, Technical, or HR), which returns an interactive response.
-5.  **TTS Voice Playback**: Coqui TTS generates natural WAV audio. The client decodes and queues these audio packets, playing them sequentially to ensure smooth, non-overlapping voice responses.
+---
+
+## 🛠️ Key Engineering Implementations & Optimization Fixes
+
+### 1. Token Refresh Mutex (Axios Interceptor Fix)
+The backend enforces **Refresh Token Rotation (RTR)** to secure cookie-based refresh tokens. 
+*   **The Issue**: Landing on pages like the `Report` dashboard triggers concurrent API calls. When a session expires, both requests simultaneously fire `POST /auth/refresh` with the same cookie. The first call rotates the cookie; the second call presents the old rotated cookie, causing a security violation that wipes all refresh tokens and logs the user out.
+*   **The Solution**: An in-flight promise mutex locks duplicate refresh attempts in the Axios interceptor (`frontend/src/api/client.js`). All concurrent requests queue up, waiting for the first request's rotated access token, avoiding unintended logouts.
+
+### 2. Fast/Text-Only Startup Option (`VOICE_ENABLED`)
+*   **The Issue**: Local ML pipelines (Whisper STT & Coqui TTS) require substantial CPU memory and overhead, causing up to a 60-second delay during development startup, and massive synthesis freezes (2-3 minutes) on machines lacking GPUs.
+*   **The Solution**: Toggle `VOICE_ENABLED=false` in the backend environment. This bypasses Whisper and Coqui initializations, completing startup in under **1 second** and switching the interview interface to text mode.
+
+### 3. Voice Silence Detection (`useAudioCapture.js`)
+*   Uses the Web Audio API (`AnalyserNode`) to compute RMS amplitude. When audio amplitude drops below `-50dB` for more than `1.8s` after active speaking, a `silence_detected` event is pushed to flush the speech chunk buffer.
 
 ---
 
-## 🛠️ Key Engineering Enhancements & Reliability Fixes
+## 📁 Repository Layout & Architecture
 
-### 1. Audio Capture Stability (`useAudioCapture.js`)
-*   **Persistent Stream Track Management**: Keeps the stream alive throughout the session, toggling track states (`enabled = false/true`) on muting, reducing browser permission delays.
-*   **MediaRecorder Resiliency**: Automatic recovery loops restart the recorder if `MediaRecorder` runs into internal browser thread crashes or silent errors.
+### 📂 Backend Structure (`backend/`)
+```
+backend/
+├── agents/                  # LangGraph-based multi-agent orchestration
+│   ├── dsa_agent.py         # DSA problem generator & evaluator
+│   ├── hr_agent.py          # STAR Behavioral HR interviewer
+│   ├── tech_agent.py        # Technical Systems architecture interviewer
+│   ├── report_agent.py      # Final report markdown generator
+│   └── orchestrator.py      # Main state machine manager
+├── api/                     # API routers & WebSocket endpoints
+│   ├── routes/              # Auth, Candidates, DSA, Reports, Sessions routers
+│   └── websocket.py         # WebSocket audio handler & state events loop
+├── core/                    # Core configuration and database engines
+│   ├── communication_analyzer.py # Word-count & filler-words parser
+│   ├── config.py            # Pydantic settings schema
+│   ├── database.py          # SQLAlchemy async connection engine
+│   ├── models.py            # DB schema definitions
+│   └── security.py          # Hash passwords, JWT signers, RTR handlers
+├── services/                # Integration microservices
+│   ├── llm_service.py       # Groq & Gemini model client wrapper
+│   ├── stt_service.py       # Whisper speech-to-text wrapper
+│   ├── tts_service.py       # Coqui text-to-speech engine
+│   └── chroma_service.py    # Vector database (ChromaDB) wrapper
+└── main.py                  # FastAPI server entrypoint
+```
 
-### 2. Request Interception & Anti-Race Condition (`useWebSocket.js`)
-*   **Axios Deduplication Interceptor**: A global API request interceptor blocks duplicate, concurrent form submissions to `/dsa/submit` during the 2.5-second UI transition window.
-*   **Orchestrator Safeguard**: Prevents corrupting the backend state machine, ensuring candidates advance correctly through all rounds (**DSA** $\rightarrow$ **Technical** $\rightarrow$ **HR** $\rightarrow$ **Report**) without skipping stages.
-
-### 3. Typewriter and TTS Audio Synchronization (`InterviewRoom.jsx`)
-*   **Synced Visual Display**: Animates interviewer questions in a typewriter format synced with the synthesized TTS audio playing, using characters-per-second ratios to adjust text flow dynamically.
+### 📂 Frontend Structure (`frontend/`)
+```
+frontend/
+├── src/
+│   ├── api/                 # Axios clients and interceptors
+│   ├── components/ui/       # Shared premium ui modules (Navbar, Button, Card, Badge)
+│   ├── context/             # React Auth context provider
+│   ├── hooks/               # useAudioCapture, useWebSocket custom react hooks
+│   ├── pages/               # Landing, Upload, Lobby, DSARound, InterviewRoom, Report
+│   └── store/               # Zustand state stores
+```
 
 ---
 
-## 🚀 Getting Started
+## 🗄️ Database Schema Relational Design
 
-### 1. Infrastructure Setup
-Spin up PostgreSQL and ChromaDB containers:
+```mermaid
+erDiagram
+    users ||--o{ refresh_tokens : has
+    users ||--o{ candidates : screens
+    candidates ||--o{ interview_sessions : starts
+    interview_sessions ||--o{ round_transcripts : records
+    
+    users {
+        uuid id PK
+        string email UK
+        string full_name
+        string password_hash
+        boolean is_active
+        datetime last_login
+    }
+
+    refresh_tokens {
+        integer id PK
+        uuid user_id FK
+        string refresh_token_hash UK
+        string device_name
+        string browser
+        string ip_address
+        boolean revoked
+        datetime expires_at
+    }
+    
+    candidates {
+        uuid id PK
+        uuid user_id FK
+        string email UK
+        string name
+        string target_role
+        string resume_path
+        integer ats_score
+        string status "enum: idle, screening, interviewing, completed"
+        datetime created_at
+    }
+    
+    interview_sessions {
+        uuid id PK
+        uuid candidate_id FK
+        string status "enum: active, completed, cancelled"
+        string current_round "enum: dsa, technical, hr"
+        json round_scores "dsa, technical, and hr ratings"
+        float overall_score
+        string feedback_summary
+        datetime started_at
+        datetime ended_at
+    }
+
+    round_transcripts {
+        integer id PK
+        uuid session_id FK
+        string round_name "enum: dsa, technical, hr"
+        text transcript "JSON dialogue transcript"
+        json ai_evaluation "detailed rubric matrices"
+        float score
+        datetime created_at
+    }
+```
+
+---
+
+## 🚀 Setup & Installation Guide
+
+### Prerequisites
+*   **Docker** (for Postgres and ChromaDB services)
+*   **Python 3.10+** (venv recommended)
+*   **Node.js v18+** & **npm**
+*   **FFmpeg** (required on system PATH for audio conversion)
+    *   *Linux*: `sudo apt install ffmpeg`
+    *   *macOS*: `brew install ffmpeg`
+
+---
+
+### Step 1: Configure Environment Variables
+Create a `.env` file in the `backend/` directory:
+
+```ini
+# --- LLM Providers ---
+GROQ_API_KEY=gsk_your_groq_api_key_here
+LLM_PROVIDER=groq
+GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_FALLBACK_MODELS=llama-3.3-70b-versatile,qwen/qwen3-32b,llama3-8b-8192
+
+# --- Database & Storage ---
+# Postgres container port mapped to 5433 to avoid system clashes
+DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/interviewai
+CHROMA_PERSIST_DIR=./chroma_db
+UPLOAD_DIR=./uploads
+
+# --- Models & Settings ---
+WHISPER_MODEL=base
+VOICE_ENABLED=false # Set to true to load local voice models
+JWT_SECRET_KEY=generate_a_secure_jwt_hex_secret_here
+```
+
+---
+
+### Step 2: Spin Up Infrastructure Services
+Start Postgres and ChromaDB Docker containers:
 ```bash
 docker compose up -d
 ```
+*   **PostgreSQL** will run on port `5433`.
+*   **ChromaDB** will run on port `8001`.
 
-### 2. Environment Configuration
-Create a `backend/.env` file:
-```ini
-DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/interviewai
-GROQ_API_KEY=gsk_your_groq_api_key_here
-GEMINI_API_KEY=AIzaSy_your_gemini_api_key_here
-```
+---
 
-### 3. Dev Launch (Automated)
-Run the dev tool to setup dependencies, database tables, and run server loops:
+### Step 3: Run the Automated Startup Script
+An automated developer tool is provided to install node modules, setup python virtual environments, run migrations, and launch both client and server nodes:
+
 ```bash
+chmod +x start_dev.sh
 ./start_dev.sh
 ```
 
-### 4. Running Tests
-Run the test suites:
+---
+
+### Step 4: Verification & Endpoints
+Once running, check the local setup:
+*   **React Frontend Web**: [http://localhost:5173](http://localhost:5173)
+*   **FastAPI API Docs**: [http://localhost:8002/docs](http://localhost:8002/docs)
+*   **Backend Health Check**: [http://localhost:8002/health](http://localhost:8002/health)
+
+To stop development processes:
+```bash
+./stop_dev.sh
+```
+
+---
+
+### Running Automated Test Suites
+Run the python test modules locally:
 ```bash
 cd backend
 PYTHONPATH=. venv/bin/pytest
 ```
+
+---
+
+## 🔒 Security & Secrets Warning
+> [!WARNING]
+> **Key Rotation Warning**: Ensure any active credentials (such as custom `GROQ_API_KEY`, `GEMINI_API_KEY`, or custom database links) are never committed to version control. Always include `backend/.env` in your global `.gitignore` patterns. Rotate any compromised environment secret immediately.
