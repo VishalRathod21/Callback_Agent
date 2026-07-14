@@ -12,19 +12,34 @@ from core.config import settings
 # Async engine with SSL/TLS configuration for production databases (PostgreSQL/MySQL)
 connect_args = {}
 is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "true"
-is_localhost = "localhost" in settings.DATABASE_URL or "127.0.0.1" in settings.DATABASE_URL
+is_localhost = "localhost" in settings.async_database_url or "127.0.0.1" in settings.async_database_url
 
 if not is_testing and not is_localhost:
-    if settings.DATABASE_URL.startswith("postgresql"):
+    if settings.async_database_url.startswith("postgresql") or settings.async_database_url.startswith("postgres"):
         connect_args["ssl"] = "require"
-    elif settings.DATABASE_URL.startswith("mysql"):
+    elif settings.async_database_url.startswith("mysql"):
         connect_args["ssl"] = True
 
+is_sqlite = "sqlite" in settings.async_database_url
+
+engine_kwargs = {
+    "echo": False,
+    "future": True,
+    "connect_args": connect_args if connect_args else {},
+}
+
+if not is_sqlite:
+    engine_kwargs.update({
+        "pool_size": 20,
+        "max_overflow": 10,
+        "pool_timeout": 30,
+        "pool_recycle": 1800,
+        "pool_pre_ping": True,
+    })
+
 engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    future=True,
-    connect_args=connect_args if connect_args else {},
+    settings.async_database_url,
+    **engine_kwargs
 )
 
 # Async session factory

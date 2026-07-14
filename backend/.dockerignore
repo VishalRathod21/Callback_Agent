@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.env
+.git
+.gitignore
+venv/
+env/
+chroma_db/
+faiss_store/
+uploads/
+test_err.log
+*.db
+*.sqlite

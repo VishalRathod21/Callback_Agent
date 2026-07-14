@@ -406,24 +406,25 @@ async def update_profile(
 @router.delete("/me")
 async def delete_account(
     response: Response,
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Permanently delete the user's account, personal data, resume files, and vector embeddings."""
     import shutil
     from pathlib import Path
-    from services import chroma_service
     from core.models import Candidate
 
-    # 1. Fetch all candidate records for this user (to clean up filesystem and ChromaDB)
+    # 1. Fetch all candidate records for this user (to clean up filesystem and FAISS)
     result = await db.execute(select(Candidate).where(Candidate.user_id == current_user.id))
     candidates = result.scalars().all()
 
-    # 2. Cleanup associated filesystem uploads and ChromaDB embeddings
+    # 2. Cleanup associated filesystem uploads and FAISS embeddings
+    faiss_service = request.app.state.faiss
     for candidate in candidates:
         candidate_id_str = str(candidate.id)
-        # Delete from ChromaDB
-        await chroma_service.delete_resume(candidate_id_str)
+        # Delete from FAISS
+        await faiss_service.delete(collection="resumes", doc_id=candidate_id_str)
         # Delete from filesystem
         upload_dir = Path(settings.UPLOAD_DIR) / candidate_id_str
         if upload_dir.exists() and upload_dir.is_dir():

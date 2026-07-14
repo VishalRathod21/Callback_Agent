@@ -38,7 +38,22 @@ client.interceptors.response.use(
 );
 
 
-const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8002';
+const getWsUrl = () => {
+  const envUrl = import.meta.env.VITE_WS_URL;
+  if (envUrl) return envUrl;
+
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname, port } = window.location;
+    const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${wsProtocol}//${hostname}:8002`;
+    }
+    return `${wsProtocol}//${hostname}${port ? `:${port}` : ''}`;
+  }
+  return 'ws://localhost:8002';
+};
+
+const WS_URL = getWsUrl();
 
 // Close codes that indicate a permanent server-side rejection (not transient network drops).
 // We must NOT reconnect on these — doing so causes the infinite loop visible in the logs:

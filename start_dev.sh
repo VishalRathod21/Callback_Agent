@@ -17,7 +17,7 @@ fi
 pkill -f "uvicorn main:app" 2>/dev/null
 pkill -f "node.*vite" 2>/dev/null
 
-echo "Starting PostgreSQL + ChromaDB..."
+echo "Starting PostgreSQL..."
 docker-compose up -d
 
 

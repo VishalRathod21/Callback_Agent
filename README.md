@@ -3,7 +3,7 @@
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%20%2F%20Vite-61DAFB.svg?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2016-4169E1.svg?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![ChromaDB](https://img.shields.io/badge/VectorStore-ChromaDB-336791.svg?style=flat-square&logo=sqlite&logoColor=white)](https://www.trychroma.com)
+[![FAISS](https://img.shields.io/badge/VectorStore-FAISS-blue.svg?style=flat-square)](https://github.com/facebookresearch/faiss)
 [![Whisper STT](https://img.shields.io/badge/SpeechToText-Whisper--Base-brightgreen.svg?style=flat-square&logo=openai&logoColor=white)](https://github.com/openai/whisper)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
@@ -13,7 +13,7 @@
 
 ## ✨ Core Highlights
 
-*   **Resume Screening & RAG Integration**: Extracts skills and experience profiles from uploaded resumes, parsing them into Chroma Vector DB to inject relevant candidate history during rounds.
+*   **Resume Screening & RAG Integration**: Extracts skills and experience profiles from uploaded resumes, parsing them into FAISS Vector Store to inject relevant candidate history during rounds.
 *   **DSA / Algorithmic Coding Round**: Generates custom coding problems based on candidate tier. Includes a live code editor with diagnostic hints, evaluation metrics, and runtime complexity breakdown.
 *   **Systems Architecture Round**: Simulates design reviews targeting technical systems, microservices, and design patterns customized to target roles.
 *   **Behavioral HR (STAR Methodology)**: Evaluates corporate fit, leadership, and emotional intelligence using custom behavioral prompts aligned with the STAR framework.
@@ -51,7 +51,7 @@ graph TD
     %% Database & External Storage
     subgraph Infrastructure [Dockerized Infra Services]
         PG[(PostgreSQL 16 Database)]
-        CH[(Chroma Vector DB)]
+        FAISS[(FAISS Vector Store)]
     end
 
     %% Interactions
@@ -66,7 +66,7 @@ graph TD
     STT -->|Transcribed Text| WSC
     
     Agents -->|Evaluations / History| PG
-    Agents -->|Vector Embeddings & RAG| CH
+    Agents -->|Vector Embeddings & RAG| FAISS
     Agents -->|AI Response Text| WSC
     WSC -->|Synthesized Voice Bytes| TTS
 ```
@@ -151,7 +151,7 @@ backend/
 │   ├── llm_service.py       # Groq & Gemini model client wrapper
 │   ├── stt_service.py       # Whisper speech-to-text wrapper
 │   ├── tts_service.py       # Coqui text-to-speech engine
-│   └── chroma_service.py    # Vector database (ChromaDB) wrapper
+│   └── faiss_service.py     # Vector store (FAISS) wrapper
 └── main.py                  # FastAPI server entrypoint
 ```
 
@@ -238,7 +238,7 @@ erDiagram
 ## 🚀 Setup & Installation Guide
 
 ### Prerequisites
-*   **Docker** (for Postgres and ChromaDB services)
+*   **Docker** (for PostgreSQL database service)
 *   **Python 3.10+** (venv recommended)
 *   **Node.js v18+** & **npm**
 *   **FFmpeg** (required on system PATH for audio conversion)
@@ -260,7 +260,7 @@ GROQ_FALLBACK_MODELS=llama-3.3-70b-versatile,qwen/qwen3-32b,llama3-8b-8192
 # --- Database & Storage ---
 # Postgres container port mapped to 5433 to avoid system clashes
 DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/interviewai
-CHROMA_PERSIST_DIR=./chroma_db
+FAISS_INDEX_PATH=./faiss_store
 UPLOAD_DIR=./uploads
 
 # --- Models & Settings ---
@@ -272,12 +272,11 @@ JWT_SECRET_KEY=generate_a_secure_jwt_hex_secret_here
 ---
 
 ### Step 2: Spin Up Infrastructure Services
-Start Postgres and ChromaDB Docker containers:
+Start Postgres Docker container:
 ```bash
 docker compose up -d
 ```
 *   **PostgreSQL** will run on port `5433`.
-*   **ChromaDB** will run on port `8001`.
 
 ---
 

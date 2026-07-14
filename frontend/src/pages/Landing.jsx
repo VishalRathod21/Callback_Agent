@@ -50,6 +50,8 @@ export default function Landing() {
   const [activeMetric, setActiveMetric] = useState('overall');
   const [sectionRef, setSectionRef] = useState(null);
   const [sectionInView, setSectionInView] = useState(false);
+  const [hoveredStep, setHoveredStep] = useState(null);
+  const [hoveredTag, setHoveredTag] = useState(null);
 
   useEffect(() => {
     if (!sectionRef) return;
@@ -241,20 +243,25 @@ export default function Landing() {
           <p style={{ fontSize: '15px', color: 'var(--text-secondary)', marginTop: '12px', maxWidth: '520px', margin: '12px auto 0' }}>Choose your track and get AI-tailored questions based on your resume and target role.</p>
         </motion.div>
 
-        <div className="usecase-grid">
+        <div className="practice-selector-container">
           {[
-            { icon: '🖥️', bg: '#E8F5E9', color: '#2E7D32', title: 'Software Engineer', desc: 'DSA, System Design, Coding and more. Write fully compiled code inside our sandbox.' },
-            { icon: '📊', bg: '#F3E5F5', color: '#6A1B9A', title: 'Data Scientist', desc: 'ML, Statistics, SQL, Python and more. Run diagnostics on model layouts and queries.' },
-            { icon: '📋', bg: '#FFF3E0', color: '#E65100', title: 'Product Manager', desc: 'Case Studies, Product Sense, Strategy and more. Evaluate delivery pacing and structure.' }
+            { icon: '🖥️', title: 'Software Engineer', desc: 'DSA, System Design, Coding and more. Write fully compiled code inside our sandbox.' },
+            { icon: '📊', title: 'Data Scientist', desc: 'ML, Statistics, SQL, Python and more. Run diagnostics on model layouts and queries.' },
+            { icon: '📋', title: 'Product Manager', desc: 'Case Studies, Product Sense, Strategy and more. Evaluate delivery pacing and structure.' }
           ].map((card, idx) => (
-            <motion.div className="usecase-card" key={idx} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.12 }}>
-              <div>
-                <div className="usecase-icon-box" style={{ background: card.bg, color: card.color }}>{card.icon}</div>
-                <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '10px' }}>{card.title}</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{card.desc}</p>
+            <div 
+              className={`practice-selector-row role-${idx}`} 
+              key={idx} 
+              onClick={() => navigate('/upload')}
+            >
+              <div className="practice-left-accent-bar" />
+              <span className="practice-row-icon">{card.icon}</span>
+              <div className="practice-row-text">
+                <h3 className="practice-row-title">{card.title}</h3>
+                <p className="practice-row-desc">{card.desc}</p>
               </div>
-              <span onClick={() => navigate('/upload')} className="usecase-link" style={{ cursor: 'pointer' }}>Start Interview →</span>
-            </motion.div>
+              <div className="practice-row-arrow">→</div>
+            </div>
           ))}
         </div>
       </section>
@@ -265,39 +272,132 @@ export default function Landing() {
           <h2 className="heading-section">How It Works?</h2>
         </div>
 
-        <div className="how-it-works-grid">
-          <div className="how-step">
-            <div className="step-badge">01</div>
-            <div className="step-icon">💡</div>
-            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>Choose Role</h4>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Select the role and duration of interview</p>
+        <div className="timeline-container">
+          {/* Horizontal line (desktop) */}
+          <div className="timeline-line-horizontal-wrapper">
+            <svg className="timeline-line-svg-h" viewBox="0 0 1000 10" preserveAspectRatio="none">
+              {/* Background track */}
+              <path d="M 0,5 L 1000,5" fill="none" stroke="#EAE6DD" strokeWidth="3" />
+              
+              {/* Active segments */}
+              {[
+                "M 0,5 L 125,5",
+                "M 125,5 L 375,5",
+                "M 375,5 L 625,5",
+                "M 625,5 L 875,5",
+                "M 875,5 L 1000,5"
+              ].map((dVal, sIdx) => {
+                const isGlowing = hoveredStep === sIdx || (sIdx === 0 && hoveredStep === 0);
+                return (
+                  <motion.path
+                    key={sIdx}
+                    d={dVal}
+                    fill="none"
+                    stroke={isGlowing ? "var(--accent-brand)" : "rgba(217, 142, 43, 0.3)"}
+                    strokeWidth={isGlowing ? "5" : "3"}
+                    initial={{ pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: sIdx * 0.15 }}
+                    style={{
+                      filter: isGlowing ? "drop-shadow(0 0 6px var(--accent-brand))" : "none",
+                      transition: "stroke 0.3s ease, stroke-width 0.3s ease, filter 0.3s ease"
+                    }}
+                  />
+                );
+              })}
+            </svg>
           </div>
 
-          <div className="step-arrow-icon">➔</div>
-
-          <div className="how-step">
-            <div className="step-badge">02</div>
-            <div className="step-icon">💬</div>
-            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>AI Asks Questions</h4>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>AI interviewer asks tailored questions in real-time</p>
+          {/* Vertical line (mobile) */}
+          <div className="timeline-line-vertical-wrapper">
+            <svg className="timeline-line-svg-v" viewBox="0 0 10 1000" preserveAspectRatio="none">
+              {/* Background track */}
+              <path d="M 5,0 L 5,1000" fill="none" stroke="#EAE6DD" strokeWidth="3" />
+              
+              {/* Active segments */}
+              {[
+                "M 5,0 L 5,125",
+                "M 5,125 L 5,375",
+                "M 5,375 L 5,625",
+                "M 5,625 L 5,875",
+                "M 5,875 L 5,1000"
+              ].map((dVal, sIdx) => {
+                const isGlowing = hoveredStep === sIdx || (sIdx === 0 && hoveredStep === 0);
+                return (
+                  <motion.path
+                    key={sIdx}
+                    d={dVal}
+                    fill="none"
+                    stroke={isGlowing ? "var(--accent-brand)" : "rgba(217, 142, 43, 0.3)"}
+                    strokeWidth={isGlowing ? "5" : "3"}
+                    initial={{ pathLength: 0 }}
+                    whileInView={{ pathLength: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: sIdx * 0.15 }}
+                    style={{
+                      filter: isGlowing ? "drop-shadow(0 0 6px var(--accent-brand))" : "none",
+                      transition: "stroke 0.3s ease, stroke-width 0.3s ease, filter 0.3s ease"
+                    }}
+                  />
+                );
+              })}
+            </svg>
           </div>
 
-          <div className="step-arrow-icon">➔</div>
+          <div className="timeline-steps">
+            {[
+              { num: '01', icon: '💡', title: 'Choose Role', desc: 'Select the role and duration of interview' },
+              { num: '02', icon: '💬', title: 'AI Asks Questions', desc: 'AI interviewer asks tailored questions in real-time' },
+              { num: '03', icon: '🎤', title: 'Answer Naturally', desc: 'Speak or type your answers like a real interview' },
+              { num: '04', icon: '📋', title: 'Get Detailed Report', desc: 'Receive AI feedback with scores and suggestions' }
+            ].map((step, idx) => (
+              <div 
+                className="timeline-step" 
+                key={idx}
+                onMouseEnter={() => setHoveredStep(idx)}
+                onMouseLeave={() => setHoveredStep(null)}
+              >
+                {/* Desktop top section */}
+                <div className="timeline-step-top-desktop">
+                  <div className="timeline-step-icon-bounce">
+                    {step.icon}
+                  </div>
+                  <h4 className="timeline-step-title">
+                    {step.title}
+                  </h4>
+                </div>
 
-          <div className="how-step">
-            <div className="step-badge">03</div>
-            <div className="step-icon">🎤</div>
-            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>Answer Naturally</h4>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Speak or type your answers like a real interview</p>
-          </div>
+                {/* The Node on the line */}
+                <div className="timeline-node-wrapper">
+                  <motion.div 
+                    className="timeline-node"
+                    initial={{ scale: 0 }}
+                    whileInView={{ scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ 
+                      type: "spring", 
+                      stiffness: 260, 
+                      damping: 15,
+                      delay: idx * 0.3 + 0.3 
+                    }}
+                  >
+                    {step.num}
+                  </motion.div>
+                </div>
 
-          <div className="step-arrow-icon">➔</div>
-
-          <div className="how-step">
-            <div className="step-badge">04</div>
-            <div className="step-icon">📋</div>
-            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>Get Detailed Report</h4>
-            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Receive AI feedback with scores and suggestions</p>
+                {/* Desktop bottom section & Mobile text container */}
+                <div className="timeline-step-content-box">
+                  <div className="timeline-step-mobile-header">
+                    <span className="timeline-step-mobile-icon">{step.icon}</span>
+                    <h4 className="timeline-step-mobile-title">{step.title}</h4>
+                  </div>
+                  <p className="timeline-step-desc">
+                    {step.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -308,7 +408,7 @@ export default function Landing() {
           <h2 className="heading-section">Why Callback?</h2>
         </div>
 
-        <div className="why-grid">
+        <div className="why-editorial-list">
           {[
             { icon: '🎙️', title: 'AI Voice Interview', desc: 'Experience real-time voice conversations with AI Interviewers.' },
             { icon: '📄', title: 'Resume Based Questions', desc: 'Questions are generated from your resume and experience.' },
@@ -316,13 +416,27 @@ export default function Landing() {
             { icon: '👥', title: 'Behavioral Round', desc: 'HR-style behavioral questions and situational scenarios.' },
             { icon: '⚡', title: 'Instant Feedback', desc: 'Communication, Grammar, Confidence, Eye Contact, Vocabulary and more.' },
             { icon: '📊', title: 'ATS Resume Review', desc: 'Get your resume reviewed and optimized for ATS systems.' }
-          ].map((item, idx) => (
-            <motion.div className="why-card" key={idx} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.08 }}>
-              <div style={{ fontSize: '28px', marginBottom: '14px' }}>{item.icon}</div>
-              <h4 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '8px' }}>{item.title}</h4>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{item.desc}</p>
-            </motion.div>
-          ))}
+          ].map((item, idx) => {
+            const numStr = String(idx + 1).padStart(2, '0');
+            const cycleIdx = idx % 3;
+            return (
+              <motion.div 
+                className={`why-editorial-row accent-row-${cycleIdx}`}
+                key={idx} 
+                initial={{ opacity: 0, y: 24 }} 
+                whileInView={{ opacity: 1, y: 0 }} 
+                viewport={{ once: true }} 
+                transition={{ delay: idx * 0.08 }}
+              >
+                <div className={`why-editorial-number accent-color-${cycleIdx}`}>{numStr}</div>
+                <div className="why-editorial-heading-group">
+                  <span className="why-editorial-icon">{item.icon}</span>
+                  <h4 className="why-editorial-title">{item.title}</h4>
+                </div>
+                <div className="why-editorial-desc">{item.desc}</div>
+              </motion.div>
+            );
+          })}
         </div>
       </section>
 
@@ -956,26 +1070,86 @@ export default function Landing() {
       </section>
 
       {/* ── I. INTERVIEW CATEGORIES ── */}
-      <section style={{ padding: '90px max(24px, calc((100vw - 1200px) / 2))', textAlign: 'center' }}>
+      <section style={{ padding: '90px max(24px, calc((100vw - 1200px) / 2))', textAlign: 'center', overflow: 'hidden' }}>
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
           <div className="eyebrow" style={{ justifyContent: 'center' }}>
             <span className="eyebrow-dot" /> Interview Topics
           </div>
           <h2 className="heading-section" style={{ marginBottom: '36px' }}>Topics & technologies covered</h2>
         </motion.div>
-        <div className="tags-row">
+
+        <div className="cloud-container">
+          {/* Connection Lines (low-opacity SVGs connecting related topics) */}
+          <svg className="cloud-connections-svg">
+            <line x1="22%" y1="78%" x2="12%" y2="55%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="25%" y1="30%" x2="50%" y2="50%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="50%" y1="50%" x2="88%" y2="55%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="88%" y1="55%" x2="80%" y2="75%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="30%" y1="10%" x2="42%" y2="15%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="42%" y1="15%" x2="52%" y2="8%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="75%" y1="35%" x2="68%" y2="60%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="62%" y1="80%" x2="68%" y2="60%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+            <line x1="60%" y1="20%" x2="68%" y2="60%" stroke="rgba(217, 142, 43, 0.15)" strokeWidth="1" strokeDasharray="3 3" />
+          </svg>
+
           {[
-            'Frontend', 'Backend', 'AI / ML', 'Data Science', 'DevOps', 'System Design', 'SQL', 'DSA', 'HR & Behavior', 'Product Manager', 'Python', 'Java', 'React', 'Node.js', 'AWS', 'Docker', 'Kubernetes'
-          ].map((tag, idx) => (
-            <motion.div className="tag-pill" key={idx} initial={{ opacity: 0, scale: 0.9, y: 10 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.04 }} whileHover={{ scale: 1.05 }}>
-              <span>{tag}</span>
-            </motion.div>
-          ))}
+            { name: 'System Design', importance: 'high', type: 'filled', x: 50, y: 50, id: 'sys-design' },
+            { name: 'DSA', importance: 'high', type: 'outlined', x: 25, y: 30, id: 'dsa' },
+            { name: 'AI / ML', importance: 'high', type: 'underlined', x: 75, y: 35, id: 'ai-ml' },
+            { name: 'Frontend', importance: 'medium', type: 'outlined', x: 12, y: 55, id: 'frontend' },
+            { name: 'Backend', importance: 'medium', type: 'filled', x: 88, y: 55, id: 'backend' },
+            { name: 'React', importance: 'medium', type: 'underlined', x: 22, y: 78, id: 'react' },
+            { name: 'Node.js', importance: 'medium', type: 'outlined', x: 80, y: 75, id: 'nodejs' },
+            { name: 'DevOps', importance: 'medium', type: 'filled', x: 42, y: 15, id: 'devops' },
+            { name: 'SQL', importance: 'medium', type: 'outlined', x: 60, y: 20, id: 'sql' },
+            { name: 'Python', importance: 'medium', type: 'underlined', x: 62, y: 80, id: 'python' },
+            { name: 'Java', importance: 'low', type: 'outlined', x: 40, y: 85, id: 'java' },
+            { name: 'AWS', importance: 'low', type: 'filled', x: 30, y: 10, id: 'aws' },
+            { name: 'Docker', importance: 'low', type: 'outlined', x: 52, y: 8, id: 'docker' },
+            { name: 'Kubernetes', importance: 'low', type: 'underlined', x: 92, y: 18, id: 'k8s' },
+            { name: 'Data Science', importance: 'medium', type: 'filled', x: 68, y: 60, id: 'datascience' },
+            { name: 'HR & Behavior', importance: 'medium', type: 'outlined', x: 36, y: 65, id: 'hr-behavior' },
+            { name: 'Product Manager', importance: 'medium', type: 'underlined', x: 50, y: 32, id: 'pm' }
+          ].map((tag, idx) => {
+            let translateX = 0;
+            let translateY = 0;
+
+            if (hoveredTag && hoveredTag.id !== tag.id) {
+              const dx = tag.x - hoveredTag.x;
+              const dy = tag.y - hoveredTag.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              if (distance < 25 && distance > 0) {
+                const force = (25 - distance) / 25;
+                translateX = (dx / distance) * force * 16;
+                translateY = (dy / distance) * force * 16;
+              }
+            }
+
+            return (
+              <div
+                className="cloud-tag-wrapper"
+                key={tag.id}
+                style={{
+                  left: `${tag.x}%`,
+                  top: `${tag.y}%`,
+                  transform: `translate(-50%, -50%) translate(${translateX}px, ${translateY}px)`
+                }}
+                onMouseEnter={() => setHoveredTag(tag)}
+                onMouseLeave={() => setHoveredTag(null)}
+              >
+                <div className={`cloud-tag-bobbing bob-delay-${idx % 5}`}>
+                  <span className={`tag-pill importance-${tag.importance} type-${tag.type}`}>
+                    {tag.name}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
       {/* ── J. LOVED BY THOUSANDS OF CANDIDATES ── */}
-      <section style={{ padding: '100px max(24px, calc((100vw - 1200px) / 2))', background: 'rgba(27, 35, 64, 0.02)', borderTop: '1px solid var(--border-glass)', borderBottom: '1px solid var(--border-glass)' }}>
+      <section style={{ padding: '100px max(24px, calc((100vw - 1200px) / 2))', background: 'transparent', borderTop: '1px solid var(--border-glass)', borderBottom: '1px solid var(--border-glass)' }}>
         <motion.div style={{ textAlign: 'center', marginBottom: '56px' }} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <div className="eyebrow" style={{ justifyContent: 'center' }}>
             <span className="eyebrow-dot" /> Success Stories
@@ -989,16 +1163,29 @@ export default function Landing() {
             { quote: "The most realistic mock interview platform I've used. Highly recommended!", name: "Ananya Singh", role: "DS @ Microsoft", avatar: "👩" },
             { quote: "The detailed analytics and resume review feature is a game changer!", name: "Karan Mehta", role: "PM @ Amazon", avatar: "👨" }
           ].map((t, idx) => (
-            <motion.div className="testimonial-card" key={idx} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.12 }} whileHover={{ y: -4 }}>
+            <motion.div 
+              className="testimonial-pull-quote-col" 
+              key={idx} 
+              initial={{ opacity: 0, y: 30 }} 
+              whileInView={{ opacity: 1, y: 0 }} 
+              viewport={{ once: true }} 
+              transition={{ delay: idx * 0.15, duration: 0.6, ease: "easeOut" }}
+            >
+              <div className="testimonial-quote-mark">“</div>
               <div>
-                <div style={{ color: 'var(--accent-brand)', fontSize: '14px', marginBottom: '10px' }}>★★★★★</div>
-                <p className="testimonial-quote">"{t.quote}"</p>
+                <div className="testimonial-stars">★★★★★</div>
+                <blockquote className="testimonial-quote-text">
+                  “{t.quote}”
+                </blockquote>
               </div>
-              <div className="testimonial-meta">
-                <div className="testimonial-avatar">{t.avatar}</div>
-                <div>
-                  <h4 style={{ fontSize: '14px', fontWeight: 800 }}>{t.name}</h4>
-                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.role}</p>
+              <div>
+                <div className="testimonial-attribution-divider" />
+                <div className="testimonial-meta-row">
+                  <div className="testimonial-avatar-inline">{t.avatar}</div>
+                  <div>
+                    <h4 className="testimonial-attribution-name">{t.name}</h4>
+                    <p className="testimonial-attribution-role">{t.role}</p>
+                  </div>
                 </div>
               </div>
             </motion.div>

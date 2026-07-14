@@ -7,8 +7,7 @@ from core.models import User, Candidate
 from core.database import get_db
 from api.routes.auth import get_current_user
 
-@patch("services.chroma_service")
-def test_delete_account_endpoint(mock_chroma):
+def test_delete_account_endpoint():
     # Set up mock user and candidate
     user_id = uuid.uuid4()
     candidate_id = uuid.uuid4()
@@ -40,8 +39,9 @@ def test_delete_account_endpoint(mock_chroma):
     app.dependency_overrides[get_current_user] = lambda: mock_user
     app.dependency_overrides[get_db] = lambda: mock_db
     
-    # Mock chroma_service.delete_resume
-    mock_chroma.delete_resume = AsyncMock()
+    # Mock FAISSService on app state
+    mock_faiss = AsyncMock()
+    app.state.faiss = mock_faiss
     
     client = TestClient(app)
     
@@ -64,8 +64,8 @@ def test_delete_account_endpoint(mock_chroma):
             # Verify db.commit was called
             assert mock_db.commit.call_count == 1
             
-            # Verify ChromaDB deletion was triggered
-            mock_chroma.delete_resume.assert_called_with(str(candidate_id))
+            # Verify FAISS deletion was triggered
+            mock_faiss.delete.assert_called_with(collection="resumes", doc_id=str(candidate_id))
             
             # Verify filesystem cleanup was called
             mock_rmtree.assert_called_once()

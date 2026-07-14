@@ -15,10 +15,12 @@ def create_mock_docx() -> bytes:
         z.writestr("word/document.xml", "<w:document></w:document>")
     return buf.getvalue()
 
-@patch("api.routes.candidates.chroma_service")
 @patch("api.routes.candidates._screener")
 @patch("api.routes.candidates.resume_parser")
-def test_file_upload_validation(mock_resume_parser, mock_screener, mock_chroma):
+def test_file_upload_validation(mock_resume_parser, mock_screener):
+    # Mock FAISS service on app state to prevent model loading and DB calls
+    app.state.faiss = AsyncMock()
+
     # Setup mock user
     mock_user = User(
         id=uuid.UUID("11111111-1111-1111-1111-111111111111"),

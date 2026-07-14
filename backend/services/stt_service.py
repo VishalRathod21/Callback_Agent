@@ -4,8 +4,6 @@ import os
 import shutil
 import tempfile
 
-import whisper
-
 logger = logging.getLogger(__name__)
 
 
@@ -15,6 +13,7 @@ class WhisperSTT:
             raise RuntimeError(
                 "ffmpeg is required. Run: sudo apt install ffmpeg"
             )
+        import whisper
         logger.info(f"Loading Whisper '{model_size}' on CPU...")
         self.model = whisper.load_model(model_size, device="cpu")
         logger.info("Whisper loaded OK")

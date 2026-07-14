@@ -98,6 +98,12 @@ async def lifespan(app: FastAPI):
     # 2. Initialize app states
     app.state.orchestrator = InterviewOrchestrator()
 
+    from services.faiss_service import FAISSService
+    logger.info("Initializing FAISS vector store...")
+    logger.info("FAISS_PERSIST_DIR: %s", settings.FAISS_PERSIST_DIR)
+    app.state.faiss = FAISSService()
+    logger.info("FAISS ready. Stats: %s", app.state.faiss.get_stats())
+
     if is_testing:
         logger.info("Test environment detected. Skipping ML loaders.")
         app.state.stt = None
@@ -146,10 +152,9 @@ app = FastAPI(
 )
 
 # CORS configuration
-allowed_origins = [origin.strip() for origin in settings.CORS_ALLOWED_ORIGINS.split(",") if origin.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

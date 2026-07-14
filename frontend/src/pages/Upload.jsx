@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from '../api/client';
+import axios, { API_BASE } from '../api/client';
 import { useInterviewStore } from '../store/interviewStore';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Select from '../components/ui/Select';
 import Badge from '../components/ui/Badge';
 import Navbar from '../components/ui/Navbar';
-
-const API_BASE = 'http://localhost:8002/api';
 
 const ROLES = [
   'Software Engineer',

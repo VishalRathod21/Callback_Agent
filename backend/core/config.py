@@ -1,7 +1,7 @@
 """Application configuration using Pydantic BaseSettings."""
 
 import secrets
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -15,18 +15,58 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
     DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"
-    CHROMA_PERSIST_DIR: str = "./chroma_db"
+    FAISS_PERSIST_DIR: str = "./faiss_store"
+    FAISS_INDEX_PATH: str = "" # Fallback/alias to FAISS_PERSIST_DIR
     UPLOAD_DIR: str = "./uploads"
     WHISPER_MODEL: str = "base"
     XTTS_MODEL_PATH: str = "./models/xtts"
     VOICE_ENABLED: bool = False
     CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    FRONTEND_URL: str = "" # Injected from production frontend domains
+    PORT: int = 8002
 
-    JWT_SECRET_KEY: str = Field(default_factory=lambda: secrets.token_hex(32))
+    SECRET_KEY: str = "" # Alternative env variable name for JWT secret
+    JWT_SECRET_KEY: str = ""
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     REFRESH_TOKEN_REMEMBER_ME_EXPIRE_DAYS: int = 90
+
+    @property
+    def get_jwt_secret(self) -> str:
+        """Resolve JWT secret from JWT_SECRET_KEY or fallback SECRET_KEY."""
+        val = self.JWT_SECRET_KEY or self.SECRET_KEY
+        if not val:
+            # Fallback to a random key generated on startup (warning in production)
+            return secrets.token_hex(32)
+        return val
+
+    @property
+    def async_database_url(self) -> str:
+        """Ensure database URL scheme is async-compatible for SQLAlchemy/Alembic."""
+        url = self.DATABASE_URL
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("sqlite://") and "+aiosqlite" not in url:
+            url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+        return url
+
+    @property
+    def faiss_dir(self) -> str:
+        """Resolve FAISS persistence folder."""
+        return self.FAISS_INDEX_PATH or self.FAISS_PERSIST_DIR or "./faiss_store"
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Parse allowed CORS origins including FRONTEND_URL if provided."""
+        origins = [o.strip() for o in self.CORS_ALLOWED_ORIGINS.split(",") if o.strip()]
+        if self.FRONTEND_URL:
+            trimmed = self.FRONTEND_URL.strip()
+            if trimmed not in origins:
+                origins.append(trimmed)
+        return origins
 
     # Rate Limiting Configurations
     RATE_LIMIT_ENABLED: bool = True
@@ -48,6 +88,21 @@ class Settings(BaseSettings):
     # Set to true ONLY when behind a trusted reverse proxy (nginx, AWS ALB, etc.)
     # Enables X-Forwarded-For header trust for real IP extraction.
     TRUSTED_PROXY: bool = False
+
+    @model_validator(mode="after")
+    def resolve_placeholders(self) -> "Settings":
+        # Resolve secrets
+        if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in ("your_secret_here", ""):
+            if self.SECRET_KEY and self.SECRET_KEY not in ("your_secret_here", ""):
+                self.JWT_SECRET_KEY = self.SECRET_KEY
+            else:
+                self.JWT_SECRET_KEY = secrets.token_hex(32)
+        # Resolve FAISS paths
+        if self.FAISS_INDEX_PATH:
+            self.FAISS_PERSIST_DIR = self.FAISS_INDEX_PATH
+        else:
+            self.FAISS_INDEX_PATH = self.FAISS_PERSIST_DIR
+        return self
 
     model_config = {
         "env_file": ".env",

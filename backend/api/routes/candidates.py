@@ -7,7 +7,7 @@ import uuid
 import zipfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -17,7 +17,7 @@ from agents.resume_screener import ResumeScreenerAgent
 from core.config import settings
 from core.database import get_db
 from core.models import Candidate, CandidateStatus, InterviewSession, SessionStatus
-from services import chroma_service, resume_parser
+from services import resume_parser
 from api.routes.auth import get_current_user
 from core.models import User
 
@@ -117,13 +117,14 @@ async def upload_candidate(
     email: str = Form(...),
     target_role: str = Form(...),
     resume: UploadFile = File(...),
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Upload a candidate resume for ATS screening.
 
     Accepts a multipart form with candidate details and a resume file
-    (PDF or DOCX, max 5 MB).  The resume is parsed, stored in ChromaDB,
+    (PDF or DOCX, max 5 MB).  The resume is parsed, stored in FAISS,
     and evaluated by the AI screener.
 
     Returns the screening result including ATS score and decision.
@@ -247,11 +248,21 @@ async def upload_candidate(
             detail="Could not extract any text from the resume. Please upload a readable PDF or DOCX.",
         )
 
-    # ── 6. Store in ChromaDB ───────────────────────────────────────────
+    # ── 6. Store in FAISS ───────────────────────────────────────────────
     try:
-        await chroma_service.store_resume(str(candidate_id), resume_text)
+        faiss_service = request.app.state.faiss
+        await faiss_service.add(
+            collection="resumes",
+            doc_id=str(candidate_id),
+            text=resume_text,
+            metadata={
+                "candidate_id": str(candidate_id),
+                "name": name,
+                "target_role": target_role,
+            }
+        )
     except Exception as exc:
-        logger.error("ChromaDB storage failed: %s", exc)
+        logger.error("FAISS storage failed: %s", exc)
         # Non-fatal — continue with screening
 
     # ── 7. AI Screening ────────────────────────────────────────────────

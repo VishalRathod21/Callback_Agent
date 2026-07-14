@@ -1,13 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from '../api/client';
+import axios, { API_BASE } from '../api/client';
 import { useInterviewStore } from '../store/interviewStore';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Navbar from '../components/ui/Navbar';
-
-const API_BASE = 'http://localhost:8002/api';
 
 export default function Lobby() {
   const { candidateId } = useParams();

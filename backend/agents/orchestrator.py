@@ -446,15 +446,16 @@ class InterviewOrchestrator:
         if not candidate:
             raise KeyError(f"No candidate found for session: {session_id}")
 
-        # Try to retrieve resume text from ChromaDB or disk fallback
+        # Try to retrieve resume text from FAISS or disk fallback
         resume_text = ""
         try:
-            from services.chroma_service import _collection
-            res = _collection.get(ids=[str(candidate.id)])
-            if res and res["documents"]:
-                resume_text = res["documents"][0]
+            from services.faiss_service import FAISSService
+            faiss_service = FAISSService()
+            res = await faiss_service.get(collection="resumes", doc_id=str(candidate.id))
+            if res and res.get("text"):
+                resume_text = res["text"]
         except Exception as exc:
-            logger.warning("Failed to retrieve resume from ChromaDB: %s", exc)
+            logger.warning("Failed to retrieve resume from FAISS: %s", exc)
 
         if not resume_text and candidate.resume_path:
             from services import resume_parser

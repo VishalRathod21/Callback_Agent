@@ -2,14 +2,13 @@
 
 import logging
 import uuid
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.orchestrator import InterviewOrchestrator
 from core.database import get_db
 from core.models import Candidate, CandidateStatus, InterviewSession, SessionStatus, RoundName, User
-from services.chroma_service import _collection
 from api.routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -19,15 +18,15 @@ router = APIRouter(prefix="/interviews", tags=["interviews"])
 
 # ── Helper to retrieve candidate resume text ───────────────────────────────────
 
-async def _get_resume_text(candidate: Candidate) -> str:
-    """Retrieve candidate's resume text from ChromaDB, falling back to disk parsing."""
+async def _get_resume_text(candidate: Candidate, faiss_service) -> str:
+    """Retrieve candidate's resume text from FAISS, falling back to disk parsing."""
     cid_str = str(candidate.id)
     try:
-        res = _collection.get(ids=[cid_str])
-        if res and res["documents"]:
-            return res["documents"][0]
+        res = await faiss_service.get(collection="resumes", doc_id=cid_str)
+        if res and res.get("text"):
+            return res["text"]
     except Exception as exc:
-        logger.warning("Failed to retrieve resume from ChromaDB: %s", exc)
+        logger.warning("Failed to retrieve resume from FAISS: %s", exc)
 
     if candidate.resume_path:
         from services import resume_parser
@@ -46,6 +45,7 @@ async def _get_resume_text(candidate: Candidate) -> str:
 @router.post("/start/{candidate_id}")
 async def start_interview(
     candidate_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -85,10 +85,9 @@ async def start_interview(
     await db.flush()
 
     # 4. Fetch resume text for the orchestrator
-    resume_text = await _get_resume_text(candidate)
+    resume_text = await _get_resume_text(candidate, request.app.state.faiss)
 
     # 5. Initialize the orchestrator state
-    from fastapi import Request
     # Note: We will attempt to use the orchestrator singleton initialized in app.state if available,
     # otherwise fallback to a newly created orchestrator instance.
     from api.websocket import _orchestrator
@@ -124,6 +123,7 @@ async def start_interview(
 @router.get("/{session_id}")
 async def get_interview_session(
     session_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -137,7 +137,7 @@ async def get_interview_session(
     if candidate and candidate.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied. You do not own this interview session.")
 
-    resume_text = await _get_resume_text(candidate) if candidate else ""
+    resume_text = await _get_resume_text(candidate, request.app.state.faiss) if candidate else ""
 
     # Attempt to load orchestrator state
     from api.websocket import _orchestrator

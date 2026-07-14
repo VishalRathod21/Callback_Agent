@@ -1,7 +1,25 @@
 import axios from 'axios';
 
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) return envUrl;
+
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname, port } = window.location;
+    // If local dev but running frontend on separate port without VITE_API_URL, target port 8002
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return `${protocol}//${hostname}:8002/api`;
+    }
+    // In production, if they are served on the same domain or reverse proxied, use same host
+    return `${protocol}//${hostname}${port ? `:${port}` : ''}/api`;
+  }
+  return 'http://localhost:8002/api';
+};
+
+const API_BASE = getApiUrl();
+
 const client = axios.create({
-  baseURL: 'http://localhost:8002/api',
+  baseURL: API_BASE,
   timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
@@ -22,7 +40,7 @@ function _doRefresh() {
   if (_refreshPromise) return _refreshPromise;
 
   _refreshPromise = axios
-    .post('http://localhost:8002/api/auth/refresh', {}, { withCredentials: true })
+    .post(`${API_BASE}/auth/refresh`, {}, { withCredentials: true })
     .then((res) => {
       const newToken = res.data?.access_token;
       if (newToken) {
@@ -121,4 +139,5 @@ client.interceptors.response.use(
   }
 );
 
+export { API_BASE };
 export default client;
