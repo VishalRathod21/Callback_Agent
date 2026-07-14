@@ -69,7 +69,7 @@ function TerminalLoader({ targetRole }) {
           fontWeight: 800,
           letterSpacing: '-0.02em',
           marginBottom: '24px',
-          color: '#ffffff',
+          color: 'var(--text-primary)',
           fontFamily: 'var(--font-sans)',
         }}>
           Analyzing candidate profile
@@ -160,7 +160,7 @@ function DropZone({ file, onFile, onRemove }) {
           width: '40px',
           height: '40px',
           borderRadius: 'var(--radius-sm)',
-          background: 'rgba(242, 184, 75, 0.08)',
+          background: 'var(--accent-subtle)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -173,7 +173,7 @@ function DropZone({ file, onFile, onRemove }) {
           </svg>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {file.name}
           </div>
           <div style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dim)', marginTop: '2px' }}>{sizeMB} MB</div>
@@ -195,7 +195,7 @@ function DropZone({ file, onFile, onRemove }) {
       style={{
         height: '160px',
         background: isDrag 
-          ? 'rgba(242, 184, 75, 0.08)' 
+          ? 'var(--accent-subtle)' 
           : isHover 
             ? 'rgba(255, 255, 255, 0.03)' 
             : 'rgba(255, 255, 255, 0.02)',
@@ -206,7 +206,7 @@ function DropZone({ file, onFile, onRemove }) {
           : isHover 
             ? 'rgba(255, 255, 255, 0.25)' 
             : 'var(--card-border)',
-        borderRadius: '12px',
+        borderRadius: 'var(--radius-sm)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -397,6 +397,7 @@ export default function Upload() {
         role: targetRole, atsScore: data.ats_score,
         status: data.decision === 'pass' ? 'screened' : 'rejected'
       });
+    } catch (err) {
       setError(err.message || 'Analysis failed. Please retry.');
     } finally {
       setLoading(false);
@@ -415,8 +416,8 @@ export default function Upload() {
       overflow: 'hidden',
     }}>
       {/* Background Glowing Orbs */}
-      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(232, 201, 109, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(217, 142, 43, 0.08) 0%, transparent 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(168, 85, 247, 0.06) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
 
       <Navbar />
 
@@ -450,7 +451,7 @@ export default function Upload() {
           <div style={{
             position: 'absolute',
             inset: 0,
-            background: `radial-gradient(circle 220px at ${coords.x}% ${coords.y}%, rgba(242, 184, 75, 0.045), transparent 75%)`,
+            background: `radial-gradient(circle 220px at ${coords.x}% ${coords.y}%, rgba(217, 142, 43, 0.045), transparent 75%)`,
             pointerEvents: 'none',
             zIndex: 0,
           }} />
@@ -483,7 +484,7 @@ export default function Upload() {
                   letterSpacing: '-0.02em',
                   marginBottom: '10px',
                   fontFamily: 'var(--font-sans)',
-                  color: '#ffffff',
+                  color: 'var(--text-primary)',
                 }}>
                   Upload your resume
                 </h1>

@@ -4,13 +4,15 @@ import logging
 import uuid
 import json
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from typing import Optional
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.dsa_agent import DSAInterviewAgent
 from api.websocket import _orchestrator, _dsa_agent
 from core.database import get_db
-from core.models import InterviewSession, RoundTranscript, SessionStatus, RoundName
+from core.models import InterviewSession, RoundTranscript, SessionStatus, RoundName, Candidate, User
+from api.routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -19,24 +21,52 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/interviews/{session_id}/dsa", tags=["dsa"])
 
 
+ALLOWED_LANGUAGES = {"python", "javascript", "java", "cpp", "c", "go", "rust", "typescript"}
+
+
 class HintRequest(BaseModel):
-    current_code: str
-    language: str
+    current_code: str = Field(..., min_length=1, max_length=50000)
+    language: str = Field(..., min_length=1, max_length=30)
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        lang = v.strip().lower()
+        if lang not in ALLOWED_LANGUAGES:
+            raise ValueError(f"Unsupported language. Supported languages: {', '.join(ALLOWED_LANGUAGES)}")
+        return lang
 
 
 class SubmitRequest(BaseModel):
-    code: str
-    language: str
-    verbal_explanation: str | None = None
-    problem_index: int
+    code: str = Field(..., min_length=1, max_length=50000)
+    language: str = Field(..., min_length=1, max_length=30)
+    verbal_explanation: Optional[str] = Field(None, max_length=5000)
+    problem_index: int = Field(..., ge=0, le=10)
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        lang = v.strip().lower()
+        if lang not in ALLOWED_LANGUAGES:
+            raise ValueError(f"Unsupported language. Supported languages: {', '.join(ALLOWED_LANGUAGES)}")
+        return lang
+
 
 
 @router.get("/problem")
 async def get_dsa_problem(
     session_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Retrieve the current DSA problem. Generates a new one if not yet initialized."""
+    session = await db.get(InterviewSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Interview session not found.")
+    candidate = await db.get(Candidate, session.candidate_id)
+    if candidate and candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied. You do not own this interview session.")
+
     try:
         state = await _orchestrator.get_state(str(session_id), db)
     except KeyError:
@@ -76,9 +106,17 @@ async def get_dsa_problem(
 async def get_dsa_hint(
     session_id: uuid.UUID,
     body: HintRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a targeted hint for the current problem based on the candidate's code."""
+    session = await db.get(InterviewSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Interview session not found.")
+    candidate = await db.get(Candidate, session.candidate_id)
+    if candidate and candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied. You do not own this interview session.")
+
     try:
         state = await _orchestrator.get_state(str(session_id), db)
     except KeyError:
@@ -108,9 +146,17 @@ async def get_dsa_hint(
 async def submit_dsa_solution(
     session_id: uuid.UUID,
     body: SubmitRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Submit a solution for evaluation."""
+    session = await db.get(InterviewSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Interview session not found.")
+    candidate = await db.get(Candidate, session.candidate_id)
+    if candidate and candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied. You do not own this interview session.")
+
     try:
         state = await _orchestrator.get_state(str(session_id), db)
     except KeyError:

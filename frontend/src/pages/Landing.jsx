@@ -1,727 +1,1162 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Navbar from '../components/ui/Navbar';
+import Button from '../components/ui/Button';
+import laptopImg from '../assets/Laptop_image.png';
 import './Landing.css';
 
-// ── DRIFTING AURORA BACKGROUND
-function AuroraBackground() {
-  return (
-    <div className="aurora-container">
-      <div className="aurora-blob aurora-1" />
-      <div className="aurora-blob aurora-2" />
-      <div className="aurora-blob aurora-3" />
-    </div>
-  );
-}
+const chartData = {
+  overall: [65, 70, 72, 78, 80, 85, 87],
+  confidence: [60, 68, 75, 78, 84, 88, 91],
+  technical: [55, 62, 70, 75, 78, 82, 84],
+  delivery: [68, 72, 76, 80, 83, 87, 90],
+  eyecontact: [50, 58, 62, 70, 72, 75, 78]
+};
 
-// ── TYPEWRITER PREVIEW COMPONENT
-function TypewriterPreview() {
-  const questions = [
-    "Walk me through a time you had to architect a system under significant performance constraints. What tradeoffs did you make?",
-    "How would you design a rate limiter that supports 10 million requests per second across distributed nodes?",
-    "Tell me about a conflict with a team member on a critical deadline. How did you resolve it?"
-  ];
-
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [currentText, setCurrentText] = useState("");
+function AnimatedNumber({ value, duration = 600 }) {
+  const [current, setCurrent] = useState(0);
 
   useEffect(() => {
-    let active = true;
-    let timer;
-    let charIndex = 0;
-    let isTyping = true;
-
-    const type = () => {
-      if (!active) return;
-      const fullText = questions[questionIndex];
-      setCurrentText(fullText.substring(0, charIndex));
-      charIndex++;
-
-      if (charIndex > fullText.length) {
-        isTyping = false;
-        timer = setTimeout(erase, 2500);
-      } else {
-        timer = setTimeout(type, 28 + Math.random() * 20);
-      }
-    };
-
-    const erase = () => {
-      if (!active) return;
-      const fullText = questions[questionIndex];
-      setCurrentText(fullText.substring(0, charIndex));
-      charIndex--;
-
-      if (charIndex < 0) {
-        isTyping = true;
-        setQuestionIndex((prev) => (prev + 1) % questions.length);
-      } else {
-        timer = setTimeout(erase, 12);
-      }
-    };
-
-    timer = setTimeout(type, 1200);
-
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [questionIndex]);
-
-  return (
-    <div style={{
-      fontSize: '14px',
-      color: 'var(--text-primary)',
-      lineHeight: 1.65,
-      borderLeft: '2px solid var(--accent-gold)',
-      paddingLeft: '14px',
-      minHeight: '52px',
-      fontFamily: 'var(--font-sans)',
-    }}>
-      {currentText}
-      <span className="cursor-blink"></span>
-    </div>
-  );
-}
-
-// ── WAVEFORM COMPONENT
-function Waveform() {
-  const bars = Array.from({ length: 24 });
-  return (
-    <div className="waveform">
-      {bars.map((_, i) => (
-        <motion.div
-          key={i}
-          className="wave-bar"
-          animate={{
-            scaleY: [0.3, 1, 0.3],
-            height: [8, 24, 8]
-          }}
-          transition={{
-            duration: 0.6 + Math.random() * 0.8,
-            repeat: Infinity,
-            delay: i * 0.03,
-            ease: "easeInOut"
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ── TIMER COMPONENT
-function Timer() {
-  const [secs, setSecs] = useState(522);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setSecs((prev) => prev + 1);
-    }, 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  const m = String(Math.floor(secs / 60)).padStart(2, '0');
-  const s = String(secs % 60).padStart(2, '0');
-
-  return (
-    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-      00:{m}:{s}
-    </span>
-  );
-}
-
-// ── STATS COUNTER COMPONENT
-function StatItem({ target, suffix = "", label, showDivider = true }) {
-  const [val, setVal] = useState("0");
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-50px" });
-
-  useEffect(() => {
-    if (inView) {
-      const targetNum = parseFloat(target);
-      if (isNaN(targetNum)) return;
-
-      const isFloat = String(target).includes('.');
-      let start = 0;
-      const duration = 1500;
-      let startTime = null;
-
-      const step = (ts) => {
-        if (!startTime) startTime = ts;
-        const prog = Math.min((ts - startTime) / duration, 1);
-        const ease = 1 - Math.pow(1 - prog, 3); // easeOutCubic
-
-        let currentVal;
-        if (isFloat) {
-          currentVal = (start + (targetNum - start) * ease).toFixed(1);
-        } else {
-          currentVal = Math.floor(start + (targetNum - start) * ease).toLocaleString();
-        }
-
-        setVal(currentVal + (targetNum > 100 && !isFloat ? '+' : '') + suffix);
-
-        if (prog < 1) {
-          requestAnimationFrame(step);
-        }
-      };
-
-      requestAnimationFrame(step);
+    let start = 0;
+    const end = parseInt(value, 10);
+    if (isNaN(end)) {
+      setCurrent(value);
+      return;
     }
-  }, [inView, target, suffix]);
+    const startTime = performance.now();
 
-  return (
-    <div className="stat-item" ref={ref}>
-      <div style={{ fontSize: 'var(--text-4xl)', fontWeight: 800, color: 'var(--accent-gold)', fontVariantNumeric: 'tabular-nums', fontFamily: 'var(--font-display)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-        {val}
-      </div>
-      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px', fontFamily: 'var(--font-sans)', fontWeight: 500 }}>
-        {label}
-      </div>
-      {showDivider && <div className="stat-divider" />}
-    </div>
-  );
-}
+    const animate = (now) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = progress * (2 - progress); // easeOutQuad
+      const currentVal = Math.round(start + (end - start) * easeProgress);
+      setCurrent(currentVal);
 
-// ── BENTO PERFORMANCE COMPONENT
-function BentoPerformance() {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
-  const scores = [
-    { label: "Structure", val: 92 },
-    { label: "Delivery", val: 84 },
-    { label: "Tech Accuracy", val: 89 },
-    { label: "Confidence", val: 76 }
-  ];
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
 
-  return (
-    <motion.div
-      ref={ref}
-      className="feature-card-bento wide"
-      whileHover={{ y: -4, scale: 1.005, borderColor: "rgba(242, 184, 75, 0.25)" }}
-      initial={{ opacity: 0, y: 24 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-    >
-      <div>
-        <div style={{ display: 'inline-flex', padding: '8px', background: 'rgba(242, 184, 75, 0.06)', border: '1px solid rgba(242, 184, 75, 0.2)', borderRadius: '8px', fontSize: '18px', marginBottom: '16px' }}>📊</div>
-        <div className="bento-eyebrow">Performance Tracking</div>
-        <h3 className="bento-h">Real-time score breakdown across every dimension</h3>
-        <p className="bento-p">
-          See exactly where you're strong — structure, delivery, technical accuracy, confidence — all scored live per session.
-        </p>
-      </div>
-      <div className="score-bars" style={{ marginTop: '24px' }}>
-        {scores.map((score, i) => (
-          <div className="sb-row" key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-            <span className="sb-label" style={{ width: '120px', fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{score.label}</span>
-            <div className="sb-track" style={{ flex: 1, height: '4px', background: 'rgba(255, 255, 255, 0.05)', borderRadius: '99px', overflow: 'hidden' }}>
-              <motion.div
-                className="sb-fill"
-                style={{ height: '100%', background: 'var(--accent-gold)', borderRadius: '99px' }}
-                initial={{ width: 0 }}
-                animate={inView ? { width: `${score.val}%` } : {}}
-                transition={{ duration: 1.2, delay: i * 0.1, ease: [0.16, 1, 0.3, 1] }}
-              />
-            </div>
-            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)', width: '28px', textAlign: 'right' }}>{score.val}</span>
-          </div>
-        ))}
-      </div>
-    </motion.div>
-  );
+    requestAnimationFrame(animate);
+  }, [value, duration]);
+
+  return <span>{current}%</span>;
 }
 
 export default function Landing() {
   const navigate = useNavigate();
+  const [activeFaq, setActiveFaq] = useState(null);
+  const [activeMetric, setActiveMetric] = useState('overall');
+  const [sectionRef, setSectionRef] = useState(null);
+  const [sectionInView, setSectionInView] = useState(false);
 
-  // Animation variants
-  const staggerContainer = {
-    initial: {},
-    animate: {
-      transition: {
-        staggerChildren: 0.08
+  useEffect(() => {
+    if (!sectionRef) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        setSectionInView(true);
       }
-    }
+    }, { threshold: 0.20 });
+    observer.observe(sectionRef);
+    return () => observer.disconnect();
+  }, [sectionRef]);
+
+  const toggleFaq = (index) => {
+    setActiveFaq(activeFaq === index ? null : index);
   };
 
-  const itemFadeUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } }
-  };
+  const faqs = [
+    {
+      q: "How does the AI Interview work?",
+      a: "Callback uses advanced speech recognition and code compilation to analyze your mock performance. It evaluates syntax, structure, complexity, pacing, and delivery to create a detailed score breakdown."
+    },
+    {
+      q: "Is my data and video recording secure?",
+      a: "Yes. All your practice data and sessions are kept completely confidential. We do not sell your interview recordings or scorecards to third parties."
+    },
+    {
+      q: "Can I get a refund if I'm not satisfied?",
+      a: "Absolutely. If Callback Pro doesn't help you improve your confidence, you can request a full refund within 14 days of upgrade."
+    },
+    {
+      q: "Does Callback provide real interview questions?",
+      a: "Yes, our question banks are updated daily with verified behavioral and systems design questions from Google, Meta, Amazon, and leading tech giants."
+    }
+  ];
 
   return (
     <div className="landing-root">
       <div className="noise-overlay" />
-      <AuroraBackground />
       <Navbar />
 
-      {/* ── HERO SECTION ── */}
+      {/* ── B. HERO SECTION ── */}
       <section className="hero-layout">
-        <motion.div 
-          className="hero-left"
-          variants={staggerContainer}
-          initial="initial"
-          animate="animate"
-        >
-          <motion.div 
-            variants={itemFadeUp}
+        <div className="hero-left">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.4, delay: 0.1 }}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '6px 14px',
-              background: 'rgba(242, 184, 75, 0.06)',
-              border: '1px solid rgba(242, 184, 75, 0.18)',
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, rgba(217,142,43,0.08), rgba(124,58,237,0.06))',
+              border: '1px solid rgba(217, 142, 43, 0.2)',
               borderRadius: '99px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
-              color: 'var(--accent-gold)',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              marginBottom: '28px'
+              fontSize: '12px',
+              fontWeight: 700,
+              color: 'var(--accent-brand)',
+              letterSpacing: '0.04em',
+              marginBottom: '24px',
+              animation: 'float-badge 3s ease-in-out infinite'
             }}
           >
-            <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: 'var(--accent-gold)', boxShadow: '0 0 6px var(--accent-gold)' }} />
-            ✦ Rehearse with specialized agents
+            <span>✨</span>
+            <span>AI-Powered Mock Interviews</span>
+            <span style={{ background: 'var(--accent-brand)', color: '#fff', padding: '2px 8px', borderRadius: '99px', fontSize: '9px', fontWeight: 800 }}>NEW</span>
           </motion.div>
 
-          <motion.h1 className="heading-hero" variants={itemFadeUp}>
-            Master the room<br />
-            before you <span style={{ color: 'var(--accent-gold)', position: 'relative' }}>walk inside.</span>
-          </motion.h1>
+          <h1 className="heading-hero" style={{ margin: '0 0 24px 0' }}>
+            <span style={{ display: 'block', overflow: 'hidden' }}>
+              <motion.span
+                style={{ display: 'inline-block' }}
+                initial={{ clipPath: 'polygon(0 100%, 100% 100%, 100% 100%, 0 100%)', y: '100%' }}
+                animate={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)', y: 0 }}
+                transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.5, delay: 0.2 }}
+              >
+                Ace Every Interview
+              </motion.span>
+            </span>
+            <span style={{ display: 'block', overflow: 'hidden' }}>
+              <motion.span
+                style={{ display: 'inline-block' }}
+                initial={{ clipPath: 'polygon(0 100%, 100% 100%, 100% 100%, 0 100%)', y: '100%' }}
+                animate={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%, 0 100%)', y: 0 }}
+                transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.5, delay: 0.28 }}
+              >
+                with <span className="gradient-text">AI-Powered</span> Practice
+              </motion.span>
+            </span>
+          </h1>
 
-          <motion.p 
-            variants={itemFadeUp}
-            style={{
-              fontSize: 'clamp(14px, 2vw, 17px)',
-              color: 'var(--text-secondary)',
-              lineHeight: 1.7,
-              maxWidth: '540px',
-              margin: '0 0 32px 0'
-            }}
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.5, delay: 0.4 }}
+            style={{ fontSize: '17px', color: 'var(--text-secondary)', lineHeight: 1.7, maxWidth: '500px', margin: '0 0 32px 0' }}
           >
-            Callback is a theater green room for technical professionals. Upload credentials, practice mock behavioral and systems stages, and optimize your pitch before the real interview.
+            Real-time AI interviews that evaluate communication, technical skills, confidence and problem-solving — so you walk in prepared.
           </motion.p>
 
-          <motion.div className="hero-cta-group" variants={itemFadeUp}>
-            <motion.button 
-              className="btn-cta-primary"
-              onClick={() => navigate('/upload')}
-              whileHover={{ scale: 1.02, boxShadow: '0 8px 30px rgba(242, 184, 75, 0.35)' }}
-              whileTap={{ scale: 0.98 }}
-              style={{
-                height: '52px',
-                padding: '0 30px',
-                background: 'var(--accent-gold)',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#0A0A0B',
-                fontSize: '14px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
+          <div className="hero-cta-group">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.5, delay: 0.5 }}
             >
-              ⚡ Launch Rehearsal Room
-            </motion.button>
-            <motion.button 
-              className="btn-cta-secondary"
-              onClick={() => navigate('/pricing')}
-              whileHover={{ borderColor: 'rgba(242, 184, 75, 0.3)', color: '#ffffff' }}
-              style={{
-                height: '52px',
-                padding: '0 28px',
-                background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                color: 'var(--text-secondary)',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 200ms ease',
-              }}
+              <Button 
+                variant="secondary" 
+                size="lg" 
+                onClick={() => navigate('/')} 
+                icon={<span style={{ fontSize: '13px' }}>▶</span>}
+                className="btn-secondary"
+              >
+                Watch Demo
+              </Button>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.5, delay: 0.56 }}
             >
-              Explore Pricing
-            </motion.button>
-          </motion.div>
-        </motion.div>
-
-        {/* Floating preview card */}
-        <motion.div 
-          className="preview-card-container"
-          initial={{ opacity: 0, y: 30, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.7, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
-        >
-          <div className="preview-card glass-panel" style={{ overflow: 'hidden' }}>
-            <div className="preview-topbar">
-              <div className="rec-group">
-                <span className="rec-dot" />
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--danger)', fontWeight: 700, letterSpacing: '0.08em' }}>REC</span>
-                <span style={{ color: 'rgba(255, 255, 255, 0.1)', margin: '0 4px' }}>//</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--text-muted)' }}>STAGE_SESSION_03</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '5px', fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--success-green)' }}>
-                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--success-green)' }} /> LIVE_FEED
-                </span>
-                <Timer />
-              </div>
-            </div>
-            <div className="preview-body">
-              <div className="preview-left">
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--accent-gold)', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                    <span style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'var(--accent-gold)' }} /> AI INTERVIEWER
-                  </div>
-                  <TypewriterPreview />
-                </div>
-                <Waveform />
-              </div>
-              <div className="preview-right">
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>Live Diagnostics</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', marginBottom: '14px' }}>
-                  <span style={{ fontSize: '42px', fontWeight: 800, color: 'var(--success-green)', lineHeight: 1, fontFamily: 'var(--font-display)' }}>88</span>
-                  <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>/100</span>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {[
-                    { label: 'Structure', val: '92%' },
-                    { label: 'Delivery', val: '84%' },
-                    { label: 'Tech Accuracy', val: '89%' },
-                    { label: 'Confidence', val: '76%' }
-                  ].map((metric, index) => (
-                    <div key={index}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', marginBottom: '3px' }}>
-                        <span>{metric.label}</span>
-                        <span>{metric.val}</span>
-                      </div>
-                      <div style={{ height: '3px', background: 'rgba(255,255,255,0.04)', borderRadius: '99px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: metric.val, backgroundColor: index % 2 === 0 ? 'var(--success-green)' : 'var(--accent-gold)', borderRadius: '99px' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+              <Button 
+                variant="primary" 
+                size="lg" 
+                onClick={() => navigate('/upload')} 
+                style={{ boxShadow: '0 8px 24px rgba(27,35,64,0.15)' }}
+                className="btn-primary"
+              >
+                Start Free Interview →
+              </Button>
+            </motion.div>
           </div>
+
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            transition={{ delay: 0.65, duration: 0.4 }}
+            style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '20px', display: 'flex', gap: '16px', alignItems: 'center' }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>✓ No credit card</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>✓ Free forever plan</span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>✓ 10k+ users</span>
+          </motion.div>
+        </div>
+
+        <div className="laptop-3d-wrapper" style={{ perspective: '2000px' }}>
+          <motion.div
+            style={{ position: 'relative', width: '100%', maxWidth: '580px', cursor: 'pointer', transformStyle: 'preserve-3d' }}
+            initial={{ opacity: 0, y: 20, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.5, delay: 0.6 }}
+            whileHover={{ scale: 1.04, rotateX: 4, rotateY: -4, z: 10, transition: { duration: 0.3, ease: [0.34, 1.56, 0.64, 1] } }}
+          >
+            <img src={laptopImg} alt="Callback Mock Interview Stage" style={{ width: '100%', height: 'auto', display: 'block', filter: 'drop-shadow(0 30px 60px rgba(27, 35, 64, 0.18))' }} />
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── STATS BAR ── */}
+      <section style={{ padding: '0 max(24px, calc((100vw - 1200px) / 2))', position: 'relative', zIndex: 1 }}>
+        <div className="stats-bar">
+          {[{ num: '50,000+', label: 'Interviews Conducted' }, { num: '4.9/5', label: 'Average Rating' }, { num: '95%', label: 'Success Rate' }, { num: '500+', label: 'Companies Covered' }].map((s, i) => (
+            <motion.div key={i} className="stat-item" initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}>
+              <div className="stat-number">{s.num}</div>
+              <div className="stat-label">{s.label}</div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── COMPANY LOGOS ── */}
+      <section style={{ padding: '32px max(24px, calc((100vw - 1200px) / 2))', borderTop: '1px solid var(--border-glass)', borderBottom: '1px solid var(--border-glass)', background: '#FFFFFF', textAlign: 'center', overflow: 'hidden' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700, marginBottom: '20px' }}>Trusted by candidates targeting</div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '48px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {['Google', 'Amazon', 'Microsoft', 'Meta', 'Apple', 'Netflix', 'Adobe'].map((c, idx) => (
+            <span key={idx} style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', opacity: 0.3, fontFamily: 'var(--font-display)', letterSpacing: '-0.01em', transition: 'opacity 0.2s' }} onMouseEnter={e => e.target.style.opacity = '0.7'} onMouseLeave={e => e.target.style.opacity = '0.3'}>{c}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* ── D. PRACTICE ROOM CARDS (3 columns) ── */}
+      <section className="rooms-section" id="rooms-section" style={{ padding: '100px max(24px, calc((100vw - 1200px) / 2))' }}>
+        <motion.div style={{ textAlign: 'center', marginBottom: '56px' }} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <div className="eyebrow" style={{ justifyContent: 'center' }}>
+            <span className="eyebrow-dot" /> Practice Rooms
+          </div>
+          <h2 className="heading-section">Specialized mock interview environments</h2>
+          <p style={{ fontSize: '15px', color: 'var(--text-secondary)', marginTop: '12px', maxWidth: '520px', margin: '12px auto 0' }}>Choose your track and get AI-tailored questions based on your resume and target role.</p>
         </motion.div>
-      </section>
 
-      {/* ── TRUST STATS BAR ── */}
-      <section className="stats-bar">
-        <StatItem target="42000" label="Rehearsals completed" />
-        <StatItem target="22.5" suffix="%" label="Avg. performance increase" />
-        <StatItem target="4.8" suffix="/5" label="Candidate satisfaction" />
-        <StatItem target="91.4" suffix="%" label="Hired within 60 days" showDivider={false} />
-      </section>
-
-      {/* ── SPECIALIZED SIMULATION ROOMS ── */}
-      <section className="rooms-section" style={{ padding: '80px max(24px, calc((100vw - 1200px) / 2))' }}>
-        <div className="eyebrow">
-          <span className="eyebrow-dot" /> Practice Rooms
-        </div>
-        <h2 className="heading-section" style={{ margin: '8px 0 var(--space-8) 0' }}>Specialized simulation rooms</h2>
-        
-        <div className="rooms-grid">
-          {/* DSA Algorithmic Round - 2x DOMINANT CARD */}
-          <motion.div 
-            className="room-card-bento dominant"
-            onClick={() => navigate('/upload')}
-            whileHover={{ y: -6, borderColor: 'rgba(168, 85, 247, 0.3)' }}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
-              <div style={{ display: 'inline-flex', padding: '10px', background: 'rgba(168, 85, 247, 0.06)', border: '1px solid rgba(168, 85, 247, 0.2)', borderRadius: '8px', fontSize: '24px' }}>⚡</div>
-              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--accent-violet)', background: 'rgba(168, 85, 247, 0.08)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(168, 85, 247, 0.15)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>Most Popular</span>
-            </div>
-            <div style={{ marginTop: '24px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff', marginBottom: '8px' }}>DSA Algorithmic Round</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: '16px' }}>
-                Write code in our fully integrated Monaco sandbox editor. Evaluated for execution correctness, algorithmic Big-O complexity, and optimal space-time structures.
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                <span className="room-tag">Monaco Sandbox</span>
-                <span className="room-tag">Execution Correctness</span>
-                <span className="room-tag">Big-O Complexity</span>
+        <div className="usecase-grid">
+          {[
+            { icon: '🖥️', bg: '#E8F5E9', color: '#2E7D32', title: 'Software Engineer', desc: 'DSA, System Design, Coding and more. Write fully compiled code inside our sandbox.' },
+            { icon: '📊', bg: '#F3E5F5', color: '#6A1B9A', title: 'Data Scientist', desc: 'ML, Statistics, SQL, Python and more. Run diagnostics on model layouts and queries.' },
+            { icon: '📋', bg: '#FFF3E0', color: '#E65100', title: 'Product Manager', desc: 'Case Studies, Product Sense, Strategy and more. Evaluate delivery pacing and structure.' }
+          ].map((card, idx) => (
+            <motion.div className="usecase-card" key={idx} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.12 }}>
+              <div>
+                <div className="usecase-icon-box" style={{ background: card.bg, color: card.color }}>{card.icon}</div>
+                <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '10px' }}>{card.title}</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{card.desc}</p>
               </div>
-            </div>
-          </motion.div>
-
-          {/* Systems & Architecture */}
-          <motion.div 
-            className="room-card-bento"
-            onClick={() => navigate('/upload')}
-            whileHover={{ y: -6, borderColor: 'rgba(59, 130, 246, 0.3)' }}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div style={{ display: 'inline-flex', padding: '10px', background: 'rgba(59, 130, 246, 0.06)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px', fontSize: '24px', alignSelf: 'flex-start' }}>🏗️</div>
-            <div style={{ marginTop: '24px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>Systems & Architecture</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
-                Design replication models, partition strategies, failovers, and scalable caching architectures.
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                <span className="room-tag">System Design</span>
-                <span className="room-tag">Caching</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* STAR Behavioral */}
-          <motion.div 
-            className="room-card-bento"
-            onClick={() => navigate('/upload')}
-            whileHover={{ y: -6, borderColor: 'rgba(62, 207, 142, 0.3)' }}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div style={{ display: 'inline-flex', padding: '10px', background: 'rgba(62, 207, 142, 0.06)', border: '1px solid rgba(62, 207, 142, 0.2)', borderRadius: '8px', fontSize: '24px', alignSelf: 'flex-start' }}>🎭</div>
-            <div style={{ marginTop: '24px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>STAR Behavioral</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
-                Rehearse conflict, leadership, and ownership scenarios scored on clarity, pacing, and delivery.
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                <span className="room-tag">Communication</span>
-                <span className="room-tag">STAR</span>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* HR & Negotiation */}
-          <motion.div 
-            className="room-card-bento"
-            onClick={() => navigate('/upload')}
-            whileHover={{ y: -6, borderColor: 'rgba(242, 184, 75, 0.3)' }}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div style={{ display: 'inline-flex', padding: '10px', background: 'rgba(242, 184, 75, 0.06)', border: '1px solid rgba(242, 184, 75, 0.2)', borderRadius: '8px', fontSize: '24px', alignSelf: 'flex-start' }}>💼</div>
-            <div style={{ marginTop: '24px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#ffffff', marginBottom: '6px' }}>Salary Negotiation</h3>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '14px' }}>
-                Navigate compensation packages and recruiter alignment screens. Evaluated for tone positioning.
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                <span className="room-tag">Offer Strategy</span>
-                <span className="room-tag">Negotiation</span>
-              </div>
-            </div>
-          </motion.div>
+              <span onClick={() => navigate('/upload')} className="usecase-link" style={{ cursor: 'pointer' }}>Start Interview →</span>
+            </motion.div>
+          ))}
         </div>
       </section>
 
-      {/* ── PLATFORM FEATURES BENTO ── */}
-      <section style={{ padding: '0 max(24px, calc((100vw - 1200px) / 2)) 80px' }}>
-        <div className="eyebrow">
-          <span className="eyebrow-dot" /> Platform Features
+      {/* ── E. HOW IT WORKS ── */}
+      <section className="how-it-works-section" style={{ padding: '90px max(24px, calc((100vw - 1200px) / 2))', background: '#FFFFFF', borderTop: '1px solid var(--border-glass)', borderBottom: '1px solid var(--border-glass)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '50px' }}>
+          <h2 className="heading-section">How It Works?</h2>
         </div>
-        <h2 className="heading-section" style={{ margin: '8px 0 var(--space-8) 0' }}>Everything you need to land the role</h2>
 
-        <div className="features-grid">
-          {/* Feature 1: Performance (Dominant 2x wide card) */}
-          <BentoPerformance />
+        <div className="how-it-works-grid">
+          <div className="how-step">
+            <div className="step-badge">01</div>
+            <div className="step-icon">💡</div>
+            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>Choose Role</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Select the role and duration of interview</p>
+          </div>
 
-          {/* Feature 2: Leaderboard (1x card) */}
-          <motion.div 
-            className="feature-card-bento"
-            whileHover={{ y: -4, scale: 1.005, borderColor: "rgba(255, 255, 255, 0.08)" }}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div>
-              <div style={{ display: 'inline-flex', padding: '8px', background: 'rgba(242, 184, 75, 0.06)', border: '1px solid rgba(242, 184, 75, 0.2)', borderRadius: '8px', fontSize: '18px', marginBottom: '16px' }}>🏆</div>
-              <div className="bento-eyebrow">Leaderboard</div>
-              <h3 className="bento-h">See where you rank globally</h3>
-              <p className="bento-p">Compare metrics against engineering peers globally.</p>
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '16px' }}>
-              <div className="lb-grid-row first">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--accent-gold)', fontWeight: 700 }}>#1</span>
-                  <span style={{ fontSize: '12px', color: '#ffffff', fontWeight: 500 }}>Arjun R.</span>
-                </div>
-                <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--success-green)', fontWeight: 600 }}>94%</span>
-              </div>
-              <div className="lb-grid-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>#2</span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Priya S.</span>
-                </div>
-                <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--success-green)' }}>91%</span>
-              </div>
-              <div className="lb-grid-row you">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--accent-gold)', fontWeight: 700 }}>#4</span>
-                  <span style={{ fontSize: '12px', color: '#ffffff', fontWeight: 600 }}>You</span>
-                </div>
-                <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--success-green)', fontWeight: 700 }}>88%</span>
-              </div>
-            </div>
-          </motion.div>
+          <div className="step-arrow-icon">➔</div>
 
-          {/* Feature 3: History (2x wide card) */}
-          <motion.div 
-            className="feature-card-bento wide"
-            whileHover={{ y: -4, scale: 1.005, borderColor: "rgba(255, 255, 255, 0.08)" }}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div>
-              <div style={{ display: 'inline-flex', padding: '8px', background: 'rgba(242, 184, 75, 0.06)', border: '1px solid rgba(242, 184, 75, 0.2)', borderRadius: '8px', fontSize: '18px', marginBottom: '16px' }}>🕐</div>
-              <div className="bento-eyebrow">Interview History</div>
-              <h3 className="bento-h">Every session saved — track your improvement arc</h3>
-              <p className="bento-p">Review full transcripts, complexity diagnostics, and targeted AI recommendations from past attempts.</p>
+          <div className="how-step">
+            <div className="step-badge">02</div>
+            <div className="step-icon">💬</div>
+            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>AI Asks Questions</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>AI interviewer asks tailored questions in real-time</p>
+          </div>
+
+          <div className="step-arrow-icon">➔</div>
+
+          <div className="how-step">
+            <div className="step-badge">03</div>
+            <div className="step-icon">🎤</div>
+            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>Answer Naturally</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Speak or type your answers like a real interview</p>
+          </div>
+
+          <div className="step-arrow-icon">➔</div>
+
+          <div className="how-step">
+            <div className="step-badge">04</div>
+            <div className="step-icon">📋</div>
+            <h4 style={{ fontSize: '14px', fontWeight: 800, margin: '8px 0' }}>Get Detailed Report</h4>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>Receive AI feedback with scores and suggestions</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── F. WHY CALLBACK GRID ── */}
+      <section className="features-section" id="features-section" style={{ padding: '90px max(24px, calc((100vw - 1200px) / 2))' }}>
+        <div style={{ textAlign: 'center', marginBottom: '50px' }}>
+          <h2 className="heading-section">Why Callback?</h2>
+        </div>
+
+        <div className="why-grid">
+          {[
+            { icon: '🎙️', title: 'AI Voice Interview', desc: 'Experience real-time voice conversations with AI Interviewers.' },
+            { icon: '📄', title: 'Resume Based Questions', desc: 'Questions are generated from your resume and experience.' },
+            { icon: '💻', title: 'Coding Round', desc: 'Live coding evaluation with AI-powered assistance.' },
+            { icon: '👥', title: 'Behavioral Round', desc: 'HR-style behavioral questions and situational scenarios.' },
+            { icon: '⚡', title: 'Instant Feedback', desc: 'Communication, Grammar, Confidence, Eye Contact, Vocabulary and more.' },
+            { icon: '📊', title: 'ATS Resume Review', desc: 'Get your resume reviewed and optimized for ATS systems.' }
+          ].map((item, idx) => (
+            <motion.div className="why-card" key={idx} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.08 }}>
+              <div style={{ fontSize: '28px', marginBottom: '14px' }}>{item.icon}</div>
+              <h4 style={{ fontSize: '16px', fontWeight: 800, marginBottom: '8px' }}>{item.title}</h4>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{item.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── G. DETAILED ANALYTICS ── */}
+      <section 
+        ref={setSectionRef}
+        className="analytics-section" 
+        style={{ 
+          padding: '120px max(24px, calc((100vw - 1200px) / 2))', 
+          background: '#FAF9F6', 
+          borderTop: '1px solid rgba(27, 35, 64, 0.04)', 
+          borderBottom: '1px solid rgba(27, 35, 64, 0.04)', 
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        {/* Ambient Aurora Blobs */}
+        <div className="aurora-blob aurora-1" />
+        <div className="aurora-blob aurora-2" />
+
+        <style>{`
+          .analytics-section {
+            --accent-brand: #D98E2B;
+            --ease-micro: cubic-bezier(0.34, 1.56, 0.64, 1);
+            --ease-entrance: cubic-bezier(0.22, 1, 0.36, 1);
+            --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+          }
+
+          /* Ambient Aurora Animation */
+          .aurora-blob {
+            position: absolute;
+            filter: blur(140px);
+            border-radius: 50%;
+            opacity: 0.08;
+            pointer-events: none;
+            z-index: 0;
+            will-change: transform;
+          }
+          .aurora-1 {
+            width: 450px;
+            height: 450px;
+            background: radial-gradient(circle, #D98E2B 0%, transparent 70%);
+            top: -100px;
+            left: -100px;
+            animation: float-aurora-1 26s ease-in-out infinite;
+          }
+          .aurora-2 {
+            width: 550px;
+            height: 550px;
+            background: radial-gradient(circle, #7C3AED 0%, transparent 70%);
+            bottom: -150px;
+            right: -100px;
+            animation: float-aurora-2 32s ease-in-out infinite;
+          }
+          @keyframes float-aurora-1 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(80px, 50px) scale(1.15); }
+          }
+          @keyframes float-aurora-2 {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(-60px, -70px) scale(0.9); }
+          }
+
+          /* Easing & Stagger Reveals */
+          .reveal-item {
+            opacity: 0;
+            transform: translateY(24px) scale(0.98);
+            transition: opacity 500ms var(--ease-entrance),
+                        transform 500ms var(--ease-entrance);
+            will-change: transform, opacity;
+          }
+          .reveal-item.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+
+          .analytics-eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(217, 142, 43, 0.08);
+            color: #D98E2B;
+            padding: 6px 14px;
+            border-radius: 99px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 24px;
+            border: 1px solid rgba(217, 142, 43, 0.15);
+          }
+          .analytics-heading {
+            font-size: clamp(34px, 4vw, 50px);
+            font-weight: 850;
+            color: #0F172A; /* Deep Navy */
+            line-height: 1.12;
+            letter-spacing: -0.04em;
+            margin-bottom: 24px;
+            font-family: var(--font-display);
+          }
+          .analytics-desc {
+            font-size: 15.5px;
+            color: #4A5568;
+            line-height: 1.8;
+            margin-bottom: 36px;
+            max-width: 480px;
+          }
+          .analytics-checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+          }
+          .analytics-check-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+          }
+          .analytics-check-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background: rgba(5, 150, 105, 0.08);
+            border: 1px solid rgba(5, 150, 105, 0.2);
+            color: #059669;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: 800;
+            flex-shrink: 0;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+          }
+          .analytics-check-text {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: #1E293B;
+          }
+
+          /* Dashboard Mockup Frame */
+          .db-mock-wrapper {
+            perspective: 1400px;
+            width: 100%;
+            z-index: 10;
+          }
+          .db-mock-container {
+            background: #0B0F19; /* SaaS Dark Navy Charcoal */
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            box-shadow: 
+              0 30px 60px -15px rgba(0, 0, 0, 0.35), 
+              0 0 0 1px rgba(255, 255, 255, 0.03),
+              inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            transition: transform 600ms var(--ease-entrance), box-shadow 600ms var(--ease-entrance);
+            transform: rotateX(3deg) rotateY(-6deg) rotateZ(0.5deg);
+            transform-style: preserve-3d;
+          }
+          .db-mock-container:hover {
+            transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translateY(-6px);
+            box-shadow: 
+              0 45px 90px -20px rgba(0, 0, 0, 0.55), 
+              0 0 0 1px rgba(255, 255, 255, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.15);
+          }
+          @media (max-width: 992px) {
+            .db-mock-container {
+              transform: none !important;
+            }
+          }
+          @media (max-width: 680px) {
+            .db-mock-container {
+              grid-template-columns: 1fr;
+            }
+            .db-sidebar {
+              border-right: none;
+              border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+              padding: 16px 20px;
+            }
+          }
+          .db-sidebar {
+            background: #070A12;
+            padding: 28px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+          }
+          .db-main {
+            background: #0C111D; /* Deep Rich Dark Charcoal */
+            padding: 32px;
+          }
+          .db-nav-item {
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.45);
+            cursor: pointer;
+            transition: color 250ms var(--ease-micro), transform 250ms var(--ease-micro), background-color 250ms var(--ease-micro);
+            padding: 7px 10px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+          .db-nav-item:hover {
+            color: #FFFFFF;
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateX(3px);
+          }
+          .db-nav-item.active {
+            color: #D98E2B;
+            background: rgba(217, 142, 43, 0.1);
+            border: 1px solid rgba(217, 142, 43, 0.15);
+          }
+          
+          /* Interactive Stat Cards */
+          .db-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-bottom: 24px;
+          }
+          @media (max-width: 640px) {
+            .db-stat-grid {
+              grid-template-columns: repeat(3, 1fr);
+            }
+          }
+          @media (max-width: 440px) {
+            .db-stat-grid {
+              grid-template-columns: repeat(2, 1fr);
+            }
+          }
+          .db-stat-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 14px 12px;
+            text-align: left;
+            transition: 
+              transform 300ms var(--ease-micro), 
+              background-color 300ms var(--ease-micro), 
+              border-color 300ms var(--ease-micro), 
+              box-shadow 300ms var(--ease-micro);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            position: relative;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+          }
+          .db-stat-card:hover {
+            transform: translateY(-6px) scale(1.015);
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(217, 142, 43, 0.4);
+            box-shadow: 
+              0 12px 24px -8px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+          }
+          .db-stat-card.active {
+            background: rgba(217, 142, 43, 0.08);
+            border-color: rgba(217, 142, 43, 0.5);
+            box-shadow: 
+              0 12px 24px -8px rgba(217, 142, 43, 0.15),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+          }
+          .db-stat-icon-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+            transition: transform 300ms var(--ease-micro) 50ms, background-color 300ms var(--ease-micro), color 300ms var(--ease-micro);
+          }
+          .db-stat-card:hover .db-stat-icon-wrapper {
+            background: rgba(217, 142, 43, 0.15);
+            color: #D98E2B;
+            transform: scale(1.08) rotate(4deg);
+          }
+          .db-stat-card.active .db-stat-icon-wrapper {
+            background: #D98E2B;
+            color: #FFFFFF;
+          }
+          .db-stat-label {
+            font-size: 8.5px;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .db-stat-value {
+            font-size: 16px;
+            font-weight: 850;
+            color: #FFFFFF;
+            line-height: 1.2;
+          }
+          .db-stat-trend {
+            font-size: 9px;
+            font-weight: 700;
+            color: #10B981; /* Emerald-500 */
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 6px;
+          }
+          
+          /* Chart Card */
+          .db-chart-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            transition: border-color 300ms var(--ease-micro), box-shadow 300ms var(--ease-micro);
+          }
+          .db-chart-card:hover {
+            border-color: rgba(217, 142, 43, 0.2);
+          }
+
+          /* Waveform elements */
+          .waveform-container {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+            height: 12px;
+          }
+          .wave-bar {
+            width: 1.5px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 99px;
+          }
+          .db-stat-card:hover .wave-bar {
+            background: #D98E2B;
+          }
+          @keyframes wave-1 { 0%, 100% { height: 3px; } 50% { height: 10px; } }
+          @keyframes wave-2 { 0%, 100% { height: 4px; } 50% { height: 12px; } }
+          @keyframes wave-3 { 0%, 100% { height: 2px; } 50% { height: 8px; } }
+          @keyframes wave-4 { 0%, 100% { height: 5px; } 50% { height: 11px; } }
+          .wave-bar-1 { animation: wave-1 0.74s ease-in-out infinite; }
+          .wave-bar-2 { animation: wave-2 0.96s ease-in-out infinite 0.1s; }
+          .wave-bar-3 { animation: wave-3 0.65s ease-in-out infinite 0.2s; }
+          .wave-bar-4 { animation: wave-4 0.82s ease-in-out infinite 0.05s; }
+
+          /* Custom Bar Chart styling */
+          .chart-bars-row {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 90px;
+            padding-top: 10px;
+            position: relative;
+          }
+          .chart-bar-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 4px;
+            position: relative;
+            cursor: pointer;
+          }
+          .chart-bar-fill {
+            width: 100%;
+            max-width: 24px;
+            border-radius: 4px 4px 0 0;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-bottom: none;
+            transition: 
+              height 400ms var(--ease-entrance), 
+              background 300ms var(--ease-micro), 
+              border-color 300ms var(--ease-micro),
+              box-shadow 300ms var(--ease-micro);
+            height: 0;
+            position: relative;
+          }
+          .chart-bar-container:hover .chart-bar-fill {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.2);
+          }
+          .chart-bar-container.highlighted .chart-bar-fill {
+            background: linear-gradient(to top, #D98E2B, #FF9F43);
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(217, 142, 43, 0.35);
+          }
+          
+          /* Tooltip styles */
+          .chart-tooltip {
+            position: absolute;
+            bottom: 100%;
+            background: #1E293B;
+            color: #FFFFFF;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 8px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            opacity: 0;
+            transform: translateY(4px);
+            transition: opacity 200ms var(--ease-micro), transform 200ms var(--ease-micro);
+            pointer-events: none;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+          }
+          .chart-bar-container:hover .chart-tooltip {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        `}</style>
+
+        <div className="split-deep-dive">
+          {/* Left Text Column */}
+          <div className={`reveal-item ${sectionInView ? 'visible' : ''}`} style={{ transitionDelay: '0ms' }}>
+            <div className="analytics-eyebrow">
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#D98E2B', boxShadow: '0 0 8px #D98E2B' }} />
+              Detailed Analytics
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '20px' }}>
+            <h2 className="analytics-heading">Track. Improve. Succeed.</h2>
+            <p className="analytics-desc">
+              Get in-depth analysis of your performance across multiple parameters. We analyze facial expressions, speech speed, fillers, and core knowledge.
+            </p>
+
+            <div className="analytics-checklist">
               {[
-                { type: '🏗️', role: 'Systems & Architecture', time: '2 days ago · 47 min', score: '88%', status: 'Passed', color: 'var(--success-green)' },
-                { type: '⚡', role: 'DSA Algorithmic Round', time: '5 days ago · 38 min', score: '74%', status: 'Review', color: 'var(--accent-gold)' }
+                "Overall Score & Sectional Breakdown",
+                "Performance Trends & Progress over time",
+                "Strengths & Key Areas of Improvement",
+                "Interactive video playback with audio transcripts"
               ].map((item, idx) => (
-                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-glass)', borderRadius: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '16px' }}>{item.type}</span>
-                    <div>
-                      <div style={{ fontSize: '12px', color: '#ffffff', fontWeight: 500 }}>{item.role}</div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{item.time}</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: item.color }}>{item.score}</span>
-                    <span style={{ fontSize: '8px', fontWeight: 600, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', padding: '2px 6px', background: `${item.color}15`, color: item.color, border: `1px solid ${item.color}30`, borderRadius: '4px' }}>
-                      {item.status}
-                    </span>
-                  </div>
+                <div 
+                  className={`analytics-check-item reveal-item ${sectionInView ? 'visible' : ''}`} 
+                  key={idx} 
+                  style={{ transitionDelay: `${80 + idx * 80}ms` }}
+                >
+                  <span className="analytics-check-icon">✓</span>
+                  <span className="analytics-check-text">{item}</span>
                 </div>
               ))}
             </div>
-          </motion.div>
+          </div>
 
-          {/* Feature 4: Practice Mode (1x card) */}
-          <motion.div 
-            className="feature-card-bento"
-            whileHover={{ y: -4, scale: 1.005, borderColor: "rgba(255, 255, 255, 0.08)" }}
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <div>
-              <div style={{ display: 'inline-flex', padding: '8px', background: 'rgba(242, 184, 75, 0.06)', border: '1px solid rgba(242, 184, 75, 0.2)', borderRadius: '8px', fontSize: '18px', marginBottom: '16px' }}>🔄</div>
-              <div className="bento-eyebrow">Practice Mode</div>
-              <h3 className="bento-h">Unlimited retries, zero judgment</h3>
-              <p className="bento-p">Attempt rounds indefinitely. Dynamic prompt triggers generate unique follow-ups every retry.</p>
-            </div>
-            
-            <div style={{ marginTop: '20px', padding: '14px', background: 'rgba(0, 0, 0, 0.25)', border: '1px solid var(--border-glass)', borderRadius: '8px' }}>
-              <div style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>Systems Round · 3 attempts</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontFamily: 'var(--font-mono)' }}>
-                <span style={{ color: 'var(--accent-gold)', fontWeight: 700 }}>64</span>
-                <span style={{ color: 'var(--text-muted)' }}>→</span>
-                <span style={{ color: 'var(--text-secondary)' }}>72</span>
-                <span style={{ color: 'var(--text-muted)' }}>→</span>
-                <span style={{ color: 'var(--success-green)', fontWeight: 700 }}>88</span>
-                <span style={{ fontSize: '10px', color: 'var(--success-green)', marginLeft: 'auto', fontWeight: 600 }}>↑ +24</span>
+          {/* Right Dashboard Mockup Column */}
+          <div className="db-mock-wrapper">
+            <div 
+              className={`db-mock-container reveal-item ${sectionInView ? 'visible' : ''}`} 
+              style={{ transitionDelay: '300ms' }}
+            >
+              {/* Sidebar */}
+              <div className="db-sidebar">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#FFFFFF', fontWeight: 800, fontSize: '12px', marginBottom: '20px', letterSpacing: '-0.02em' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-brand)', boxShadow: '0 0 10px var(--accent-brand)' }} />
+                  Callback
+                </div>
+                {[
+                  { label: 'Dashboard', active: true },
+                  { label: 'Interviews' },
+                  { label: 'Practice' },
+                  { label: 'Reports' },
+                  { label: 'Resume Review' },
+                  { label: 'Settings' }
+                ].map((item, idx) => (
+                  <div key={idx} className={`db-nav-item ${item.active ? 'active' : ''}`}>
+                    <span style={{ fontSize: '10px' }}>
+                      {idx === 0 && '📊'}
+                      {idx === 1 && '💬'}
+                      {idx === 2 && '🎯'}
+                      {idx === 3 && '📈'}
+                      {idx === 4 && '📄'}
+                      {idx === 5 && '⚙️'}
+                    </span>
+                    {item.label}
+                  </div>
+                ))}
               </div>
-            </div>
-          </motion.div>
-        </div>
-      </section>
 
-      {/* ── RECRUITER / B2B SECTION ── */}
-      <section style={{ padding: '0 max(24px, calc((100vw - 1200px) / 2)) 80px' }} id="recruiter-section">
-        <div className="recruiter-cta-band">
-          <div style={{ flex: 1, minWidth: '280px' }}>
-            <div className="bento-eyebrow" style={{ color: 'var(--accent-gold)' }}>For Recruiters & Hiring Teams</div>
-            <h2 className="heading-section" style={{ color: '#ffffff', margin: '8px 0 16px 0', lineHeight: 1.15 }}>Screen smarter.<br />Hire faster.</h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: '480px', marginBottom: '24px' }}>
-              Utilize Callback to automate pre-screening at scale. Conduct AI-graded simulations covering DSAs, systems design, and behavioral benchmarks.
-            </p>
-            <div style={{ display: 'flex', gap: '32px' }}>
-              <div>
-                <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--accent-gold)', fontFamily: 'var(--font-display)' }}>80%</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px', letterSpacing: '0.02em' }}>Screening time saved</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--accent-gold)', fontFamily: 'var(--font-display)' }}>3x</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px', letterSpacing: '0.02em' }}>More candidates screened</div>
-              </div>
-              <div>
-                <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--accent-gold)', fontFamily: 'var(--font-display)' }}>94%</div>
-                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: '4px', letterSpacing: '0.02em' }}>Manager satisfaction</div>
+              {/* Main Panel */}
+              <div className="db-main">
+                <div style={{ fontSize: '13px', fontWeight: 800, color: '#FFFFFF', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Welcome back, Vishal! 👋</span>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--accent-brand)', background: 'rgba(217, 142, 43, 0.15)', border: '1px solid rgba(217, 142, 43, 0.2)', padding: '3px 8px', borderRadius: '6px', letterSpacing: '0.04em' }}>Pro Account</span>
+                </div>
+                
+                {/* Stat Cards Grid with Icons */}
+                <div className="db-stat-grid">
+                  {[
+                    {
+                      id: 'overall',
+                      title: 'Overall Score',
+                      val: 87,
+                      chg: '↑ 12%',
+                      icon: (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+                        </svg>
+                      )
+                    },
+                    {
+                      id: 'confidence',
+                      title: 'Confidence',
+                      val: 91,
+                      chg: '↑ 4%',
+                      icon: (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
+                        </svg>
+                      )
+                    },
+                    {
+                      id: 'technical',
+                      title: 'Technical',
+                      val: 84,
+                      chg: '↑ 10%',
+                      icon: (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
+                        </svg>
+                      )
+                    },
+                    {
+                      id: 'delivery',
+                      title: 'Delivery',
+                      val: 90,
+                      chg: '↑ 15%',
+                      icon: (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" x2="12" y1="19" y2="22"/>
+                        </svg>
+                      ),
+                      extra: (
+                        <div className="waveform-container" style={{ marginTop: '4px' }}>
+                          <span className="wave-bar wave-bar-1" />
+                          <span className="wave-bar wave-bar-2" />
+                          <span className="wave-bar wave-bar-3" />
+                          <span className="wave-bar wave-bar-4" />
+                        </div>
+                      )
+                    },
+                    {
+                      id: 'eyecontact',
+                      title: 'Eye Contact',
+                      val: 78,
+                      chg: '↑ 8%',
+                      icon: (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                      )
+                    }
+                  ].map((stat) => (
+                    <div 
+                      key={stat.id} 
+                      className={`db-stat-card ${activeMetric === stat.id ? 'active' : ''}`}
+                      onClick={() => setActiveMetric(stat.id)}
+                    >
+                      <div>
+                        <div className="db-stat-icon-wrapper">
+                          {stat.icon}
+                        </div>
+                        <div className="db-stat-label">{stat.title}</div>
+                        <div className="db-stat-value">
+                          <AnimatedNumber value={stat.val} duration={500} />
+                        </div>
+                      </div>
+                      {stat.extra ? stat.extra : <div className="db-stat-trend">{stat.chg}</div>}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Animated/Gradient Trend Chart Card */}
+                <div className="db-chart-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.4)', marginBottom: '16px' }}>
+                    <span style={{ textTransform: 'uppercase', letterSpacing: '0.04em' }}>Performance Trend ({activeMetric})</span>
+                    <span style={{ color: '#10B981', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#10B981' }} />
+                      ↑ {activeMetric === 'overall' ? '12%' : activeMetric === 'confidence' ? '4%' : activeMetric === 'technical' ? '10%' : activeMetric === 'delivery' ? '15%' : '8%'} vs baseline
+                    </span>
+                  </div>
+                  
+                  {/* Grid of bars */}
+                  <div className="chart-bars-row">
+                    {/* Y-axis grid lines */}
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', pointerEvents: 'none', zIndex: 0 }}>
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} style={{ borderBottom: '1px dashed rgba(255, 255, 255, 0.05)', width: '100%', height: 0 }} />
+                      ))}
+                    </div>
+
+                    {chartData[activeMetric].map((score, sIdx) => {
+                      const isLatest = sIdx === 6;
+                      return (
+                        <div 
+                          key={sIdx} 
+                          className={`chart-bar-container ${isLatest ? 'highlighted' : ''}`}
+                        >
+                          <div className="chart-tooltip">{score}%</div>
+                          <div 
+                            className="chart-bar-fill" 
+                            style={{ height: sectionInView ? `${score}%` : '0%' }}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  
+                  {/* Chart X axis labels */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px', fontSize: '8.5px', fontWeight: 700, color: 'rgba(255, 255, 255, 0.3)', letterSpacing: '0.02em', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '8px' }}>
+                    <span>Sess 1</span>
+                    <span>Sess 2</span>
+                    <span>Sess 3</span>
+                    <span>Sess 4</span>
+                    <span>Sess 5</span>
+                    <span>Sess 6</span>
+                    <span style={{ color: 'var(--accent-brand)' }}>Latest</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0 }} className="rec-btns">
-            <motion.button 
-              onClick={() => navigate('/upload')}
-              whileHover={{ scale: 1.02, boxShadow: '0 8px 24px rgba(242, 184, 75, 0.25)' }}
-              style={{ height: '44px', padding: '0 24px', background: 'var(--accent-gold)', color: '#0A0A0B', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
-            >
-              Request recruiter demo →
-            </motion.button>
-            <button 
-              onClick={() => navigate('/upload')}
-              style={{ height: '44px', padding: '0 24px', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', fontSize: '13px', fontWeight: 500, cursor: 'pointer', transition: 'all 200ms ease' }}
-              onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)'}
-              onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'}
-            >
-              View admin dashboard
-            </button>
-          </div>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer style={{
-        borderTop: '1px solid rgba(255,255,255,0.04)',
-        padding: '32px max(24px, calc((100vw - 1200px) / 2))',
-        background: 'rgba(10,10,11,0.5)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '20px',
-        position: 'relative',
-        zIndex: 1
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-muted)' }}>
-          <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--accent-gold)' }} />
-          Callback
-        </div>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          {['Privacy', 'Terms', 'Docs', 'Contact'].map((l, i) => (
-            <span key={i} onClick={() => navigate('/')} style={{ fontSize: '12px', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 150ms ease' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
-              {l}
-            </span>
+      {/* ── I. INTERVIEW CATEGORIES ── */}
+      <section style={{ padding: '90px max(24px, calc((100vw - 1200px) / 2))', textAlign: 'center' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }}>
+          <div className="eyebrow" style={{ justifyContent: 'center' }}>
+            <span className="eyebrow-dot" /> Interview Topics
+          </div>
+          <h2 className="heading-section" style={{ marginBottom: '36px' }}>Topics & technologies covered</h2>
+        </motion.div>
+        <div className="tags-row">
+          {[
+            'Frontend', 'Backend', 'AI / ML', 'Data Science', 'DevOps', 'System Design', 'SQL', 'DSA', 'HR & Behavior', 'Product Manager', 'Python', 'Java', 'React', 'Node.js', 'AWS', 'Docker', 'Kubernetes'
+          ].map((tag, idx) => (
+            <motion.div className="tag-pill" key={idx} initial={{ opacity: 0, scale: 0.9, y: 10 }} whileInView={{ opacity: 1, scale: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.04 }} whileHover={{ scale: 1.05 }}>
+              <span>{tag}</span>
+            </motion.div>
           ))}
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-          Built for engineers, by engineers.
+      </section>
+
+      {/* ── J. LOVED BY THOUSANDS OF CANDIDATES ── */}
+      <section style={{ padding: '100px max(24px, calc((100vw - 1200px) / 2))', background: 'rgba(27, 35, 64, 0.02)', borderTop: '1px solid var(--border-glass)', borderBottom: '1px solid var(--border-glass)' }}>
+        <motion.div style={{ textAlign: 'center', marginBottom: '56px' }} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <div className="eyebrow" style={{ justifyContent: 'center' }}>
+            <span className="eyebrow-dot" /> Success Stories
+          </div>
+          <h2 className="heading-section">Loved by Thousands of Candidates</h2>
+        </motion.div>
+
+        <div className="testimonials-grid">
+          {[
+            { quote: "Callback helped me crack my dream job at Google. The AI feedback is super accurate!", name: "Rohit Verma", role: "SDE @ Google", avatar: "👨" },
+            { quote: "The most realistic mock interview platform I've used. Highly recommended!", name: "Ananya Singh", role: "DS @ Microsoft", avatar: "👩" },
+            { quote: "The detailed analytics and resume review feature is a game changer!", name: "Karan Mehta", role: "PM @ Amazon", avatar: "👨" }
+          ].map((t, idx) => (
+            <motion.div className="testimonial-card" key={idx} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.12 }} whileHover={{ y: -4 }}>
+              <div>
+                <div style={{ color: 'var(--accent-brand)', fontSize: '14px', marginBottom: '10px' }}>★★★★★</div>
+                <p className="testimonial-quote">"{t.quote}"</p>
+              </div>
+              <div className="testimonial-meta">
+                <div className="testimonial-avatar">{t.avatar}</div>
+                <div>
+                  <h4 style={{ fontSize: '14px', fontWeight: 800 }}>{t.name}</h4>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{t.role}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── K. PRICING ── */}
+      <section className="pricing-section" id="pricing-section" style={{ padding: '100px max(24px, calc((100vw - 1200px) / 2))' }}>
+        <motion.div style={{ textAlign: 'center', marginBottom: '56px' }} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+          <div className="eyebrow" style={{ justifyContent: 'center' }}>
+            <span className="eyebrow-dot" /> Simple Plans
+          </div>
+          <h2 className="heading-section">Transparent, Simple Pricing</h2>
+        </motion.div>
+
+        <div className="pricing-grid">
+          {/* Free Tier */}
+          <motion.div className="pricing-card" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0 }}>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '14px', color: 'var(--text-primary)' }}>Free</h3>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '24px' }}>
+                <span style={{ fontSize: '36px', fontWeight: 800, color: 'var(--text-primary)' }}>₹0</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>/ forever</span>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {['3 Mock Interviews / month', 'Basic Performance Report', 'Resume Review (Limited)', 'Community Support'].map((f, i) => (
+                  <li key={i} style={{ display: 'flex', gap: '8px', fontSize: '13px', marginBottom: '10px', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--accent-brand)' }}>✓</span> {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Button variant="secondary" size="md" fullWidth onClick={() => navigate('/upload')} style={{ marginTop: '24px' }}>
+              Get Started
+            </Button>
+          </motion.div>
+
+          {/* Pro Tier (Popular) */}
+          <motion.div className="pricing-card popular" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}>
+            <span className="pricing-popular-badge">Most Popular</span>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '14px', color: 'var(--text-primary)' }}>Pro</h3>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '24px' }}>
+                <span style={{ fontSize: '36px', fontWeight: 800, color: 'var(--text-primary)' }}>₹499</span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>/ month</span>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {['Unlimited Mock Interviews', 'Detailed AI Performance Breakdown', 'Resume Review (Full ATS Opt)', 'Priority Support & Feedback', 'Performance Analytics Trendline'].map((f, i) => (
+                  <li key={i} style={{ display: 'flex', gap: '8px', fontSize: '13px', marginBottom: '10px', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--accent-brand)' }}>✓</span> {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Button variant="primary" size="md" fullWidth onClick={() => navigate('/upload')} style={{ marginTop: '24px' }}>
+              Start Pro Trial
+            </Button>
+          </motion.div>
+
+          {/* Enterprise Tier */}
+          <motion.div className="pricing-card" initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
+            <div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, marginBottom: '14px', color: 'var(--text-primary)' }}>Enterprise</h3>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '24px' }}>
+                <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text-primary)' }}>Custom Pricing</span>
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0 }}>
+                {['Team Roles & Permissions', 'Bulk Interview Creation', 'Company-Wide Metrics Dashboard', 'Dedicated Success Manager'].map((f, i) => (
+                  <li key={i} style={{ display: 'flex', gap: '8px', fontSize: '13px', marginBottom: '10px', color: 'var(--text-secondary)' }}>
+                    <span style={{ color: 'var(--accent-brand)' }}>✓</span> {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Button variant="secondary" size="md" fullWidth onClick={() => navigate('/upload')} style={{ marginTop: '24px' }}>
+              Contact Sales
+            </Button>
+          </motion.div>
+        </div>
+
+        {/* Accordion FAQ Component */}
+        <div className="faq-container" id="about-section">
+          <motion.div style={{ textAlign: 'center', margin: '80px 0 40px' }} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
+            <h2 className="heading-section" style={{ fontSize: '28px' }}>Frequently Asked Questions</h2>
+          </motion.div>
+          {faqs.map((faq, index) => (
+            <motion.div className="faq-item" key={index} initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.05 }}>
+              <button className="faq-question" onClick={() => toggleFaq(index)}>
+                <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>{faq.q}</span>
+                <span className={`faq-chevron ${activeFaq === index ? 'open' : ''}`}>▼</span>
+              </button>
+              <div className={`faq-answer ${activeFaq === index ? 'open' : ''}`}>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.65 }}>{faq.a}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── L. CLOSING CTA BANNER ── */}
+      <section style={{ padding: '0 max(24px, calc((100vw - 1200px) / 2)) 100px' }}>
+        <motion.div className="closing-cta-band" initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }}>
+          <h2 className="heading-section" style={{ marginBottom: '16px' }}>Ready to crack your next interview?</h2>
+          <p style={{ fontSize: '15px', maxWidth: '540px', margin: '0 auto 32px', lineHeight: 1.7 }}>
+            Join 50,000+ candidates who have already improved their interview performance.
+          </p>
+          <Button variant="secondary" size="lg" onClick={() => navigate('/upload')} style={{ background: 'var(--accent-brand)', color: '#FFFFFF', border: 'none', boxShadow: '0 8px 24px rgba(217, 142, 43, 0.25)' }}>
+            Start Free Interview →
+          </Button>
+        </motion.div>
+      </section>
+
+      {/* ── M. FOOTER ── */}
+      <footer className="footer-container">
+        <div className="footer-column">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: 'var(--font-display)', fontSize: '17px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '12px' }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-brand)' }} />
+            Callback
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.55, maxWidth: '220px' }}>
+            AI-powered mock interviews to help you practice, improve and get hired.
+          </p>
+        </div>
+        
+        <div className="footer-column">
+          <h4>Product</h4>
+          <ul>
+            <li><span onClick={() => navigate('/upload')} style={{ cursor: 'pointer' }}>Features</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Interview Library</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Pricing</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Integrations</span></li>
+          </ul>
+        </div>
+
+        <div className="footer-column">
+          <h4>Resources</h4>
+          <ul>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Blog</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Interview Tips</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Guides</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>FAQ</span></li>
+          </ul>
+        </div>
+
+        <div className="footer-column">
+          <h4>Company</h4>
+          <ul>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>About Us</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Careers</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Contact</span></li>
+            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Privacy Policy</span></li>
+          </ul>
         </div>
       </footer>
+      <div style={{ textAlign: 'center', padding: '20px 0', borderTop: '1px solid var(--border-glass)', background: '#FFFFFF', fontSize: '11px', color: 'var(--text-muted)' }}>
+        © {new Date().getFullYear()} Callback. All rights reserved.
+      </div>
     </div>
   );
 }

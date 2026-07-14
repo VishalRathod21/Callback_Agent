@@ -30,9 +30,9 @@ const plans = [
     price: '$19',
     period: 'per month',
     tag: 'RECOMMENDED',
-    tagColor: 'rgba(242, 184, 75, 0.1)',
+    tagColor: 'var(--accent-subtle)',
     tagTextColor: 'var(--spotlight)',
-    borderColor: 'rgba(242, 184, 75, 0.35)',
+    borderColor: 'var(--accent-border)',
     features: [
       'Unlimited practice sessions',
       'Technical + Behavioral (HR) rounds',
@@ -89,20 +89,20 @@ export default function Pricing() {
       <style>{`
         .pricing-card {
           transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-          background: rgba(21, 24, 29, 0.35);
+          background: rgba(255, 255, 255, 0.05);
           position: relative;
         }
         .pricing-card:hover {
           transform: translateY(-8px);
-          background: rgba(21, 24, 29, 0.5);
+          background: rgba(255, 255, 255, 0.12);
         }
         .pricing-card.highlight {
-          background: rgba(242, 184, 75, 0.02);
+          background: rgba(110, 168, 254, 0.04);
           box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
         }
         .pricing-card.highlight:hover {
-          background: rgba(242, 184, 75, 0.04);
-          box-shadow: 0 20px 50px rgba(242, 184, 75, 0.1);
+          background: rgba(110, 168, 254, 0.08);
+          box-shadow: 0 20px 50px rgba(110, 168, 254, 0.15);
         }
       `}</style>
 
@@ -120,8 +120,8 @@ export default function Pricing() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            background: 'rgba(242, 184, 75, 0.08)',
-            border: '1px solid rgba(242, 184, 75, 0.18)',
+            background: 'var(--accent-subtle)',
+            border: '1px solid var(--accent-border)',
             borderRadius: 'var(--radius-full)',
             padding: '6px 16px',
             fontSize: 'var(--text-xs)',

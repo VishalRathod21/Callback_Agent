@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Candidate Insights Report | Callback</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#3c0091",
+                        "tertiary-container": "#24b2ed",
+                        "on-primary-fixed": "#001b3c",
+                        "on-secondary-fixed-variant": "#5516be",
+                        "surface-variant": "#2c3544",
+                        "surface-container-high": "#222a38",
+                        "tertiary-fixed": "#c4e7ff",
+                        "surface-bright": "#313a48",
+                        "error": "#ffb4ab",
+                        "on-primary-container": "#003c76",
+                        "primary-fixed": "#d5e3ff",
+                        "on-surface": "#dae3f6",
+                        "outline": "#8c919d",
+                        "primary": "#a8c8ff",
+                        "surface": "#0b1421",
+                        "tertiary-fixed-dim": "#7bd0ff",
+                        "surface-container": "#17202e",
+                        "surface-container-lowest": "#060e1b",
+                        "inverse-primary": "#115eaf",
+                        "on-background": "#dae3f6",
+                        "secondary-fixed": "#e9ddff",
+                        "secondary": "#d0bcff",
+                        "background": "#0b1421",
+                        "on-tertiary-container": "#00415a",
+                        "on-primary-fixed-variant": "#004689",
+                        "on-tertiary-fixed": "#001e2c",
+                        "surface-dim": "#0b1421",
+                        "surface-container-low": "#131c29",
+                        "on-secondary-container": "#c4abff",
+                        "outline-variant": "#424751",
+                        "on-tertiary-fixed-variant": "#004c69",
+                        "on-tertiary": "#00354a",
+                        "secondary-container": "#571bc1",
+                        "surface-container-highest": "#2c3544",
+                        "on-primary": "#003061",
+                        "tertiary": "#7bd0ff",
+                        "inverse-on-surface": "#28313f",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed-dim": "#a8c8ff",
+                        "inverse-surface": "#dae3f6",
+                        "surface-tint": "#a8c8ff",
+                        "error-container": "#93000a",
+                        "secondary-fixed-dim": "#d0bcff",
+                        "on-secondary-fixed": "#23005c",
+                        "on-surface-variant": "#c2c6d3",
+                        "on-error": "#690005",
+                        "primary-container": "#6ea8fe"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gap-md": "1.5rem",
+                        "gap-lg": "2rem",
+                        "glass-padding": "2rem",
+                        "gap-sm": "1rem",
+                        "gap-xs": "0.5rem",
+                        "container-margin": "3rem"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["inter"],
+                        "label-md": ["spaceGrotesk"],
+                        "headline-lg": ["beVietnamPro"],
+                        "display-xl": ["beVietnamPro"],
+                        "headline-lg-mobile": ["beVietnamPro"],
+                        "display-lg": ["beVietnamPro"],
+                        "body-md": ["inter"],
+                        "label-sm": ["spaceGrotesk"],
+                        "headline-md": ["beVietnamPro"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "display-xl": ["64px", {"lineHeight": "72px", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "headline-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.03em", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background-color: #0b1421;
+            color: #dae3f6;
+            overflow-x: hidden;
+        }
+        .glass-level-1 {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+        }
+        .glass-level-2 {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+        }
+        .glass-level-3 {
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.20);
+        }
+        .spring-hover {
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .spring-hover:hover {
+            transform: translateY(-6px);
+            border-color: rgba(255, 255, 255, 0.25);
+        }
+        .circular-progress {
+            background: radial-gradient(closest-side, transparent 85%, transparent 100%),
+                        conic-gradient(from 180deg, #a8c8ff 0%, #d0bcff 75%, transparent 100%);
+            border-radius: 50%;
+        }
+        .divider-fade {
+            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+            height: 1px;
+            width: 100%;
+        }
+        @keyframes slideInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-report-card {
+            animation: slideInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+    </style>
+</head>
+<body class="font-body-md">
+<!-- STITCH_SHADER_START:ANIMATION_2 class="fixed inset-0 w-full h-full -z-10 opacity-40" -->
+<div class="fixed inset-0 w-full h-full -z-10 opacity-40" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_2" style="display:block;width:100%;height:100%"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_2');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+vec3 hsb2rgb(in vec3 c) {
+    vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    rgb = rgb * rgb * (3.0 - 2.0 * rgb);
+    return c.z * mix(vec3(1.0), rgb, c.y);
+}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    float time = u_time * 0.15;
+    
+    // Create soft moving aurora blobs
+    float noise1 = sin(uv.x * 3.0 + time) * cos(uv.y * 2.0 - time * 0.8);
+    float noise2 = cos(uv.y * 4.0 - time * 1.2) * sin(uv.x * 2.5 + time * 0.5);
+    
+    vec3 color1 = vec3(0.43, 0.66, 0.99); // Blue (#6EA8FE)
+    vec3 color2 = vec3(0.54, 0.36, 0.96); // Purple (#8B5CF6)
+    vec3 color3 = vec3(0.22, 0.74, 0.97); // Teal (#38BDF8)
+    
+    float mix1 = smoothstep(-1.0, 1.0, noise1 + sin(uv.x * 10.0));
+    float mix2 = smoothstep(-1.0, 1.0, noise2 + cos(uv.y * 8.0));
+    
+    vec3 finalColor = mix(color1, color2, mix1);
+    finalColor = mix(finalColor, color3, mix2);
+    
+    // Deep dark background
+    vec3 bg = mix(vec3(0.03, 0.07, 0.12), vec3(0.07, 0.11, 0.18), uv.y);
+    
+    // Blend aurora with low opacity (10-18%)
+    gl_FragColor = vec4(mix(bg, finalColor, 0.14), 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_2 -->
+<!-- Side Navigation Shell -->
+<nav class="fixed left-0 top-0 h-full flex flex-col pt-24 pb-8 glass-level-1 rounded-xl my-12 ml-8 w-64 border border-white/10 z-40 hidden md:flex">
+<div class="px-6 mb-8">
+<h1 class="font-headline-sm text-headline-sm text-primary mb-1">Recruiter Portal</h1>
+<p class="font-label-sm text-label-sm text-on-surface/50">Elite Tier</p>
+</div>
+<div class="flex flex-col gap-1 px-4">
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">videocam</span>
+<span class="font-label-sm">Live Sessions</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="font-label-sm">Candidates</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg font-bold" href="#">
+<span class="material-symbols-outlined">leaderboard</span>
+<span class="font-label-sm">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg transition-all" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-sm">Settings</span>
+</a>
+</div>
+<div class="mt-auto px-4">
+<button class="w-full py-4 bg-primary text-on-primary rounded-full font-bold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-transform">
+                New Interview
+            </button>
+</div>
+</nav>
+<!-- Top Action Bar -->
+<header class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-8 py-3 bg-white/5 backdrop-blur-[24px] rounded-full mt-6 mx-auto max-w-[90%] border border-white/10">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/30">
+<img class="w-full h-full object-cover" data-alt="A professional close-up portrait of a high-level executive recruiter with a neutral, confident expression. The lighting is crisp and cool-toned, echoing a premium technological environment. The background is a soft-focus office with deep blues and glass reflections. The overall aesthetic is clean, modern, and elite." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRpGAmqCxApiSE69MI1LCQoiVUfe7p_BpWXabHX4Nwz4wighm9a3Lr1uH-wdbQ1qbY87T9icE62Sy2cewSuht8pB4KYsPDaw1iyfaR32_pgvZXbLzYTz371KwRRN2DVLxpCb9-s8VBlQWAb12hvJSHe6CbNywcn-UVonQCbTNk8l1qZ9djs1-ddRjVOzwyxjmFKXlRFAhwq6dOkytZgBtQmao0GfyThtvNBAA-JaJjZ88fNWCIzivp"/>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface leading-none">Callback</h2>
+</div>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="font-label-md text-label-md text-on-surface/70 font-medium hover:text-on-surface transition-colors" href="#">Talent Pool</a>
+<a class="font-label-md text-label-md text-on-surface/70 font-medium hover:text-on-surface transition-colors" href="#">Interviews</a>
+<a class="font-label-md text-label-md text-primary font-bold border-b-2 border-primary pb-1" href="#">Analytics</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="text-on-surface/70 font-medium hover:text-on-surface transition-colors font-label-md">Login</button>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-full font-bold hover:translate-y-[-2px] transition-all duration-300">Get Started</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-32 pb-24 px-8 md:ml-80 max-w-7xl mx-auto">
+<!-- Long Floating Glass Document Wrapper -->
+<div class="flex flex-col gap-gap-lg">
+<!-- Hero Report Header Card -->
+<section class="glass-level-2 rounded-[32px] p-glass-padding animate-report-card">
+<div class="flex flex-col md:flex-row items-center gap-12">
+<!-- Huge Gradient Circular Chart -->
+<div class="relative w-64 h-64 flex-shrink-0">
+<div class="absolute inset-0 circular-progress opacity-20"></div>
+<svg class="w-full h-full transform -rotate-90">
+<circle cx="128" cy="128" fill="transparent" r="110" stroke="rgba(255,255,255,0.05)" stroke-width="20"></circle>
+<circle cx="128" cy="128" fill="transparent" r="110" stroke="url(#paint0_linear)" stroke-dasharray="690" stroke-dashoffset="110" stroke-linecap="round" stroke-width="20"></circle>
+<defs>
+<lineargradient id="paint0_linear" x1="0" x2="1" y1="0" y2="1">
+<stop offset="0%" stop-color="#a8c8ff"></stop>
+<stop offset="100%" stop-color="#d0bcff"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-display-lg text-display-lg text-primary tracking-tighter">84</span>
+<span class="font-label-sm text-on-surface/40 uppercase tracking-widest">Overall Fit</span>
+</div>
+</div>
+<div class="flex-1 space-y-4 text-center md:text-left">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-label-sm">
+<span class="material-symbols-outlined text-[14px]">verified</span>
+                            Elite Tier Candidate
+                        </div>
+<h1 class="font-display-lg text-display-lg tracking-tight">Alexander Sterling</h1>
+<p class="font-body-lg text-body-lg text-on-surface/70 max-w-xl">
+                            High-concurrency systems architect with exceptional leadership capacity. Performance metrics suggest a 92% probability of long-term retention.
+                        </p>
+<div class="flex flex-wrap gap-3 pt-2 justify-center md:justify-start">
+<div class="glass-level-1 px-4 py-2 rounded-xl flex items-center gap-2 border border-white/5">
+<span class="material-symbols-outlined text-tertiary">bolt</span>
+<span class="font-label-sm">Fast-Paced</span>
+</div>
+<div class="glass-level-1 px-4 py-2 rounded-xl flex items-center gap-2 border border-white/5">
+<span class="material-symbols-outlined text-secondary">psychology</span>
+<span class="font-label-sm">Deep Logic</span>
+</div>
+<div class="glass-level-1 px-4 py-2 rounded-xl flex items-center gap-2 border border-white/5">
+<span class="material-symbols-outlined text-primary">group</span>
+<span class="font-label-sm">Lead Mindset</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Grid: Radar Chart & Skill Breakdown -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gap-lg">
+<!-- Radar Chart Module -->
+<div class="lg:col-span-1 glass-level-1 rounded-[32px] p-glass-padding spring-hover flex flex-col items-center justify-center min-h-[400px]">
+<h3 class="font-label-md text-on-surface/50 mb-8 self-start uppercase tracking-widest">Skill Spectrum</h3>
+<div class="relative w-full aspect-square max-w-[280px]">
+<!-- Simple Radar Visualization via SVG -->
+<svg class="w-full h-full overflow-visible" viewbox="0 0 100 100">
+<!-- Guides -->
+<polygon fill="none" points="50,5 95,35 78,85 22,85 5,35" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"></polygon>
+<polygon fill="none" points="50,20 80,40 68,75 32,75 20,40" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"></polygon>
+<polygon fill="none" points="50,35 65,45 59,65 41,65 35,45" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"></polygon>
+<!-- Active Skill Map -->
+<polygon fill="rgba(168, 200, 255, 0.2)" points="50,10 90,40 70,80 35,82 15,30" stroke="#a8c8ff" stroke-width="2"></polygon>
+<!-- Labels -->
+<text class="text-[6px] font-label-sm" fill="#dae3f6" text-anchor="middle" x="50" y="0">CODING</text>
+<text class="text-[6px] font-label-sm" fill="#dae3f6" text-anchor="start" x="98" y="38">SYSTEMS</text>
+<text class="text-[6px] font-label-sm" fill="#dae3f6" text-anchor="middle" x="80" y="92">SOFT SKILLS</text>
+<text class="text-[6px] font-label-sm" fill="#dae3f6" text-anchor="middle" x="20" y="92">AGILITY</text>
+<text class="text-[6px] font-label-sm" fill="#dae3f6" text-anchor="end" x="0" y="38">PRODUCT</text>
+</svg>
+</div>
+</div>
+<!-- Bento Style Details -->
+<div class="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-gap-md">
+<!-- Core Strengths -->
+<div class="glass-level-2 rounded-[24px] p-8 space-y-6 opacity-0 animate-report-card" style="animation-delay: 0.2s;">
+<h4 class="font-headline-md text-primary flex items-center gap-2">
+<span class="material-symbols-outlined">trending_up</span>
+                            Primary Strengths
+                        </h4>
+<div class="space-y-4">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">1</div>
+<div>
+<p class="font-body-md font-bold">Architecture Scalability</p>
+<p class="text-on-surface/60 text-sm">Expert at designing systems that handle 1M+ concurrent requests.</p>
+</div>
+</div>
+<div class="divider-fade"></div>
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">2</div>
+<div>
+<p class="font-body-md font-bold">Code Resilience</p>
+<p class="text-on-surface/60 text-sm">Maintains 98% test coverage even in rapid prototyping phases.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Development Areas -->
+<div class="glass-level-2 rounded-[24px] p-8 space-y-6 opacity-0 animate-report-card" style="animation-delay: 0.4s;">
+<h4 class="font-headline-md text-secondary flex items-center gap-2">
+<span class="material-symbols-outlined">warning</span>
+                            Development Gap
+                        </h4>
+<div class="space-y-4">
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary shrink-0">A</div>
+<div>
+<p class="font-body-md font-bold">Public Presentation</p>
+<p class="text-on-surface/60 text-sm">Strong internal communicator, but less experienced in external facing roles.</p>
+</div>
+</div>
+<div class="divider-fade"></div>
+<div class="flex items-start gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center text-secondary shrink-0">B</div>
+<div>
+<p class="font-body-md font-bold">Legacy Migrations</p>
+<p class="text-on-surface/60 text-sm">Prefers greenfield development over long-term maintenance of monoliths.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Health Style Vertical Modules -->
+<section class="space-y-gap-md">
+<h3 class="font-label-md text-on-surface/50 uppercase tracking-widest ml-4">Behavioral Biometrics</h3>
+<!-- Interaction Pulse -->
+<div class="glass-level-1 rounded-[24px] p-6 flex flex-col md:flex-row items-center gap-8 spring-hover opacity-0 animate-report-card" style="animation-delay: 0.6s;">
+<div class="w-full md:w-1/3">
+<div class="flex items-center gap-4 mb-2">
+<span class="material-symbols-outlined text-tertiary">waves</span>
+<h5 class="font-headline-md">Vocal Sentiment</h5>
+</div>
+<p class="text-on-surface/60 text-sm">Analyzing tone, pace, and hesitation markers during technical deep-dives.</p>
+</div>
+<div class="flex-1 h-12 flex items-center gap-1 overflow-hidden px-4">
+<!-- Simulated Waveform -->
+<div class="w-1 h-4 bg-primary/40 rounded-full"></div>
+<div class="w-1 h-8 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-12 bg-primary/80 rounded-full"></div>
+<div class="w-1 h-10 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-6 bg-primary/40 rounded-full"></div>
+<div class="w-1 h-8 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-12 bg-primary rounded-full shadow-[0_0_10px_#a8c8ff]"></div>
+<div class="w-1 h-10 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-6 bg-primary/40 rounded-full"></div>
+<div class="w-1 h-12 bg-primary/80 rounded-full"></div>
+<div class="w-1 h-14 bg-primary/90 rounded-full"></div>
+<div class="w-1 h-10 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-4 bg-primary/30 rounded-full"></div>
+<div class="w-1 h-8 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-12 bg-primary rounded-full shadow-[0_0_10px_#a8c8ff]"></div>
+<div class="w-1 h-6 bg-primary/40 rounded-full"></div>
+<div class="w-1 h-10 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-4 bg-primary/30 rounded-full"></div>
+<div class="w-1 h-8 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-12 bg-primary/80 rounded-full"></div>
+<div class="w-1 h-6 bg-primary/40 rounded-full"></div>
+<div class="w-1 h-4 bg-primary/30 rounded-full"></div>
+<div class="w-1 h-8 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-12 bg-primary rounded-full shadow-[0_0_10px_#a8c8ff]"></div>
+</div>
+<div class="text-right">
+<span class="font-display-lg text-tertiary">Stable</span>
+</div>
+</div>
+<!-- Cognitive Load -->
+<div class="glass-level-1 rounded-[24px] p-6 flex flex-col md:flex-row items-center gap-8 spring-hover opacity-0 animate-report-card" style="animation-delay: 0.7s;">
+<div class="w-full md:w-1/3">
+<div class="flex items-center gap-4 mb-2">
+<span class="material-symbols-outlined text-secondary">flare</span>
+<h5 class="font-headline-md">Problem Solving</h5>
+</div>
+<p class="text-on-surface/60 text-sm">Response time and cognitive pivot efficiency under increasing complexity.</p>
+</div>
+<div class="flex-1 space-y-2">
+<div class="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-primary to-secondary w-[92%] rounded-full"></div>
+</div>
+<div class="flex justify-between text-xs font-label-sm text-on-surface/40 uppercase tracking-widest">
+<span>Efficiency</span>
+<span>92% Higher than baseline</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-display-lg text-secondary">92<span class="text-sm opacity-50">%</span></span>
+</div>
+</div>
+</section>
+<!-- Bottom Action Grid -->
+<footer class="grid grid-cols-1 md:grid-cols-2 gap-gap-md pb-12">
+<div class="glass-level-3 rounded-[24px] p-8 flex flex-col items-center justify-center text-center space-y-4 opacity-0 animate-report-card" style="animation-delay: 0.8s;">
+<p class="font-label-md text-on-surface/50">MATCH DECISION</p>
+<h2 class="font-headline-lg text-primary">Proceed to Final Round</h2>
+<button class="bg-primary text-on-primary px-12 py-4 rounded-full font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl shadow-primary/20">
+                        Schedule Sync
+                    </button>
+</div>
+<div class="glass-level-2 rounded-[24px] p-8 flex flex-col items-center justify-center text-center space-y-4 opacity-0 animate-report-card" style="animation-delay: 0.9s;">
+<p class="font-label-md text-on-surface/50">SHARE OPTIONS</p>
+<div class="flex gap-4">
+<button class="w-14 h-14 rounded-full glass-level-1 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">download</span>
+</button>
+<button class="w-14 h-14 rounded-full glass-level-1 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">share</span>
+</button>
+<button class="w-14 h-14 rounded-full glass-level-1 border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">mail</span>
+</button>
+</div>
+</div>
+</footer>
+</div>
+</main>
+<script>
+        // Micro-interaction for the shine effect following mouse
+        document.addEventListener('mousemove', (e) => {
+            const elements = document.querySelectorAll('.glass-level-1, .glass-level-2, .glass-level-3');
+            elements.forEach(el => {
+                const rect = el.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (x > 0 && y > 0 && x < rect.width && y < rect.height) {
+                    el.style.backgroundImage = `radial-gradient(circle at ${x}px ${y}px, rgba(255,255,255,0.05) 0%, transparent 80%)`;
+                } else {
+                    el.style.backgroundImage = 'none';
+                }
+            });
+        });
+
+        // Simple animation trigger for cards
+        window.addEventListener('load', () => {
+            const cards = document.querySelectorAll('.animate-report-card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 100 * index);
+            });
+        });
+    </script>
+</body></html>

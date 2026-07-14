@@ -71,7 +71,7 @@ export default function Lobby() {
     return (
       <div style={{ maxWidth: '480px', margin: '80px auto', padding: '0 var(--space-6)', animation: 'fadeIn 0.4s var(--ease)' }}>
         <Card style={{ padding: 'var(--space-8)', textAlign: 'center', border: '1px solid var(--rec-red)', background: 'var(--panel-bg)' }} hoverable={false}>
-          <h3 style={{ color: '#ffffff', fontSize: 'var(--text-md)', margin: '0 0 var(--space-3) 0', fontWeight: 700 }}>Workspace Sync Failed</h3>
+          <h3 style={{ color: 'var(--text-primary)', fontSize: 'var(--text-md)', margin: '0 0 var(--space-3) 0', fontWeight: 700 }}>Workspace Sync Failed</h3>
           <p style={{ color: 'var(--paper-dim)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: '0 0 var(--space-6) 0' }}>{error || 'Candidate profile details could not be resolved from database.'}</p>
           <Button variant="ghost" onClick={() => navigate('/upload')}>← Return to Lobby Portal</Button>
         </Card>
@@ -106,7 +106,7 @@ export default function Lobby() {
               <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: tierColor, boxShadow: `0 0 8px ${tierColor}` }} />
               <span style={{ fontSize: '10px', color: tierColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>{isPass ? 'Screening Passed' : 'Screening Rejected'}</span>
             </div>
-            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: '#ffffff', margin: '0 0 6px 0', letterSpacing: '-0.01em' }}>{candidate.name}</h2>
+            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0', letterSpacing: '-0.01em' }}>{candidate.name}</h2>
             <p style={{ color: 'var(--paper-dim)', fontSize: 'var(--text-sm)', margin: 0 }}>Target Track: <strong style={{ color: 'var(--paper)' }}>{candidate.target_role}</strong></p>
           </div>
           <div>
@@ -125,7 +125,7 @@ export default function Lobby() {
             <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)', borderBottom: '1px solid var(--card-border)', paddingBottom: '10px' }}>Evaluation context</span>
             <div>
               <span style={{ fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>Email Address</span>
-              <p style={{ margin: '6px 0 0 0', fontSize: 'var(--text-sm)', color: '#ffffff', fontWeight: 500 }}>{candidate.email}</p>
+              <p style={{ margin: '6px 0 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontWeight: 500 }}>{candidate.email}</p>
             </div>
             <div>
               <span style={{ fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>ATS Screening Summary</span>
@@ -142,39 +142,37 @@ export default function Lobby() {
                   {roundItems.map((item, i) => (
                     <div 
                       key={i} 
-                      style={{ 
+                      style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '14px',
-                        padding: '12px 16px',
-                        border: '1px solid rgba(255, 255, 255, 0.04)',
-                        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '12px',
+                        gap: '12px',
+                        padding: '12px',
+                        border: '1px solid var(--border)',
+                        borderTop: '1px solid var(--border-strong)',
+                        borderRadius: 'var(--radius-sm)',
                         transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
                         cursor: 'default',
                         position: 'relative',
                         overflow: 'hidden',
-                        background: 'rgba(21, 24, 29, 0.3)',
-                        backdropFilter: 'blur(10px)',
+                        background: 'var(--bg-canvas)',
                       }}
                       onMouseEnter={e => {
                         e.currentTarget.style.borderColor = 'var(--spotlight)';
-                        e.currentTarget.style.borderTopColor = 'rgba(242, 184, 75, 0.3)';
+                        e.currentTarget.style.borderTopColor = 'var(--spotlight)';
                         e.currentTarget.style.transform = 'translateX(4px)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.05)';
-                        e.currentTarget.style.background = 'rgba(28, 32, 38, 0.45)';
+                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
+                        e.currentTarget.style.background = 'var(--panel-bg)';
                       }}
                       onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.04)';
-                        e.currentTarget.style.borderTopColor = 'rgba(255, 255, 255, 0.08)';
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.borderTopColor = 'var(--border-strong)';
                         e.currentTarget.style.transform = 'translateX(0)';
                         e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.background = 'rgba(21, 24, 29, 0.3)';
+                        e.currentTarget.style.background = 'var(--bg-canvas)';
                       }}
                     >
                       <div style={{ color: 'var(--spotlight)', display: 'flex', zIndex: 1 }}>{item.icon}</div>
                       <div style={{ zIndex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: '#ffffff' }}>{item.title}</div>
+                        <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{item.title}</div>
                         <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--paper-dim)' }}>{item.desc}</p>
                       </div>
                     </div>

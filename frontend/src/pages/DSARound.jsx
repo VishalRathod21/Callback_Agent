@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from '../api/client';
 import { useInterviewStore } from '../store/interviewStore';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 
@@ -33,7 +34,7 @@ function LangTab({ lang, active, onClick }) {
         fontFamily: 'var(--font-sans)',
         fontSize: 'var(--text-sm)',
         fontWeight: active ? 600 : 500,
-        color: active ? '#ffffff' : 'var(--paper-dim)',
+        color: active ? 'var(--text-primary)' : 'var(--paper-dim)',
         transition: 'all 0.25s var(--ease)',
       }}
     >
@@ -47,6 +48,7 @@ function LangTab({ lang, active, onClick }) {
 export default function DSARound() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   const candidate = useInterviewStore((state) => state.candidate);
   const session = useInterviewStore((state) => state.session);
@@ -112,9 +114,22 @@ export default function DSARound() {
 
   const { isConnected, status: connectionStatus, isRecording, hasPermission, startRecording, stopRecording, unlockAudio: unlockAudioContext } = useWebSocket({
     sessionId,
+    enabled: isAuthenticated && !authLoading,
     onCandidateTranscript: (msg) => addTranscript({ speaker: 'candidate', text: msg.text }),
     onAITranscript: (msg) => addTranscript({ speaker: 'interviewer', text: msg.text }),
   });
+
+  // Allow the DSA UI to render once the problem is loaded regardless of WS status.
+  // The WebSocket here is only used for optional voice explanation; the core experience
+  // (problem statement, editor, submit) must not be blocked by connection state.
+  const [wsTimedOut, setWsTimedOut] = useState(false);
+  useEffect(() => {
+    // Give WS 8 seconds to connect; after that, show UI anyway
+    const t = setTimeout(() => setWsTimedOut(true), 8000);
+    if (isConnected) clearTimeout(t);
+    return () => clearTimeout(t);
+  }, [isConnected]);
+  const showUI = isConnected || wsTimedOut || !loading;
 
   useEffect(() => { setRecording(isRecording); }, [isRecording, setRecording]);
   useEffect(() => { setConnected(isConnected); }, [isConnected, setConnected]);
@@ -186,11 +201,13 @@ export default function DSARound() {
 
   const lastCandidateLine = [...transcript].reverse().find(t => t.speaker === 'candidate');
 
-  if (!isConnected) {
+  // Only show the full-page spinner briefly while the problem is still loading.
+  // Once the problem is fetched (or WS has had 8s to connect), show the full UI.
+  if (!showUI) {
     return (
       <div style={{ width: '100vw', height: '100vh', background: 'var(--stage-black)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', fontFamily: 'var(--font-sans)', color: 'var(--paper)' }}>
         <div style={{ width: '32px', height: '32px', borderRadius: '50%', border: '2.5px solid var(--card-border)', borderTopColor: 'var(--spotlight)', animation: 'spin 0.8s linear infinite' }} />
-        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>Connecting to interview room...</div>
+        <div style={{ fontSize: 'var(--text-base)', fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Loading DSA sandbox...</div>
         <div style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)' }}>STATUS: {(connectionStatus || 'CONNECTING').toUpperCase()}</div>
       </div>
     );
@@ -222,14 +239,14 @@ export default function DSARound() {
         justifyContent: 'space-between',
         flexShrink: 0,
         zIndex: 10,
-        background: 'rgba(10, 10, 11, 0.55)',
+        background: 'var(--card-bg)',
         backdropFilter: 'blur(30px) saturate(180%)'
       }}>
         {/* Left: Live status + timer */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--danger)', animation: 'breathing-pulse 1.8s ease-in-out infinite' }} />
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--danger)', fontWeight: 700, letterSpacing: '0.06em' }}>LIVE REHEARSAL</span>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: '#ffffff', fontWeight: 600, marginLeft: '6px', fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600, marginLeft: '6px', fontVariantNumeric: 'tabular-nums' }}>
             {formatTime(sessionSeconds)}
           </span>
         </div>
@@ -244,7 +261,7 @@ export default function DSARound() {
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
             PROBLEM {problemIndex + 1} / 2
           </span>
-          <div style={{ width: '80px', height: '4px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', overflow: 'hidden' }}>
+          <div style={{ width: '80px', height: '4px', background: 'var(--border-strong)', borderRadius: '99px', overflow: 'hidden' }}>
             <div style={{ height: '100%', width: `${(problemIndex + 1) / 2 * 100}%`, background: 'var(--accent)', borderRadius: '99px' }} />
           </div>
         </div>
@@ -262,7 +279,7 @@ export default function DSARound() {
           borderLeft: 'none',
           borderRight: '1px solid var(--border-glass)',
           flexShrink: 0,
-          background: 'rgba(10, 10, 11, 0.35)',
+          background: 'var(--card-bg)',
           backdropFilter: 'blur(30px) saturate(180%)',
           overflowY: 'auto',
           padding: '24px',
@@ -283,7 +300,7 @@ export default function DSARound() {
               {/* Difficulty badge + Title */}
               <div>
                 <Badge variant={diffVariant}>{problem.difficulty}</Badge>
-                <h2 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em', marginTop: '12px', color: '#ffffff', fontFamily: 'var(--font-display)' }}>
+                <h2 style={{ fontSize: '20px', fontWeight: 800, letterSpacing: '-0.02em', marginTop: '12px', color: 'var(--text-primary)', fontFamily: 'var(--font-display)' }}>
                   {problem.title}
                 </h2>
               </div>
@@ -298,7 +315,7 @@ export default function DSARound() {
                 <div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', fontWeight: 700 }}>Test Case Examples</div>
                   {problem.examples.map((ex, idx) => (
-                    <div key={idx} style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid var(--border-glass)', borderRadius: '8px', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                    <div key={idx} style={{ background: 'var(--bg-inset)', border: '1px solid var(--card-border)', borderRadius: '8px', padding: '12px', fontFamily: 'var(--font-mono)', fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '10px' }}>
                       <div><span style={{ color: 'var(--accent)' }}>Input:</span> {ex.input}</div>
                       <div><span style={{ color: 'var(--accent)' }}>Output:</span> {ex.output}</div>
                       {ex.explanation && <div style={{ marginTop: '6px', color: 'var(--text-muted)', fontSize: '10px' }}>// {ex.explanation}</div>}
@@ -340,7 +357,7 @@ export default function DSARound() {
             display: 'flex',
             alignItems: 'center',
             padding: '0 16px',
-            background: 'rgba(10, 10, 11, 0.4)',
+            background: 'var(--card-bg)',
             backdropFilter: 'blur(20px)',
             flexShrink: 0
           }}>
@@ -361,8 +378,8 @@ export default function DSARound() {
                   borderTop: 'none',
                   borderLeft: 'none',
                   borderRight: 'none',
-                  borderBottom: '1px solid rgba(242, 184, 75, 0.2)',
-                  background: 'rgba(242, 184, 75, 0.08)',
+                  borderBottom: '1px solid var(--accent-border)',
+                  background: 'var(--accent-subtle)',
                   padding: '10px 20px',
                   display: 'flex',
                   alignItems: 'center',
@@ -459,7 +476,7 @@ export default function DSARound() {
         justifyContent: 'space-between',
         flexShrink: 0,
         zIndex: 10,
-        background: 'rgba(10, 10, 11, 0.55)',
+        background: 'var(--card-bg)',
         backdropFilter: 'blur(30px) saturate(180%)',
         position: 'relative'
       }}>
@@ -474,8 +491,8 @@ export default function DSARound() {
           {isRecording ? 'Listening (Click to stop)' : 'Explain code approach'}
         </Button>
 
-        {/* Center: Live speech transcription overlay */}
-        {isRecording && lastCandidateLine && (
+        {/* Center: Live speech transcription overlay + WS status */}
+        {isRecording && lastCandidateLine ? (
           <div style={{
             position: 'absolute',
             left: '50%',
@@ -495,7 +512,22 @@ export default function DSARound() {
           }}>
             🎙️ {lastCandidateLine.text}
           </div>
-        )}
+        ) : !isConnected ? (
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9px',
+            color: 'var(--text-muted)',
+          }}>
+            <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--text-muted)', animation: 'breathing-pulse 1.5s ease-in-out infinite' }} />
+            MIC UNAVAILABLE — {connectionStatus?.toUpperCase()}
+          </div>
+        ) : null}
 
         {/* Right: Hint + Submit */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

@@ -1,5 +1,7 @@
 import hashlib
 import logging
+import re
+import secrets
 from datetime import datetime, timezone, timedelta
 import uuid
 from typing import Optional
@@ -32,16 +34,21 @@ async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ) -> User:
-    """Dependency to retrieve the currently authenticated user from access token."""
+    """Dependency to retrieve the currently authenticated user from access token or query param."""
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        # Fallback to query parameter token (used by file downloads / window.open)
+        token = request.query_params.get("token")
+        
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing or invalid authentication header.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    token = auth_header.split(" ")[1]
     user_id_str = decode_access_token(token)
     
     try:
@@ -89,7 +96,7 @@ def _set_refresh_cookie(response: Response, token: str, remember_me: bool = Fals
         max_age=max_age,
         expires=max_age,
         samesite="lax",
-        secure=False,  # Set to True in production with HTTPS
+        secure=not ("sqlite" in settings.DATABASE_URL or "localhost" in settings.DATABASE_URL or "127.0.0.1" in settings.DATABASE_URL),
         path="/api/auth", # Restricted path to protect token
     )
 
@@ -145,12 +152,16 @@ async def signup(
     
     # Create new user
     hashed = hash_password(signup_data.password)
+    verification_token = secrets.token_urlsafe(32)
+    verification_token_expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
     user = User(
         full_name=signup_data.full_name,
         email=signup_data.email,
         password_hash=hashed,
         is_verified=False, # Verify email flow can toggle this
         is_active=True,
+        verification_token=verification_token,
+        verification_token_expires_at=verification_token_expires_at,
     )
     db.add(user)
     await db.flush()  # populate ID
@@ -392,6 +403,46 @@ async def update_profile(
     return current_user
 
 
+@router.delete("/me")
+async def delete_account(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Permanently delete the user's account, personal data, resume files, and vector embeddings."""
+    import shutil
+    from pathlib import Path
+    from services import chroma_service
+    from core.models import Candidate
+
+    # 1. Fetch all candidate records for this user (to clean up filesystem and ChromaDB)
+    result = await db.execute(select(Candidate).where(Candidate.user_id == current_user.id))
+    candidates = result.scalars().all()
+
+    # 2. Cleanup associated filesystem uploads and ChromaDB embeddings
+    for candidate in candidates:
+        candidate_id_str = str(candidate.id)
+        # Delete from ChromaDB
+        await chroma_service.delete_resume(candidate_id_str)
+        # Delete from filesystem
+        upload_dir = Path(settings.UPLOAD_DIR) / candidate_id_str
+        if upload_dir.exists() and upload_dir.is_dir():
+            try:
+                shutil.rmtree(upload_dir)
+                logger.info("Deleted candidate uploads directory for candidate_id: %s", candidate_id_str)
+            except Exception as exc:
+                logger.error("Failed to delete candidate uploads directory %s: %s", upload_dir, exc)
+
+    # 3. Delete the user (cascades to Candidate, Session, RoundTranscript, RefreshToken)
+    await db.delete(current_user)
+    await db.commit()
+
+    # 4. Clear the cookies
+    _clear_refresh_cookie(response)
+
+    return {"status": "success", "message": "Your account and all associated personal data have been permanently deleted."}
+
+
 @router.post("/change-password")
 async def change_password(
     password_data: ChangePassword,
@@ -420,11 +471,11 @@ async def forgot_password(
     user = result.scalar_one_or_none()
     
     if user:
-        # Generate a temporary token
-        reset_token = secrets_token = uuid.uuid4().hex
-        # In a real app, save this token to cache/DB and email it.
-        logger.info("PASSWORD RESET REQUEST for %s. Token: %s", user.email, reset_token)
-        print(f"\n--- PASSWORD RESET TOKEN for {user.email}: {reset_token} ---\n")
+        token = secrets.token_urlsafe(32)
+        user.reset_token = token
+        user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        await db.commit()
+        logger.info("PASSWORD RESET REQUEST initiated for user_id: %s", user.id)
         
     return {
         "status": "success",
@@ -438,20 +489,24 @@ async def reset_password(
     db: AsyncSession = Depends(get_db)
 ):
     """Reset user password using token generated from forgot-password."""
-    # Since this is a rehearsal mock app, we accept any valid hex string token and reset the user
-    # associated with the most recent reset request. Let's find any user for demo purposes, or
-    # reset if token is not empty.
-    if not data.token:
+    if not data.token or len(data.token) > 128 or not re.match(r"^[a-zA-Z0-9_-]+$", data.token):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
         
-    # Find any active user for the demonstration
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
-    user = result.scalars().first()
+    result = await db.execute(select(User).where(User.reset_token == data.token))
+    user = result.scalar_one_or_none()
     
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+        
+    if user.reset_token_expires_at is None or user.reset_token_expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        user.reset_token = None
+        user.reset_token_expires_at = None
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
         
     user.password_hash = hash_password(data.new_password)
+    user.reset_token = None
+    user.reset_token_expires_at = None
     await db.commit()
     return {"status": "success", "message": "Password reset successfully."}
 
@@ -462,15 +517,20 @@ async def verify_email(
     db: AsyncSession = Depends(get_db)
 ):
     """Verify user's email using verification token."""
-    if not token:
-        raise HTTPException(status_code=400, detail="Invalid verification token.")
+    if not token or len(token) > 128 or not re.match(r"^[a-zA-Z0-9_-]+$", token):
+        raise HTTPException(status_code=400, detail="Invalid verification token format.")
         
-    # Mark the user as verified
-    result = await db.execute(select(User).order_by(User.created_at.desc()))
-    user = result.scalars().first()
+    result = await db.execute(select(User).where(User.verification_token == token))
+    user = result.scalar_one_or_none()
+    
     if not user:
-        raise HTTPException(status_code=404, detail="User not found.")
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token.")
+        
+    if user.verification_token_expires_at is None or user.verification_token_expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token.")
         
     user.is_verified = True
+    user.verification_token = None
+    user.verification_token_expires_at = None
     await db.commit()
     return {"status": "success", "message": "Email verified successfully."}

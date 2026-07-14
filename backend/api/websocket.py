@@ -6,10 +6,12 @@ import os
 import sys
 import tempfile
 import uuid
+from typing import Optional
 from fastapi import WebSocket, WebSocketDisconnect
 from fastapi.routing import APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel, Field, ValidationError
 
 from core.models import Candidate, InterviewSession
 from agents.orchestrator import InterviewOrchestrator
@@ -25,6 +27,53 @@ _sessions: dict = {}
 active_sessions = _sessions
 _orchestrator = InterviewOrchestrator()
 _dsa_agent = DSAInterviewAgent()
+
+
+class WSPingMessage(BaseModel):
+    type: str = Field("ping", pattern="^ping$")
+
+
+class WSPongMessage(BaseModel):
+    type: str = Field("pong", pattern="^pong$")
+
+
+class WSStartRoundMessage(BaseModel):
+    type: str = Field("start_round", pattern="^start_round$")
+    round: str = Field("technical", pattern="^(technical|hr)$")
+    target_role: str = Field("Software Engineer", min_length=2, max_length=100, pattern=r"^[A-Za-z0-9.+# -/()]+$")
+    resume_context: Optional[str] = Field("", max_length=100000)
+
+
+class WSAudioChunkMessage(BaseModel):
+    type: str = Field("audio_chunk", pattern="^audio_chunk$")
+    data: str = Field(..., min_length=1, max_length=1000000)
+    duration_ms: int = Field(250, ge=0, le=10000)
+
+
+class WSSilenceDetectedMessage(BaseModel):
+    type: str = Field("silence_detected", pattern="^silence_detected$")
+
+
+class WSCandidateTextMessage(BaseModel):
+    type: str = Field(..., pattern="^(candidate_text|typed_answer)$")
+    text: str = Field(..., min_length=1, max_length=5000)
+
+
+class WSEndRoundMessage(BaseModel):
+    type: str = Field("end_round", pattern="^end_round$")
+
+
+WS_SCHEMAS = {
+    "ping": WSPingMessage,
+    "pong": WSPongMessage,
+    "start_round": WSStartRoundMessage,
+    "audio_chunk": WSAudioChunkMessage,
+    "silence_detected": WSSilenceDetectedMessage,
+    "candidate_text": WSCandidateTextMessage,
+    "typed_answer": WSCandidateTextMessage,
+    "end_round": WSEndRoundMessage,
+}
+
 
 
 def _get_orchestrator():
@@ -64,6 +113,66 @@ async def _load_candidate(db: AsyncSession, candidate_id: str):
 
 @router.websocket("/ws/interview/{session_id}")
 async def interview_ws(websocket: WebSocket, session_id: str):
+    if not is_testing:
+        # Authenticate WebSocket
+        token = websocket.query_params.get("token")
+        if not token:
+            token = websocket.cookies.get("access_token")
+            
+        if not token:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({"type": "error", "message": "Authentication token missing."}))
+            await websocket.close(code=4003)
+            return
+            
+        from core.security import decode_access_token
+        from core.database import AsyncSessionLocal
+        
+        try:
+            user_id_str = decode_access_token(token)
+            user_uuid = uuid.UUID(user_id_str)
+        except Exception:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({"type": "error", "message": "Invalid authentication token."}))
+            await websocket.close(code=4003)
+            return
+
+        # Strictly validate session_id UUID format
+        try:
+            session_uuid = uuid.UUID(session_id)
+        except ValueError:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({"type": "error", "message": "Invalid session_id format."}))
+            await websocket.close(code=4000)
+            return
+
+        # Check session ownership
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(InterviewSession).where(InterviewSession.id == session_uuid))
+            db_session = result.scalar_one_or_none()
+            if not db_session:
+                await websocket.accept()
+                await websocket.send_text(json.dumps({"type": "error", "message": "Interview session not found."}))
+                await websocket.close(code=4004)
+                return
+                
+            result = await db.execute(select(Candidate).where(Candidate.id == db_session.candidate_id))
+            candidate = result.scalar_one_or_none()
+            if not candidate or candidate.user_id != user_uuid:
+                await websocket.accept()
+                await websocket.send_text(json.dumps({"type": "error", "message": "Access denied. You do not own this interview session."}))
+                await websocket.close(code=4003)
+                return
+    else:
+        # Strictly validate session_id UUID format
+        try:
+            uuid.UUID(session_id)
+        except ValueError:
+            await websocket.accept()
+            await websocket.send_text(json.dumps({"type": "error", "message": "Invalid session_id format."}))
+            await websocket.close(code=4000)
+            return
+
     await websocket.accept()
     logger.info(f"WS connected: {session_id}")
 
@@ -127,7 +236,24 @@ async def interview_ws(websocket: WebSocket, session_id: str):
             except:
                 continue
 
+            if not isinstance(msg, dict):
+                logger.warning("WS message is not a JSON object")
+                await _send(websocket, {"type": "error", "message": "Message must be a JSON object."})
+                continue
+
             t = msg.get("type", "")
+            schema = WS_SCHEMAS.get(t)
+            if not schema:
+                logger.warning(f"Unknown WS message type: {t}")
+                await _send(websocket, {"type": "error", "message": f"Unknown message type: {t}"})
+                continue
+
+            try:
+                validated_msg = schema.model_validate(msg)
+            except ValidationError as ve:
+                logger.warning(f"WS message validation failed: {ve}")
+                await _send(websocket, {"type": "error", "message": f"Invalid fields for type {t}: {str(ve)}"})
+                continue
 
             if t == "ping":
                 await _send(websocket, {"type": "pong"})
@@ -136,14 +262,14 @@ async def interview_ws(websocket: WebSocket, session_id: str):
                 pass
 
             elif t == "start_round":
-                await _start_round(websocket, sess, session_id, msg)
+                await _start_round(websocket, sess, session_id, validated_msg)
 
             elif t == "audio_chunk":
                 # Only accept audio when in LISTENING state
                 if sess["state"] != STATE_LISTENING:
                     continue
 
-                data = msg.get("data", "")
+                data = validated_msg.data
                 if not data:
                     continue
 
@@ -152,7 +278,7 @@ async def interview_ws(websocket: WebSocket, session_id: str):
                     if len(chunk) < 50:
                         continue
                     sess["audio_buf"].extend(chunk)
-                    sess["buf_ms"] += msg.get("duration_ms", 250)
+                    sess["buf_ms"] += validated_msg.duration_ms
                     sess["silence_ms"] = 0  # reset silence timer on audio
 
                     # Send interim transcript indicator
@@ -171,7 +297,7 @@ async def interview_ws(websocket: WebSocket, session_id: str):
 
             elif t in ("candidate_text", "typed_answer"):
                 # Text fallback — candidate typed instead of speaking
-                text = msg.get("text", "").strip()
+                text = validated_msg.text.strip()
                 if text and sess["state"] == STATE_LISTENING:
                     await _handle_candidate_response(
                         websocket, sess, session_id, text
@@ -186,10 +312,10 @@ async def interview_ws(websocket: WebSocket, session_id: str):
         logger.error(f"WS error [{session_id}]: {e}")
 
 
-async def _start_round(websocket, sess, session_id, msg):
-    round_name = msg.get("round", "technical")
-    target_role = msg.get("target_role", "Software Engineer")
-    resume_ctx = msg.get("resume_context", "")
+async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
+    round_name = msg.round
+    target_role = msg.target_role
+    resume_ctx = msg.resume_context
 
     # Self-correct target_role and resume_context if missing or default
     if not resume_ctx or target_role == "Software Engineer":

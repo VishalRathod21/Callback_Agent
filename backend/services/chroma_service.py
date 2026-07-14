@@ -74,3 +74,13 @@ async def search_similar_resumes(query: str, n_results: int = 5) -> list:
 
     logger.info("Found %d similar resumes for query (first 50 chars: '%.50s...')", len(matches), query)
     return matches
+
+
+async def delete_resume(candidate_id: str) -> None:
+    """Delete a candidate's resume from the ChromaDB collection."""
+    try:
+        _collection.delete(ids=[candidate_id])
+        logger.info("Deleted resume for candidate %s from ChromaDB", candidate_id)
+    except Exception as exc:
+        logger.error("Failed to delete candidate %s resume from ChromaDB: %s", candidate_id, exc)
+

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Callback | Interview Room</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;700&amp;family=Be+Vietnam+Pro:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body {
+            background-color: #0b1421;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .glass-level-1 {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+        }
+
+        .glass-level-2 {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+        }
+
+        .glass-level-3 {
+            background: rgba(255, 255, 255, 0.09);
+            backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.20);
+        }
+
+        .spring-transition {
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .waveform-container {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            height: 60px;
+        }
+
+        .waveform-bar {
+            width: 4px;
+            background: #a8c8ff;
+            border-radius: 2px;
+            animation: pulse-wave 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-wave {
+            0%, 100% { height: 10px; opacity: 0.3; }
+            50% { height: 40px; opacity: 1; }
+        }
+
+        .glow-primary {
+            box-shadow: 0 0 20px rgba(168, 200, 255, 0.2);
+        }
+
+        .glow-hover:hover {
+            box-shadow: 0 0 30px rgba(168, 200, 255, 0.4);
+            transform: translateY(-6px);
+        }
+
+        .radial-progress {
+            --value: 75;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: radial-gradient(closest-side, #17202e 79%, transparent 80% 100%),
+                        conic-gradient(#a8c8ff calc(var(--value) * 1%), rgba(255,255,255,0.1) 0);
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#3c0091",
+                    "tertiary-container": "#24b2ed",
+                    "on-primary-fixed": "#001b3c",
+                    "on-secondary-fixed-variant": "#5516be",
+                    "surface-variant": "#2c3544",
+                    "surface-container-high": "#222a38",
+                    "tertiary-fixed": "#c4e7ff",
+                    "surface-bright": "#313a48",
+                    "error": "#ffb4ab",
+                    "on-primary-container": "#003c76",
+                    "primary-container": "#6ea8fe",
+                    "on-surface": "#dae3f6",
+                    "outline": "#8c919d",
+                    "primary": "#a8c8ff",
+                    "surface": "#0b1421",
+                    "tertiary-fixed-dim": "#7bd0ff",
+                    "surface-container": "#17202e",
+                    "surface-container-lowest": "#060e1b",
+                    "inverse-primary": "#115eaf",
+                    "on-background": "#dae3f6",
+                    "secondary-fixed": "#e9ddff",
+                    "secondary": "#d0bcff",
+                    "background": "#0b1421",
+                    "on-tertiary-container": "#00415a",
+                    "on-primary-fixed-variant": "#004689",
+                    "on-tertiary-fixed": "#001e2c",
+                    "surface-dim": "#0b1421",
+                    "surface-container-low": "#131c29",
+                    "on-secondary-container": "#c4abff",
+                    "outline-variant": "#424751",
+                    "on-tertiary-fixed-variant": "#004c69",
+                    "on-tertiary": "#00354a",
+                    "secondary-container": "#571bc1",
+                    "surface-container-highest": "#2c3544",
+                    "on-primary": "#003061",
+                    "tertiary": "#7bd0ff",
+                    "inverse-on-surface": "#28313f",
+                    "on-error-container": "#ffdad6",
+                    "primary-fixed-dim": "#a8c8ff",
+                    "inverse-surface": "#dae3f6",
+                    "surface-tint": "#a8c8ff",
+                    "error-container": "#93000a",
+                    "secondary-fixed-dim": "#d0bcff",
+                    "on-secondary-fixed": "#23005c",
+                    "on-surface-variant": "#c2c6d3",
+                    "on-error": "#690005"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "gap-md": "1.5rem",
+                    "gap-lg": "2rem",
+                    "glass-padding": "2rem",
+                    "gap-sm": "1rem",
+                    "gap-xs": "0.5rem",
+                    "container-margin": "3rem"
+            },
+            "fontFamily": {
+                    "body-lg": ["inter"],
+                    "label-md": ["spaceGrotesk"],
+                    "headline-lg": ["beVietnamPro"],
+                    "display-xl": ["beVietnamPro"],
+                    "headline-md": ["beVietnamPro"],
+                    "label-sm": ["spaceGrotesk"]
+            },
+            "fontSize": {
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "display-xl": ["64px", {"lineHeight": "72px", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- Ambient Animated Shader Background -->
+<!-- STITCH_SHADER_START:ANIMATION_2 class="absolute inset-0 w-full h-full opacity-40 pointer-events-none" -->
+<div class="absolute inset-0 w-full h-full opacity-40 pointer-events-none" style="display:block;">
+<canvas id="shader-canvas-ANIMATION_2" style="display:block;width:100%;height:100%"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('shader-canvas-ANIMATION_2');
+
+  // Sync the WebGL drawing-buffer size with the CSS-driven layout size.
+  // This fires on initial layout and whenever the element is resized.
+  function syncSize() {
+    const w = canvas.clientWidth  || 1280;
+    const h = canvas.clientHeight || 720;
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width  = w;
+      canvas.height = h;
+    }
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(syncSize).observe(canvas);
+  }
+  syncSize();
+
+  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  if (!gl) return;
+  const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+  const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+
+vec3 hsb2rgb(in vec3 c) {
+    vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    rgb = rgb * rgb * (3.0 - 2.0 * rgb);
+    return c.z * mix(vec3(1.0), rgb, c.y);
+}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    float time = u_time * 0.15;
+    
+    // Create soft moving aurora blobs
+    float noise1 = sin(uv.x * 3.0 + time) * cos(uv.y * 2.0 - time * 0.8);
+    float noise2 = cos(uv.y * 4.0 - time * 1.2) * sin(uv.x * 2.5 + time * 0.5);
+    
+    vec3 color1 = vec3(0.43, 0.66, 0.99); // Blue (#6EA8FE)
+    vec3 color2 = vec3(0.54, 0.36, 0.96); // Purple (#8B5CF6)
+    vec3 color3 = vec3(0.22, 0.74, 0.97); // Teal (#38BDF8)
+    
+    float mix1 = smoothstep(-1.0, 1.0, noise1 + sin(uv.x * 10.0));
+    float mix2 = smoothstep(-1.0, 1.0, noise2 + cos(uv.y * 8.0));
+    
+    vec3 finalColor = mix(color1, color2, mix1);
+    finalColor = mix(finalColor, color3, mix2);
+    
+    // Deep dark background
+    vec3 bg = mix(vec3(0.03, 0.07, 0.12), vec3(0.07, 0.11, 0.18), uv.y);
+    
+    // Blend aurora with low opacity (10-18%)
+    gl_FragColor = vec4(mix(bg, finalColor, 0.14), 1.0);
+}`;
+  function cs(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  const prog = gl.createProgram();
+  gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const pos = gl.getAttribLocation(prog, 'a_position');
+  gl.enableVertexAttribArray(pos);
+  gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+  const uTime = gl.getUniformLocation(prog, 'u_time');
+  const uRes = gl.getUniformLocation(prog, 'u_resolution');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+
+  // u_mouse is in pixel coordinates matching u_resolution (ShaderToy convention).
+  // Shaders that need normalized coords should use: u_mouse / u_resolution.
+  let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+  window.addEventListener('mousemove', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width && rect.height) {
+      const nx = (event.clientX - rect.left) / rect.width;
+      const ny = 1.0 - (event.clientY - rect.top) / rect.height;
+      mouse.x = nx * canvas.width;
+      mouse.y = ny * canvas.height;
+    }
+  });
+
+  function render(t) {
+    if (typeof ResizeObserver === 'undefined') syncSize();
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    if (uTime) gl.uniform1f(uTime, t * 0.001);
+    if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+    if (uMouse) gl.uniform2f(uMouse, mouse.x, mouse.y);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(render);
+  }
+  render(0);
+})();
+</script>
+</div>
+<!-- STITCH_SHADER_END:ANIMATION_2 -->
+<!-- SideNavBar (Shared Component) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col pt-24 pb-8 glass-level-1 rounded-xl my-12 ml-8 w-64 border border-white/10 shadow-2xl z-40 hidden md:flex">
+<div class="px-6 mb-8">
+<h1 class="font-headline-sm text-headline-sm text-primary font-bold tracking-tight">Recruiter Portal</h1>
+<p class="font-label-sm text-label-sm text-on-surface/60">Elite Tier</p>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg spring-transition cursor-pointer group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">dashboard</span>
+<span class="font-label-sm text-label-sm">Dashboard</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 bg-primary-container text-on-primary-container rounded-lg mx-2 my-1 spring-transition cursor-pointer shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">videocam</span>
+<span class="font-label-sm text-label-sm">Live Sessions</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg spring-transition cursor-pointer group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">groups</span>
+<span class="font-label-sm text-label-sm">Candidates</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg spring-transition cursor-pointer group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">leaderboard</span>
+<span class="font-label-sm text-label-sm">Reports</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 text-on-surface/60 hover:text-on-surface hover:bg-white/10 rounded-lg spring-transition cursor-pointer group">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</div>
+</nav>
+<div class="px-4 mt-auto">
+<button class="w-full py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md font-bold glow-primary hover:scale-[1.02] active:scale-95 transition-all">
+                New Interview
+            </button>
+</div>
+</aside>
+<!-- Main Interview Canvas -->
+<main class="md:ml-80 h-screen p-8 flex flex-col relative z-10">
+<!-- Header -->
+<header class="flex justify-between items-center mb-gap-lg">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full glass-level-2 flex items-center justify-center border border-white/20">
+<span class="material-symbols-outlined text-primary">clinical_notes</span>
+</div>
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Senior Frontend Engineer</h2>
+<p class="font-label-md text-label-md text-on-surface/50">Technical Screening • Round 2 of 3</p>
+</div>
+</div>
+<div class="flex items-center gap-gap-sm">
+<div class="glass-level-1 px-4 py-2 rounded-full flex items-center gap-2 border border-white/10">
+<div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+<span class="font-label-md text-label-md text-red-400 font-bold tracking-wider">REC 00:14:52</span>
+</div>
+<button class="glass-level-2 px-6 py-2 rounded-full font-label-md text-label-md text-on-surface hover:bg-white/10 transition-all border border-white/20">
+                    End Interview
+                </button>
+</div>
+</header>
+<!-- Body Grid -->
+<div class="flex-1 grid grid-cols-12 gap-gap-lg min-h-0">
+<!-- Center: AI Avatar & Question -->
+<div class="col-span-12 lg:col-span-8 flex flex-col gap-gap-lg">
+<div class="flex-1 glass-level-3 rounded-[32px] overflow-hidden flex flex-col relative group">
+<!-- AI Avatar Card Content -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface/80 to-transparent z-0"></div>
+<div class="flex-1 flex flex-col items-center justify-center p-glass-padding z-10 relative">
+<div class="w-48 h-48 rounded-full mb-8 relative">
+<div class="absolute inset-0 rounded-full border-4 border-primary/20 animate-ping"></div>
+<div class="absolute inset-0 rounded-full border-2 border-primary/50 animate-pulse"></div>
+<img class="w-full h-full rounded-full object-cover border-4 border-white/10 shadow-2xl" data-alt="A highly detailed 3D digital rendering of a sleek, humanoid AI avatar with translucent skin and glowing internal fiber-optic networks. The avatar is set against a dark, minimalist laboratory background with soft cyan and blue bioluminescent lighting. The style is cinematic, futuristic, and professional, maintaining a premium high-tech recruiter aesthetic with soft glass-like textures." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBe1_lGRtPLKgm0VrzR8SUBB695Wx64FZbvpEUfYO6KNmvUsVB0GUGZym6Upk4wTDm4RlQoSGdBlIfJJRbpN0bIG82WsKxN-MV1bEExLUaP-I4ysg8g8vh3KQKY3-qlYYLrFcz5oDMm1UBSCCVyG7TrSb3REKxTXs259iZBSjeiZjN36kqbUyxFDo1KTZiz8eUJ2huu-IlMPcp2mRQYBvmA-dMmRW2AKn8F0EA7o_krDOXrvt2TaSf0"/>
+</div>
+<div class="max-w-xl text-center space-y-6">
+<p class="font-headline-md text-headline-md text-white/90 leading-relaxed italic">
+                                "Explain how you would architect a micro-frontend architecture while maintaining consistent design tokens across teams."
+                            </p>
+<!-- Organic Waveform -->
+<div class="waveform-container justify-center" id="voice-waves">
+<div class="waveform-bar" style="animation-delay: 0.1s"></div>
+<div class="waveform-bar" style="animation-delay: 0.3s"></div>
+<div class="waveform-bar" style="animation-delay: 0.2s"></div>
+<div class="waveform-bar" style="animation-delay: 0.5s"></div>
+<div class="waveform-bar" style="animation-delay: 0.4s"></div>
+<div class="waveform-bar" style="animation-delay: 0.7s"></div>
+<div class="waveform-bar" style="animation-delay: 0.6s"></div>
+<div class="waveform-bar" style="animation-delay: 0.2s"></div>
+<div class="waveform-bar" style="animation-delay: 0.4s"></div>
+<div class="waveform-bar" style="animation-delay: 0.3s"></div>
+</div>
+</div>
+</div>
+<!-- Transcription Overlay -->
+<div class="glass-level-2 m-6 p-6 rounded-2xl border border-white/10 z-10">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span class="font-label-sm text-label-sm uppercase tracking-widest text-primary/80">AI Insight</span>
+</div>
+<p class="text-on-surface/70 font-body-md text-body-md">Candidate is currently discussing Web Components and Module Federation. Sentiment: Highly Analytical.</p>
+</div>
+</div>
+</div>
+<!-- Right: Performance Score -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-gap-lg">
+<div class="glass-level-2 p-glass-padding rounded-[32px] flex flex-col gap-gap-lg glow-hover spring-transition">
+<h3 class="font-label-md text-label-md font-bold tracking-widest text-on-surface/40 uppercase">Live Performance Score</h3>
+<div class="flex flex-col items-center gap-gap-md py-4">
+<div class="radial-progress relative flex items-center justify-center" style="--value: 84">
+<div class="absolute flex flex-col items-center">
+<span class="font-display-xl text-4xl text-primary">84</span>
+<span class="font-label-sm text-label-sm text-on-surface/40">Overall</span>
+</div>
+</div>
+</div>
+<div class="space-y-gap-sm">
+<div class="glass-level-1 p-4 rounded-2xl flex items-center justify-between border border-white/5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary">psychology</span>
+<span class="font-label-md text-label-md">Technical Clarity</span>
+</div>
+<span class="font-label-md text-label-md text-primary">92%</span>
+</div>
+<div class="glass-level-1 p-4 rounded-2xl flex items-center justify-between border border-white/5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">forum</span>
+<span class="font-label-md text-label-md">Communication</span>
+</div>
+<span class="font-label-md text-label-md text-primary">78%</span>
+</div>
+<div class="glass-level-1 p-4 rounded-2xl flex items-center justify-between border border-white/5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-error">speed</span>
+<span class="font-label-md text-label-md">Confidence</span>
+</div>
+<span class="font-label-md text-label-md text-primary">81%</span>
+</div>
+</div>
+<div class="mt-4 pt-4 border-t border-white/5">
+<div class="flex justify-between items-center mb-4">
+<h4 class="font-label-sm text-label-sm text-on-surface/50">Keyword Density</h4>
+<span class="material-symbols-outlined text-on-surface/30">info</span>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-label-sm text-[10px] uppercase">Shadow DOM</span>
+<span class="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-label-sm text-[10px] uppercase">Micro-Frontend</span>
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-on-surface/50 font-label-sm text-[10px] uppercase">Latency</span>
+<span class="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary font-label-sm text-[10px] uppercase">Scale</span>
+</div>
+</div>
+</div>
+<div class="flex-1 glass-level-1 rounded-[32px] p-6 border border-white/10 overflow-hidden relative group cursor-pointer hover:border-primary/40 transition-colors">
+<div class="absolute inset-0 opacity-20 group-hover:opacity-30 transition-opacity">
+<div class="w-full h-full bg-cover" data-alt="A background texture of interconnected neural network lines and nodes glowing softly in a deep navy and electric blue palette. The lines represent complex data pathways, creating a sense of technical depth and intelligence. Professional and abstract, fitting for a recruitment dashboard." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCn0GzoGeDPCJxJtbQmmwBC5oIARaTF7lRECsumIp7zFSb5G5SuEc3RwIa4gnyIbNVjc4KYWJT4Ce6L-tTmP1mSTr2PgGZklKdua99BLgXgD-IT80FpZYgzpHGDGrGVg9PkZhnlj79HUnxcNPur8EgguFjIkiwRonhxK4TtQjFYiWgZg3E6gT_QIXic8ClqqGSawNL1YX-of3IYGFqepyTTezleVRjzveQq9xAUGq-T3FZeu56BVFcM')"></div>
+</div>
+<div class="relative z-10">
+<h4 class="font-label-md text-label-md text-primary mb-2">Technical Artifacts</h4>
+<p class="text-on-surface/60 font-body-sm text-sm">Candidate uploaded a system design diagram. Click to review details.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Controls -->
+<footer class="mt-gap-lg flex justify-center pb-8">
+<div class="glass-level-3 p-3 rounded-full flex items-center gap-6 px-8 border border-white/20 shadow-2xl">
+<button class="w-14 h-14 rounded-full glass-level-1 flex items-center justify-center hover:bg-white/10 transition-all group active:scale-90">
+<span class="material-symbols-outlined text-2xl text-on-surface/80 group-hover:text-primary">videocam</span>
+</button>
+<div class="h-8 w-px bg-white/10"></div>
+<button class="w-16 h-16 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/20 hover:scale-110 active:scale-95 transition-all" id="mic-btn">
+<span class="material-symbols-outlined text-3xl text-on-primary" style="font-variation-settings: 'FILL' 1;">mic</span>
+</button>
+<div class="h-8 w-px bg-white/10"></div>
+<button class="w-14 h-14 rounded-full glass-level-1 flex items-center justify-center hover:bg-white/10 transition-all group active:scale-90">
+<span class="material-symbols-outlined text-2xl text-on-surface/80 group-hover:text-primary">screen_share</span>
+</button>
+<button class="w-14 h-14 rounded-full bg-error-container/20 border border-error/30 flex items-center justify-center hover:bg-error/40 transition-all group active:scale-90">
+<span class="material-symbols-outlined text-2xl text-error">call_end</span>
+</button>
+</div>
+</footer>
+</main>
+<script>
+        // Micro-interaction for Mic Toggle
+        const micBtn = document.getElementById('mic-btn');
+        let isMuted = false;
+
+        micBtn.addEventListener('click', () => {
+            isMuted = !isMuted;
+            if (isMuted) {
+                micBtn.classList.remove('bg-primary');
+                micBtn.classList.add('bg-error-container');
+                micBtn.innerHTML = '<span class="material-symbols-outlined text-3xl text-on-error" style="font-variation-settings: \'FILL\' 1;">mic_off</span>';
+            } else {
+                micBtn.classList.remove('bg-error-container');
+                micBtn.classList.add('bg-primary');
+                micBtn.innerHTML = '<span class="material-symbols-outlined text-3xl text-on-primary" style="font-variation-settings: \'FILL\' 1;">mic</span>';
+            }
+        });
+
+        // Randomize waveform height for dynamic feel
+        const bars = document.querySelectorAll('.waveform-bar');
+        setInterval(() => {
+            bars.forEach(bar => {
+                const height = Math.floor(Math.random() * 50) + 10;
+                bar.style.height = `${height}px`;
+            });
+        }, 150);
+    </script>
+</body></html>

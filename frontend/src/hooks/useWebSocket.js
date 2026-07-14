@@ -40,6 +40,13 @@ client.interceptors.response.use(
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8002';
 
+// Close codes that indicate a permanent server-side rejection (not transient network drops).
+// We must NOT reconnect on these — doing so causes the infinite loop visible in the logs:
+//   4000 = invalid session_id format
+//   4003 = auth token missing / invalid / access denied
+//   4004 = session not found
+const PERMANENT_CLOSE_CODES = new Set([4000, 4003, 4004]);
+
 // Turn states (mirrors backend)
 export const STATE_IDLE = 'idle';
 export const STATE_AI_SPEAKING = 'ai_speaking';
@@ -55,6 +62,7 @@ export function useWebSocket({
   onError,
   volume: onVolumeChangeCallback,
   muted,
+  enabled = true,   // set to false to defer connection until auth is confirmed
 }) {
   const wsRef = useRef(null);
   const audioCtxRef = useRef(null);
@@ -184,7 +192,7 @@ export function useWebSocket({
       }
     }
     playingRef.current = false;
-    
+
     // Auto-trigger endRound once concluding speech has finished playing
     if (shouldEndRoundRef.current) {
       shouldEndRoundRef.current = false;
@@ -193,12 +201,23 @@ export function useWebSocket({
   }, []);
 
   // ── WebSocket Connection and Message Loop ──
+  // NOTE: `enabled` is in deps so the callback is re-created when auth resolves,
+  // ensuring the fresh access token in localStorage is read at connection time.
   const connect = useCallback(() => {
     if (!sessionId) return;
     if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
       return;
     }
-    const ws = new WebSocket(`${WS_URL}/ws/interview/${sessionId}`);
+
+    // Attach the access token as a query parameter so the backend can authenticate
+    // the WebSocket handshake. Browsers don't allow custom headers on WS connections,
+    // so the token must go in the URL. The backend reads ?token=<jwt> to verify identity.
+    const token = localStorage.getItem('access_token') || '';
+    const wsUrl = token
+      ? `${WS_URL}/ws/interview/${sessionId}?token=${encodeURIComponent(token)}`
+      : `${WS_URL}/ws/interview/${sessionId}`;
+
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
     setStatus('connecting');
 
@@ -223,7 +242,7 @@ export function useWebSocket({
           console.log('[WS] State:', newState);
           setTurnState(newState);
           callbacksRef.current.onStateChange?.(newState, msg.message);
-          
+
           // AUTO-MIC: start recording when LISTENING, stop when AI speaks
           if (newState === 'listening') {
             // Small delay so AudioContext is ready
@@ -279,8 +298,21 @@ export function useWebSocket({
 
     ws.onerror = () => setStatus('error');
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       setIsConnected(false);
+
+      // Do NOT reconnect on permanent server-side rejections.
+      // These are auth failures or invalid IDs — retrying will always fail
+      // and creates the reconnect storm visible in the server logs.
+      if (PERMANENT_CLOSE_CODES.has(event.code)) {
+        console.warn(`[WS] Permanent close (code ${event.code}: ${event.reason}). Not reconnecting.`);
+        setStatus('disconnected');
+        if (event.code === 4003) {
+          callbacksRef.current.onError?.('Session authentication failed. Please refresh and try again.');
+        }
+        return;
+      }
+
       if (reconnectRef.current < 3) {
         reconnectRef.current++;
         setStatus(`reconnecting...`);
@@ -291,7 +323,7 @@ export function useWebSocket({
         setStatus('disconnected');
       }
     };
-  }, [sessionId]);
+  }, [sessionId, enabled]);
 
   // Keep references updated on every render
   startRecordingRef.current = startRecording;
@@ -302,6 +334,7 @@ export function useWebSocket({
   connectRef.current = connect;
 
   useEffect(() => {
+    if (!enabled) return;   // don't open until caller says auth is ready
     connect();
     return () => {
       if (wsRef.current) {
@@ -311,7 +344,7 @@ export function useWebSocket({
       }
       audioCtxRef.current?.close();
     };
-  }, [connect]);
+  }, [connect, enabled]);
 
   return {
     isConnected, status, turnState, volume,

@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from '../api/client';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useAuth } from '../context/AuthContext';
 
 // ── TYPEWRITER HOOK ──
 function useTypewriter(text, isActive) {
@@ -97,6 +98,7 @@ export default function InterviewRoom() {
   const navigate = useNavigate();
   const location = useLocation();
   const stateData = location.state || {};
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
   // State
   const [currentRound, setCurrentRound] = useState(stateData.currentRound || 'technical');
@@ -194,6 +196,7 @@ export default function InterviewRoom() {
     startRound, sendText, endRound, startRecording, stopRecording, destroyAll,
   } = useWebSocket({
     sessionId,
+    enabled: isAuthenticated && !authLoading,
     onAITranscript: ({ text }) => {
       setCurrentQuestion(text);
       addTranscript('interviewer', text);
@@ -257,7 +260,7 @@ export default function InterviewRoom() {
           bg = 'var(--success)'; // Green
         } else if (turnState === 'ai_speaking') {
           h = 6 + (wave * 0.5 + 0.5) * 32;
-          bg = 'var(--accent)'; // Gold
+          bg = 'var(--spotlight)'; // Blue
         } else if (turnState === 'processing') {
           h = 4; // Flat / still during thinking state
           bg = 'rgba(255, 255, 255, 0.04)';
@@ -289,9 +292,9 @@ export default function InterviewRoom() {
 
   // State configurations (including Thinking status label states)
   const stateConfig = {
-    ai_speaking: { label: 'AI SPEAKING', color: 'var(--accent)', pulse: true },
-    listening:   { label: muted ? 'MUTED' : 'LISTENING', color: muted ? 'var(--accent)' : 'var(--success)', pulse: !muted },
-    processing:  { label: THINKING_MESSAGES[thinkingIndex].toUpperCase(), color: 'var(--accent)', pulse: false },
+    ai_speaking: { label: 'AI SPEAKING', color: 'var(--spotlight)', pulse: true },
+    listening:   { label: muted ? 'MUTED' : 'LISTENING', color: muted ? 'var(--spotlight)' : 'var(--success)', pulse: !muted },
+    processing:  { label: THINKING_MESSAGES[thinkingIndex].toUpperCase(), color: 'var(--spotlight)', pulse: false },
     idle:        { label: 'CONNECTING', color: 'var(--text-muted)', pulse: false },
   };
   const cfg = stateConfig[turnState] || stateConfig.idle;
@@ -322,7 +325,7 @@ export default function InterviewRoom() {
         padding: '0 24px',
         flexShrink: 0,
         zIndex: 10,
-        background: 'rgba(10, 10, 11, 0.55)',
+        background: 'var(--card-bg)',
         backdropFilter: 'blur(30px) saturate(180%)'
       }}>
         {/* Left: REC Status */}
@@ -393,7 +396,7 @@ export default function InterviewRoom() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          background: 'rgba(10, 10, 11, 0.35)',
+          background: 'var(--card-bg)',
           backdropFilter: 'blur(30px) saturate(180%)'
         }}>
           {/* Camera Frame */}
@@ -403,22 +406,22 @@ export default function InterviewRoom() {
               borderRadius: '12px',
               overflow: 'hidden',
               aspectRatio: '4/3',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border)',
               position: 'relative',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+              boxShadow: 'var(--shadow-md)'
             }}>
               {!cameraError ? (
                 <video ref={videoRef} autoPlay muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-inset)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <UserIcon size={24} color="var(--text-muted)" />
                   </div>
                   <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>CAMERA BLOCKED</span>
                 </div>
               )}
               {/* Mic state badge overlay */}
-              <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(10,10,11,0.85)', backdropFilter: 'blur(4px)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.06)', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <div style={{ position: 'absolute', bottom: '8px', right: '8px', background: 'rgba(10,10,11,0.85)', backdropFilter: 'blur(4px)', borderRadius: '4px', border: '1px solid var(--border)', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: isRecording && isSpeaking && !muted ? 'var(--success)' : 'var(--text-muted)' }} />
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: '8px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                   {muted ? 'MUTED' : isRecording ? (isSpeaking ? 'SPEAKING' : 'LISTENING') : 'OFF'}
@@ -441,7 +444,7 @@ export default function InterviewRoom() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
-                    style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}
+                    style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: entry.speaker === 'interviewer' ? 'var(--accent)' : 'var(--success)' }}>
@@ -454,16 +457,15 @@ export default function InterviewRoom() {
                 ))}
               </AnimatePresence>
               
-              {/* Skeleton shimmer line inside live transcript during Thinking state */}
               {turnState === 'processing' && (
-                <div style={{ paddingBottom: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.02)' }}>
+                <div style={{ paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                     <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--accent)' }}>AI</span>
                     <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--accent)', animation: 'breathing-pulse 1.2s infinite' }} />
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ height: '8px', width: '90%', borderRadius: '4px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1.5s infinite linear' }} />
-                    <div style={{ height: '8px', width: '70%', borderRadius: '4px', background: 'linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1.5s infinite linear 300ms' }} />
+                    <div style={{ height: '8px', width: '90%', borderRadius: '4px', background: 'linear-gradient(90deg, rgba(0,0,0,0.03) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1.5s infinite linear' }} />
+                    <div style={{ height: '8px', width: '70%', borderRadius: '4px', background: 'linear-gradient(90deg, rgba(0,0,0,0.03) 25%, rgba(0,0,0,0.08) 50%, rgba(0,0,0,0.03) 75%)', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1.5s infinite linear 300ms' }} />
                   </div>
                 </div>
               )}
@@ -491,12 +493,12 @@ export default function InterviewRoom() {
                 {turnState === 'ai_speaking' && (
                   <>
                     <motion.div
-                      style={{ position: 'absolute', inset: -20, borderRadius: '50%', background: 'radial-gradient(circle, rgba(242, 184, 75, 0.08) 0%, transparent 70%)', zIndex: -1 }}
+                      style={{ position: 'absolute', inset: -20, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110, 168, 254, 0.08) 0%, transparent 70%)', zIndex: -1 }}
                       animate={{ scale: [1, 1.25, 1], opacity: [0.4, 0.8, 0.4] }}
                       transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                     />
                     <motion.div
-                      style={{ position: 'absolute', inset: -40, borderRadius: '50%', background: 'radial-gradient(circle, rgba(242, 184, 75, 0.04) 0%, transparent 70%)', zIndex: -1 }}
+                      style={{ position: 'absolute', inset: -40, borderRadius: '50%', background: 'radial-gradient(circle, rgba(110, 168, 254, 0.04) 0%, transparent 70%)', zIndex: -1 }}
                       animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.5, 0.2] }}
                       transition={{ duration: 3.2, delay: 0.5, repeat: Infinity, ease: 'easeInOut' }}
                     />
@@ -518,7 +520,7 @@ export default function InterviewRoom() {
                     position: 'absolute',
                     inset: -3,
                     borderRadius: '50%',
-                    background: 'conic-gradient(from 0deg, var(--accent) 0%, transparent 60%, var(--accent) 100%)',
+                    background: 'conic-gradient(from 0deg, var(--spotlight) 0%, transparent 60%, var(--spotlight) 100%)',
                     zIndex: 0
                   }}
                   animate={{ rotate: 360 }}
@@ -537,12 +539,12 @@ export default function InterviewRoom() {
                   justifyContent: 'center',
                   background: 'rgba(21, 24, 29, 0.75)',
                   border: turnState === 'processing' ? '2px solid transparent' : `2px solid ${
-                    turnState === 'ai_speaking' ? 'var(--accent)'
+                    turnState === 'ai_speaking' ? 'var(--spotlight)'
                     : turnState === 'listening' ? 'var(--success)'
                     : 'rgba(255,255,255,0.06)'
                   }`,
                   boxShadow: turnState === 'ai_speaking'
-                    ? '0 0 30px rgba(242, 184, 75, 0.2)'
+                    ? '0 0 30px rgba(110, 168, 254, 0.2)'
                     : turnState === 'listening'
                     ? '0 0 30px rgba(62, 207, 142, 0.2)'
                     : '0 8px 32px rgba(0, 0, 0, 0.3)',
@@ -555,7 +557,7 @@ export default function InterviewRoom() {
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
               >
                 <AIIcon size={36} color={
-                  turnState === 'ai_speaking' ? 'var(--accent)'
+                  turnState === 'ai_speaking' ? 'var(--spotlight)'
                   : turnState === 'listening' ? 'var(--success)' : 'var(--text-muted)'
                 } />
               </motion.div>
@@ -566,7 +568,7 @@ export default function InterviewRoom() {
                 bottom: '-6px',
                 left: '50%',
                 transform: 'translateX(-50%)',
-                background: turnState === 'ai_speaking' ? 'var(--accent)'
+                background: turnState === 'ai_speaking' ? 'var(--spotlight)'
                             : turnState === 'listening' ? 'var(--success)' : 'var(--border-strong)',
                 borderRadius: '99px',
                 padding: '2px 10px',
@@ -594,8 +596,8 @@ export default function InterviewRoom() {
                   <span style={{ fontSize: '15px', color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>
                     {THINKING_MESSAGES[thinkingIndex]}...
                   </span>
-                  <div style={{ width: '48px', height: '3px', background: 'rgba(255,255,255,0.06)', borderRadius: '99px', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: '100%', background: 'var(--accent)', borderRadius: '99px', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1s infinite linear' }} />
+                  <div style={{ width: '48px', height: '3px', background: 'var(--border-strong)', borderRadius: '99px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: '100%', background: 'var(--spotlight)', borderRadius: '99px', backgroundSize: '200% 100%', animation: 'shimmer-sweep 1s infinite linear' }} />
                   </div>
                 </div>
               ) : typedQuestion ? (
@@ -617,7 +619,7 @@ export default function InterviewRoom() {
               {Array.from({ length: BARS }).map((_, i) => (
                 <div key={i}
                      ref={el => { barRefsArr.current[i] = el; }}
-                     style={{ width: '3px', borderRadius: '99px', height: '4px', background: 'rgba(255,255,255,0.06)', transition: 'background 200ms ease' }} />
+                     style={{ width: '3px', borderRadius: '99px', height: '4px', background: 'var(--border-strong)', transition: 'background 200ms ease' }} />
               ))}
             </div>
           </div>
@@ -625,8 +627,8 @@ export default function InterviewRoom() {
           {/* ── CONTROLS BAR (GLASS FOOTER) ── */}
           <div style={{
             padding: '16px 32px 24px',
-            background: 'rgba(10, 10, 11, 0.45)',
-            borderTop: '1px solid var(--border-glass)',
+            background: 'var(--card-bg)',
+            borderTop: '1px solid var(--border)',
             backdropFilter: 'blur(30px) saturate(180%)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', maxWidth: '700px', margin: '0 auto' }}>
@@ -645,12 +647,12 @@ export default function InterviewRoom() {
                   cursor: 'pointer',
                   border: 'none',
                   transition: 'all 200ms ease',
-                  background: muted ? 'rgba(242, 184, 75, 0.08)' : isRecording ? 'rgba(62, 207, 142, 0.08)' : 'rgba(255,255,255,0.02)',
-                  outline: muted ? '2px solid var(--accent)' : isRecording ? '2px solid var(--success)' : '2px solid rgba(255,255,255,0.06)',
+                  background: muted ? 'rgba(110, 168, 254, 0.08)' : isRecording ? 'rgba(62, 207, 142, 0.08)' : 'var(--bg-inset)',
+                  outline: muted ? '2px solid var(--spotlight)' : isRecording ? '2px solid var(--success)' : '2px solid var(--border-strong)',
                 }}
               >
                 {muted
-                  ? <MicOffIcon size={18} color="var(--accent)" />
+                  ? <MicOffIcon size={18} color="var(--spotlight)" />
                   : <MicIcon size={18} color={isRecording ? 'var(--success)' : 'var(--text-muted)'} />}
               </button>
 
@@ -678,9 +680,9 @@ export default function InterviewRoom() {
                 style={{
                   height: '48px',
                   padding: '0 20px',
-                  background: 'var(--accent)',
+                  background: 'var(--spotlight)',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--radius-sm)',
                   color: '#0A0A0B',
                   fontSize: '13px',
                   fontWeight: 700,

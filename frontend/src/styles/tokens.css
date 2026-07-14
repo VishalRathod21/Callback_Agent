@@ -1,67 +1,68 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  /* ── Colors ──────────────────────────────────── */
-  --stage-black:    #0A0A0B;     /* main background (premium near black) */
-  --panel-bg:       rgba(17, 20, 24, 0.45); /* translucent glass panel base */
-  --card-bg:        rgba(21, 24, 29, 0.3);
-  --card-border:    rgba(255, 255, 255, 0.04);
-  --paper:          #F5F3EE;     /* primary text */
-  --paper-dim:      #9BA1AA;     /* secondary text */
-  --paper-dimmer:   #666D77;     /* tertiary / disabled text */
-  --spotlight:      #F2B84B;     /* primary accent — amber, used for CTAs, highlights, focus states */
-  --prompter-green: #3ECF8E;     /* success / positive metric accent, teleprompter-green */
-  --rec-red:        #E2483D;     /* recording / live / destructive accent, used sparingly */
-  --blue:           #5B9BE6;     /* tertiary data accent, used only inside charts/metrics */
+  /* ── Colors (Warm Cream Premium Design Tokens) ────── */
+  --stage-black:    #FAF8F3;     /* Main background canvas (warm off-white / cream) */
+  --panel-bg:       #FFFFFF;     /* White background for panels */
+  --card-bg:        #FFFFFF;     /* White background for cards */
+  --card-border:    rgba(27, 35, 64, 0.08); /* Light border */
+  --paper:          #1B2340;     /* Primary text (deep navy / charcoal-blue) */
+  --paper-dim:      #4F566B;     /* Secondary text */
+  --paper-dimmer:   #8E95A5;     /* Tertiary text */
+  --spotlight:      #D98E2B;     /* Amber / Gold accent */
+  --prompter-green: #2E7D32;     /* Soft green success */
+  --rec-red:        #C62828;     /* Danger/Live badge red */
+  --blue:           #1565C0;     /* Soft blue info */
 
-  /* ── Backgrounds mapping (keep for pages) ────── */
+  /* ── Backgrounds mapping ─────────────────────── */
   --bg-canvas:      var(--stage-black);
   --bg-surface:     var(--panel-bg);
   --bg-elevated:    var(--card-bg);
-  --bg-inset:       #0e1014;
-  --bg-overlay:     rgba(11, 13, 16, 0.95);
+  --bg-inset:       #F3EFE6;     /* Slightly darker cream for wells / code editor */
+  --bg-overlay:     rgba(27, 35, 64, 0.4);
 
   /* ── Text mapping ────────────────────────────── */
   --text-primary:   var(--paper);
   --text-secondary: var(--paper-dim);
   --text-muted:     var(--paper-dimmer);
-  --text-inverse:   var(--stage-black);
+  --text-inverse:   #FAF8F3;
 
   /* ── Accent mapping ──────────────────────────── */
   --accent:         var(--spotlight);
-  --accent-hover:   #dfa637;
-  --accent-subtle:  rgba(242, 184, 75, 0.08);
-  --accent-border:  rgba(242, 184, 75, 0.3);
+  --accent-hover:   #C17A20;
+  --accent-subtle:  rgba(217, 142, 43, 0.06);
+  --accent-border:  rgba(217, 142, 43, 0.2);
 
   /* ── Semantic mapping ────────────────────────── */
   --success:        var(--prompter-green);
-  --success-subtle: rgba(62, 207, 142, 0.08);
+  --success-subtle: rgba(46, 125, 50, 0.06);
   --warning:        var(--spotlight);
-  --warning-subtle: rgba(242, 184, 75, 0.08);
+  --warning-subtle: rgba(217, 142, 43, 0.06);
   --danger:         var(--rec-red);
-  --danger-subtle:  rgba(226, 72, 61, 0.08);
+  --danger-subtle:  rgba(198, 40, 40, 0.06);
 
   /* ── Borders mapping ─────────────────────────── */
   --border:         var(--card-border);
-  --border-strong:  rgba(255, 255, 255, 0.08);
-  --border-accent:  rgba(242, 184, 75, 0.4);
+  --border-strong:  rgba(27, 35, 64, 0.12);
+  --border-accent:  rgba(217, 142, 43, 0.3);
 
   /* ── Typography ──────────────────────────────── */
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-display: 'Outfit', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-mono: 'Inter', sans-serif;
+  --font-code: 'JetBrains Mono', monospace;
 
   /* ── Type scale ──────────────────────────────── */
-  --text-xs:   11px;
-  --text-sm:   13px;
-  --text-base: 15px;
-  --text-md:   17px;
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-md:   18px;
   --text-lg:   20px;
   --text-xl:   24px;
-  --text-2xl:  30px;
-  --text-3xl:  38px;
-  --text-4xl:  52px;
-  --text-5xl:  68px;
+  --text-2xl:  32px;
+  --text-3xl:  42px;
+  --text-4xl:  56px;
+  --text-5xl:  72px;
 
   /* ── Spacing ─────────────────────────────────── */
   --space-1:  4px;
@@ -77,18 +78,18 @@
   --space-20: 80px;
   --space-24: 96px;
 
-  /* ── Border radius ───────────────────────────── */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* ── Border radius (Warm, friendly curves) ── */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-full: 999px;
 
   /* ── Shadows ─────────────────────────────────── */
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-  --shadow-accent: 0 0 15px rgba(242, 184, 75, 0.15), 0 0 0 2px rgba(242, 184, 75, 0.2);
+  --shadow-sm: 0 2px 8px rgba(27, 35, 64, 0.04);
+  --shadow-md: 0 8px 24px rgba(27, 35, 64, 0.08);
+  --shadow-lg: 0 16px 48px rgba(27, 35, 64, 0.12);
+  --shadow-accent: 0 0 0 2px rgba(217, 142, 43, 0.2), 0 4px 12px rgba(217, 142, 43, 0.1);
 
   /* ── Transitions ─────────────────────────────── */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
@@ -127,7 +128,7 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
-  color-scheme: dark;
+  color-scheme: light;
   background-color: var(--stage-black);
 }
 
@@ -143,18 +144,19 @@ body {
 /* ── Selection ───────────────────────────────────── */
 ::selection {
   background: var(--spotlight);
-  color: var(--stage-black);
+  color: #FFFFFF;
 }
 
 /* ── Typography rules ────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   color: var(--paper);
+  font-weight: 700;
 }
 
-.mono { font-family: var(--font-mono); }
-.mono-data { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+.mono { font-family: var(--font-code); }
+.mono-data { font-family: var(--font-code); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .text-muted { color: var(--paper-dim); }
 .text-secondary { color: var(--paper-dim); }
 .text-dimmer { color: var(--paper-dimmer); }
@@ -179,8 +181,8 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @keyframes pulse-cta-glow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(242, 184, 75, 0.25); }
-  50%       { box-shadow: 0 0 16px 4px rgba(242, 184, 75, 0.1); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 142, 43, 0.2); }
+  50%       { box-shadow: 0 0 16px 4px rgba(217, 142, 43, 0.1); }
 }
 
 @keyframes spin {
@@ -219,7 +221,7 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(242, 184, 75, 0.045) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(217, 142, 43, 0.04) 0%, transparent 70%);
   filter: blur(80px);
   pointer-events: none;
   animation: spotlight-drift 12s ease-in-out infinite;
@@ -283,101 +285,69 @@ h1, h2, h3, h4, h5, h6 {
   .voice-wave-bar { animation: none !important; }
 }
 
-/* ── Premium Glassmorphism Utilities ──────────────── */
+/* ── Premium Warm Card Utilities ──────────────── */
 .glass-panel {
-  background: rgba(21, 24, 29, 0.45);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
-  box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.03),
-    0 16px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-sm);
   transition: all var(--duration-base) var(--ease);
 }
 
 .glass-panel-interactive {
-  background: rgba(21, 24, 29, 0.45);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
   border-radius: var(--radius-lg);
-  box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.03),
-    0 12px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-sm);
   transition: all var(--duration-base) var(--ease);
   cursor: pointer;
 }
 
 .glass-panel-interactive:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent-border);
+  transform: translateY(-4px);
+  border-color: rgba(27, 35, 64, 0.12);
+  background: var(--card-bg);
   box-shadow: 
-    inset 0 1px 1px rgba(255, 255, 255, 0.05),
-    0 0 15px rgba(242, 184, 75, 0.1),
-    0 20px 48px rgba(0, 0, 0, 0.6);
+    0 12px 32px rgba(27, 35, 64, 0.05),
+    0 0 20px rgba(217, 142, 43, 0.05);
 }
 
-/* Glass Inputs */
+/* Inputs */
 .glass-input {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border);
+  background: #FFFFFF;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--paper);
   padding: var(--space-3) var(--space-4);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   transition: all var(--duration-fast) var(--ease);
-  backdrop-filter: blur(8px);
 }
 
 .glass-input:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: var(--shadow-accent);
-  background: rgba(0, 0, 0, 0.35);
+  background: #FFFFFF;
 }
 
 /* Glow Utilities */
 .glow-gold {
-  box-shadow: 0 0 20px rgba(242, 184, 75, 0.15), 0 0 0 1px rgba(242, 184, 75, 0.25);
+  box-shadow: 0 0 20px rgba(217, 142, 43, 0.15), 0 0 0 1px rgba(217, 142, 43, 0.25);
 }
 .glow-green {
-  box-shadow: 0 0 20px rgba(62, 207, 142, 0.15), 0 0 0 1px rgba(62, 207, 142, 0.25);
+  box-shadow: 0 0 20px rgba(46, 125, 50, 0.15), 0 0 0 1px rgba(46, 125, 50, 0.25);
 }
 .glow-red {
-  box-shadow: 0 0 20px rgba(226, 72, 61, 0.15), 0 0 0 1px rgba(226, 72, 61, 0.25);
+  box-shadow: 0 0 20px rgba(198, 40, 40, 0.15), 0 0 0 1px rgba(198, 40, 40, 0.25);
 }
 
 .text-glow-gold {
-  text-shadow: 0 0 12px rgba(242, 184, 75, 0.4);
+  color: var(--spotlight);
 }
 .text-glow-green {
-  text-shadow: 0 0 12px rgba(62, 207, 142, 0.4);
+  color: var(--success);
 }
 .text-glow-red {
-  text-shadow: 0 0 12px rgba(226, 72, 61, 0.4);
+  color: var(--danger);
 }
-
-/* Laser Sweep Animations */
-@keyframes laser-sweep {
-  0% { top: 0%; opacity: 0.1; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { top: 100%; opacity: 0.1; }
-}
-
-.laser-sweep-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--spotlight), transparent);
-  box-shadow: 0 0 12px var(--spotlight), 0 0 4px var(--spotlight);
-  animation: laser-sweep 2.5s ease-in-out infinite alternate;
-  z-index: 5;
-  pointer-events: none;
-}
-

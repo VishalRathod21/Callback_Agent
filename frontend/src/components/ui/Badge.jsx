@@ -21,19 +21,19 @@ export default function Badge({ variant = 'default', children }) {
       border: '1px solid rgba(62, 207, 142, 0.2)',
     },
     warning: {
-      background: 'rgba(242, 184, 75, 0.08)',
-      color: 'var(--spotlight)',
-      border: '1px solid rgba(242, 184, 75, 0.2)',
+      background: 'var(--warning-subtle)',
+      color: 'var(--warning)',
+      border: '1px solid rgba(123, 208, 255, 0.2)',
     },
     danger: {
-      background: 'rgba(226, 72, 61, 0.08)',
+      background: 'var(--danger-subtle)',
       color: 'var(--rec-red)',
-      border: '1px solid rgba(226, 72, 61, 0.2)',
+      border: '1px solid rgba(255, 180, 171, 0.2)',
     },
     accent: {
-      background: 'rgba(242, 184, 75, 0.08)',
+      background: 'var(--accent-subtle)',
       color: 'var(--spotlight)',
-      border: '1px solid rgba(242, 184, 75, 0.2)',
+      border: '1px solid var(--accent-border)',
     },
   };
 

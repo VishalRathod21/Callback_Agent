@@ -1,13 +1,17 @@
 """Candidate upload and retrieval endpoints."""
 
+import io
 import logging
+import re
 import uuid
+import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from email_validator import validate_email
 
 from agents.resume_screener import ResumeScreenerAgent
 from core.config import settings
@@ -85,6 +89,25 @@ def _fallback_screening(resume_text: str, target_role: str) -> dict:
     }
 
 
+def _is_valid_file_content(contents: bytes, file_ext: str) -> bool:
+    """Validate file headers and content structure to prevent spoofing/execution."""
+    if file_ext == ".pdf":
+        # PDF files must start with the %PDF header
+        return contents.startswith(b"%PDF-")
+    elif file_ext == ".docx":
+        # DOCX is a ZIP format starting with the PK signature
+        if not contents.startswith(b"PK\x03\x04"):
+            return False
+        try:
+            with zipfile.ZipFile(io.BytesIO(contents)) as zf:
+                # Standard docx components to verify ZIP structure
+                namelist = zf.namelist()
+                return "word/document.xml" in namelist or "[Content_Types].xml" in namelist
+        except Exception:
+            return False
+    return False
+
+
 # ── POST /api/candidates/upload ────────────────────────────────────────────────
 
 
@@ -105,8 +128,69 @@ async def upload_candidate(
 
     Returns the screening result including ATS score and decision.
     """
+    # ── Upload rate limit (prevent storage fill abuse) ──────────────────
+    import time, math
+    from services.rate_limiter import rate_limiter
+    upload_key = f"upload_user:{str(current_user.id)}"
+    retry_after = await rate_limiter.check_standard_limit(
+        key=upload_key,
+        limit=settings.RATE_LIMIT_UPLOAD_LIMIT,
+        window=settings.RATE_LIMIT_UPLOAD_WINDOW,
+        current_time=time.time(),
+    )
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Upload limit reached. You may upload {settings.RATE_LIMIT_UPLOAD_LIMIT} resumes per hour. Please wait {int(math.ceil(retry_after))} seconds.",
+        )
+
+    # ── Strict input validation ─────────────────────────────────────────
+    name = name.strip()
+    if not (2 <= len(name) <= 100):
+        raise HTTPException(
+            status_code=400,
+            detail="Name must be between 2 and 100 characters.",
+        )
+    if not re.match(r"^[A-Za-z]+([ '-][A-Za-z]+)*$", name):
+        raise HTTPException(
+            status_code=400,
+            detail="Name contains invalid characters. Only letters, spaces, hyphens, and apostrophes are allowed.",
+        )
+
+    email = email.strip()
+    if len(email) > 150:
+        raise HTTPException(
+            status_code=400,
+            detail="Email must not exceed 150 characters.",
+        )
+    try:
+        validate_email(email, check_deliverability=False)
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid email address format.",
+        )
+
+    target_role = target_role.strip()
+    if not (2 <= len(target_role) <= 100):
+        raise HTTPException(
+            status_code=400,
+            detail="Target role must be between 2 and 100 characters.",
+        )
+    if not re.match(r"^[A-Za-z0-9.+# -/()]+$", target_role):
+        raise HTTPException(
+            status_code=400,
+            detail="Target role contains invalid characters.",
+        )
+
+    if not resume.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Resume file name is missing.",
+        )
+
     # ── 1. Validate file extension ─────────────────────────────────────
-    file_ext = Path(resume.filename).suffix.lower() if resume.filename else ""
+    file_ext = Path(resume.filename).suffix.lower()
     if file_ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -119,6 +203,13 @@ async def upload_candidate(
         raise HTTPException(
             status_code=400,
             detail=f"File too large ({len(contents) / 1024 / 1024:.1f} MB). Max allowed: 5 MB.",
+        )
+
+    # ── 2.5. Validate actual file content (magic bytes) ──────────────────
+    if not _is_valid_file_content(contents, file_ext):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file content for file type '{file_ext}'. The file signature does not match.",
         )
 
     # ── 3. Check for duplicate email ───────────────────────────────────
@@ -143,12 +234,11 @@ async def upload_candidate(
     file_path.write_bytes(contents)
     logger.info("Saved resume to %s", file_path)
 
-    # ── 5. Parse resume ────────────────────────────────────────────────
     try:
         parsed = await resume_parser.parse_resume(str(file_path))
     except Exception as exc:
-        logger.error("Resume parsing failed: %s", exc)
-        raise HTTPException(status_code=422, detail=f"Failed to parse resume: {exc}")
+        logger.error("Resume parsing failed: %s", exc, exc_info=True)
+        raise HTTPException(status_code=422, detail="Failed to parse resume. Please ensure the file is not corrupted.")
 
     resume_text = parsed["raw_text"]
     if not resume_text.strip():
@@ -205,8 +295,8 @@ async def upload_candidate(
         await db.flush()
 
     logger.info(
-        "Candidate %s (%s) — ATS: %.1f, decision: %s",
-        name, email, ats_score, decision,
+        "Candidate %s ([REDACTED]) — ATS: %.1f, decision: %s",
+        candidate_id, ats_score, decision,
     )
 
     # ── 9. Build response ──────────────────────────────────────────────
@@ -245,6 +335,7 @@ async def upload_candidate(
 async def get_candidate(
     candidate_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Retrieve a candidate's details along with any interview sessions."""
     result = await db.execute(
@@ -256,6 +347,9 @@ async def get_candidate(
 
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate not found.")
+
+    if candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied. You do not own this candidate record.")
 
     # Serialise sessions
     sessions = []
@@ -277,7 +371,6 @@ async def get_candidate(
         "name": candidate.name,
         "email": candidate.email,
         "target_role": candidate.target_role,
-        "resume_path": candidate.resume_path,
         "ats_score": candidate.ats_score,
         "status": candidate.status.value,
         "created_at": candidate.created_at.isoformat(),
@@ -292,11 +385,15 @@ async def get_candidate(
 async def start_interview_session(
     candidate_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new interview session for a candidate."""
     candidate = await db.get(Candidate, candidate_id)
     if candidate is None:
         raise HTTPException(status_code=404, detail="Candidate not found.")
+
+    if candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied. You do not own this candidate record.")
 
     # Create a new session
     session = InterviewSession(

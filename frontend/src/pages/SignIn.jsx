@@ -45,19 +45,17 @@ export default function SignIn() {
     }}>
       {/* Abstract Glowing Spotlight Orbs */}
       <div className="spotlight-glow" style={{ top: '10%', left: '20%', width: '400px', height: '400px', opacity: 0.8 }} />
-      <div className="spotlight-glow" style={{ bottom: '15%', right: '10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(242, 184, 75, 0.03) 0%, transparent 70%)', opacity: 0.6 }} />
+      <div className="spotlight-glow" style={{ bottom: '15%', right: '10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(110, 168, 254, 0.03) 0%, transparent 70%)', opacity: 0.6 }} />
 
       <div style={{
         width: '100%',
         maxWidth: '440px',
-        background: 'rgba(21, 24, 29, 0.4)',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
+        background: 'var(--panel-bg)',
+        border: '1px solid var(--border)',
         borderTop: '3px solid var(--spotlight)',
         borderRadius: 'var(--radius-lg)',
         padding: '48px 40px',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        boxShadow: '0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.05)',
+        boxShadow: 'var(--shadow-lg)',
         zIndex: 5,
         animation: 'fadeIn 0.6s var(--ease) forwards',
       }}>

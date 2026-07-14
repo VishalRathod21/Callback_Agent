@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from agents.orchestrator import InterviewOrchestrator
 from core.database import get_db
-from core.models import Candidate, CandidateStatus, InterviewSession, SessionStatus, RoundName
+from core.models import Candidate, CandidateStatus, InterviewSession, SessionStatus, RoundName, User
 from services.chroma_service import _collection
+from api.routes.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,8 @@ async def _get_resume_text(candidate: Candidate) -> str:
 @router.post("/start/{candidate_id}")
 async def start_interview(
     candidate_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Start an interview session for a candidate.
 
@@ -56,6 +58,9 @@ async def start_interview(
     candidate = await db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found.")
+
+    if candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied. You do not own this candidate record.")
 
     # 2. Check Candidate Status
     if candidate.status != CandidateStatus.SCREENED:
@@ -119,7 +124,8 @@ async def start_interview(
 @router.get("/{session_id}")
 async def get_interview_session(
     session_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Retrieve full details of an active or completed interview session."""
     session = await db.get(InterviewSession, session_id)
@@ -128,6 +134,9 @@ async def get_interview_session(
 
     # Try to load candidate
     candidate = await db.get(Candidate, session.candidate_id)
+    if candidate and candidate.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied. You do not own this interview session.")
+
     resume_text = await _get_resume_text(candidate) if candidate else ""
 
     # Attempt to load orchestrator state

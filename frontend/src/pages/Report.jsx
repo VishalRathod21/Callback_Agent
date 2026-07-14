@@ -114,7 +114,13 @@ export default function Report() {
     fetchData();
   }, [candidateId]);
 
-  const handleDownloadPdf = () => window.open(`${API_BASE}/reports/${candidateId}`, '_blank');
+  const handleDownloadPdf = () => {
+    const token = localStorage.getItem('access_token');
+    const url = token
+      ? `${API_BASE}/reports/${candidateId}?token=${encodeURIComponent(token)}`
+      : `${API_BASE}/reports/${candidateId}`;
+    window.open(url, '_blank');
+  };
 
   const handleCopy = async () => {
     if (!data) return;
@@ -131,9 +137,9 @@ export default function Report() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: 'var(--space-4)', background: 'var(--stage-black)', color: 'var(--paper)' }}>
         <div style={{ position: 'relative', width: '48px', height: '48px' }}>
-          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(242,184,75,0.15)' }} />
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(110, 168, 254, 0.15)' }} />
           <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid transparent', borderTopColor: 'var(--spotlight)', animation: 'spin 1s linear infinite' }} />
-          <div style={{ position: 'absolute', inset: '10px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'rgba(242,184,75,0.4)', animation: 'spin 1.5s linear infinite reverse' }} />
+          <div style={{ position: 'absolute', inset: '10px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'rgba(110, 168, 254, 0.4)', animation: 'spin 1.5s linear infinite reverse' }} />
         </div>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Generating your report...</p>
         <p style={{ fontSize: '10px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>Compiling scorecard &amp; narrative summary</p>
@@ -145,7 +151,7 @@ export default function Report() {
     return (
       <div style={{ background: 'var(--stage-black)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-8)' }}>
         <Card style={{ padding: 'var(--space-8)', maxWidth: '480px', width: '100%', textAlign: 'center', border: '1px solid var(--rec-red)', background: 'var(--panel-bg)' }} hoverable={false}>
-          <h3 style={{ color: '#ffffff', fontSize: 'var(--text-md)', marginBottom: 'var(--space-4)', fontWeight: 700 }}>Report Unavailable</h3>
+          <h3 style={{ color: 'var(--text-primary)', fontSize: 'var(--text-md)', marginBottom: 'var(--space-4)', fontWeight: 700 }}>Report Unavailable</h3>
           <p style={{ color: 'var(--paper-dim)', fontSize: 'var(--text-sm)', lineHeight: 1.6, marginBottom: 'var(--space-6)' }}>{error || 'Report data could not be resolved.'}</p>
           <Button variant="ghost" onClick={() => navigate('/')}>← Return Home</Button>
         </Card>
@@ -196,8 +202,8 @@ export default function Report() {
   return (
     <div style={{ background: 'var(--stage-black)', color: 'var(--paper)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden', position: 'relative' }}>
       {/* Background Glowing Orbs */}
-      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(232, 201, 109, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(110, 168, 254, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
+      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(208, 188, 255, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
 
       <Navbar />
 
@@ -224,7 +230,7 @@ export default function Report() {
 
             {/* Center: candidate detail */}
             <div>
-              <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff', marginBottom: '6px', letterSpacing: '-0.01em' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px', letterSpacing: '-0.01em' }}>
                 {candidate.name}
               </h2>
               <div style={{ fontSize: 'var(--text-sm)', color: 'var(--paper-dim)' }}>
@@ -258,7 +264,7 @@ export default function Report() {
                 return (
                   <Card key={r.key} style={{ padding: '16px 20px', background: 'var(--panel-bg)' }} hoverable={false}>
                     <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 50px', gap: 'var(--space-4)', alignItems: 'center' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: '#ffffff' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-primary)' }}>
                         {ROUND_NAMES[r.key] || r.key}
                       </div>
                       <ScoreBar score={rScore} color={rColor} />
@@ -289,10 +295,10 @@ export default function Report() {
                   <div style={{
                     width: '16px',
                     height: `${h.val}px`,
-                    background: h.highlight ? 'var(--spotlight)' : 'rgba(255, 255, 255, 0.08)',
+                    background: h.highlight ? 'var(--spotlight)' : 'rgba(27, 35, 64, 0.15)',
                     borderRadius: '4px 4px 0 0',
                     transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: h.highlight ? '0 0 10px rgba(242, 184, 75, 0.35)' : 'none',
+                    boxShadow: h.highlight ? '0 0 10px rgba(217, 142, 43, 0.35)' : 'none',
                   }} />
                 </div>
               ))}
@@ -351,7 +357,7 @@ export default function Report() {
                 return (
                   <Card key={r.key} style={{ padding: '24px', background: 'var(--panel-bg)' }} hoverable={false}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#ffffff', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
                         {ROUND_NAMES[r.key] || r.key}
                       </span>
                       <Badge variant={comm.communication_rating >= 8 ? 'success' : comm.communication_rating >= 6 ? 'warning' : 'danger'}>
@@ -364,7 +370,7 @@ export default function Report() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderRight: '1px solid var(--card-border)', paddingRight: '20px' }}>
                         <div>
                           <div style={{ fontSize: '10px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Words Spoken</div>
-                          <div style={{ fontSize: '20px', fontWeight: 800, color: '#ffffff', marginTop: '4px' }}>{comm.total_candidate_words}</div>
+                          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>{comm.total_candidate_words}</div>
                         </div>
                         <div>
                           <div style={{ fontSize: '10px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filler Ratio</div>

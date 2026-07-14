@@ -62,7 +62,7 @@ async def get_report_data(
 ):
     """Return structured JSON report data (scores, feedback, narrative) for the frontend."""
     candidate, session, transcripts = await _load_candidate_session_transcripts(candidate_id, db)
-    if candidate.user_id is not None and candidate.user_id != current_user.id:
+    if candidate.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this report.")
 
     # Build round details from transcripts
@@ -120,7 +120,7 @@ async def get_report_pdf(
 ):
     """Retrieve or generate the candidate's interview evaluation PDF report."""
     candidate, session, transcripts = await _load_candidate_session_transcripts(candidate_id, db)
-    if candidate.user_id is not None and candidate.user_id != current_user.id:
+    if candidate.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this report.")
 
     # Check for pre-generated PDF report
@@ -140,8 +140,8 @@ async def get_report_pdf(
     try:
         pdf_path = await _report_agent.generate_report(candidate, session, transcripts)
     except Exception as exc:
-        logger.error("Failed to generate report PDF: %s", exc)
-        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(exc)}")
+        logger.error("Failed to generate report PDF: %s", exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to generate report. Please try again later.")
 
     return FileResponse(
         path=pdf_path,

@@ -9,6 +9,41 @@ const client = axios.create({
   withCredentials: true, // Send cookies (refresh_token) automatically
 });
 
+// ── Refresh Token Mutex ──────────────────────────────────────────────────────
+// Prevents concurrent 401 responses from firing multiple refresh calls.
+// The backend uses Refresh Token Rotation (RTR) — only one refresh call can
+// succeed per token. If two fire simultaneously, the second sees an already-
+// consumed token, triggers a security wipe of ALL tokens, and logs out the user.
+// This mutex ensures only the FIRST 401 triggers a refresh; all others wait
+// for that single refresh to complete and then reuse the new access token.
+let _refreshPromise = null;
+
+function _doRefresh() {
+  if (_refreshPromise) return _refreshPromise;
+
+  _refreshPromise = axios
+    .post('http://localhost:8002/api/auth/refresh', {}, { withCredentials: true })
+    .then((res) => {
+      const newToken = res.data?.access_token;
+      if (newToken) {
+        client.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('access_token', newToken);
+          window.dispatchEvent(
+            new CustomEvent('auth-token-refreshed', { detail: { token: newToken } })
+          );
+        }
+        console.log('[API Interceptor] Token refreshed successfully.');
+      }
+      return newToken;
+    })
+    .finally(() => {
+      _refreshPromise = null;
+    });
+
+  return _refreshPromise;
+}
+
 // Request interceptor for logging
 client.interceptors.request.use(
   (config) => {
@@ -43,20 +78,11 @@ client.interceptors.response.use(
       console.log('[API Interceptor] 401 Unauthorized detected. Attempting token refresh...');
       
       try {
-        // Attempt to call the refresh endpoint
-        const refreshResponse = await axios.post('http://localhost:8002/api/auth/refresh', {}, {
-          withCredentials: true
-        });
+        const newAccessToken = await _doRefresh();
 
-        if (refreshResponse.status === 200 && refreshResponse.data.access_token) {
-          const newAccessToken = refreshResponse.data.access_token;
-          console.log('[API Interceptor] Token refreshed successfully. Retrying failed request...');
-
-          // Update default authorization header
-          client.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+        if (newAccessToken) {
+          // Retry the original request with the fresh token
           originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-
-          // Retry the original request
           return client(originalRequest);
         }
       } catch (refreshError) {
