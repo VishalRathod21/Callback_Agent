@@ -74,3 +74,70 @@ class ResumeScreenerAgent:
             raise ValueError(f"Failed to obtain valid JSON from LLM: {exc}")
 
         raise ValueError("Failed to parse LLM response as JSON.")
+
+    async def extract_structure(self, resume_text: str) -> dict:
+        """
+        Extract structured data from raw resume text.
+        Returns a clean JSON structure for use by interview agents.
+        """
+        prompt = f"""Extract structured information from this resume text.
+Return ONLY valid JSON, no markdown, no explanation.
+
+Resume text:
+{resume_text[:4000]}
+
+Return this exact JSON structure:
+{{
+  "name": "candidate full name",
+  "skills": ["Python", "FastAPI", "LangChain", ...list all technical skills],
+  "projects": [
+    {{
+      "name": "project name",
+      "description": "1-2 sentence description of what it does",
+      "tech": ["tech1", "tech2"],
+      "highlights": ["specific achievement or interesting technical decision"]
+    }}
+  ],
+  "experience": [
+    {{
+      "company": "company name",
+      "role": "job title",
+      "duration": "Jun 2024 - Dec 2024",
+      "points": ["key responsibility or achievement"]
+    }}
+  ],
+  "education": [
+    {{
+      "degree": "B.Tech Computer Science",
+      "institution": "DAVV Indore",
+      "year": "2027"
+    }}
+  ],
+  "summary": "2-3 sentence professional summary of this candidate"
+}}
+
+If any section is missing from the resume, use an empty array [].
+Extract ALL projects and experience entries you can find."""
+
+        try:
+            response_text = await self.llm_service.generate(
+                prompt,
+                temperature=0.1
+            )
+            text = response_text.strip()
+            # Remove markdown backticks if present
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            if text.endswith("```"):
+                text = text[:-3]
+            return json.loads(text.strip())
+        except Exception as e:
+            logger.error(f"Resume structure extraction failed: {e}")
+            # Return minimal fallback
+            return {
+                "name": "", "skills": [], "projects": [],
+                "experience": [], "education": [], "summary": ""
+            }
+

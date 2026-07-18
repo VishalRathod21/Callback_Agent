@@ -38,6 +38,8 @@ class InterviewState(TypedDict):
     dsa_problems_completed: int
     dsa_submissions: list[dict]
     persona: dict
+    resume_structured: dict
+    asked_topics: list[str]
 
 
 # ── Graph Node Functions ───────────────────────────────────────────────────────
@@ -278,6 +280,19 @@ class InterviewOrchestrator:
         ]
         selected_persona = random.choice(personas)
 
+        # Load resume_structured from Candidate DB record
+        resume_structured = {}
+        try:
+            from core.database import AsyncSessionLocal
+            from core.models import Candidate
+            
+            async with AsyncSessionLocal() as db:
+                candidate = await db.get(Candidate, uuid.UUID(candidate_id))
+                if candidate and candidate.resume_structured:
+                    resume_structured = candidate.resume_structured
+        except Exception as e:
+            logger.warning(f"Failed to load resume_structured in start_session: {e}")
+
         initial_state: InterviewState = {
             "candidate_id": candidate_id,
             "session_id": session_id,
@@ -294,6 +309,8 @@ class InterviewOrchestrator:
             "dsa_problems_completed": 0,
             "dsa_submissions": [],
             "persona": selected_persona,
+            "resume_structured": resume_structured,
+            "asked_topics": [],
         }
 
         # Manually build the initial state — we do NOT invoke the full graph here
@@ -545,7 +562,9 @@ class InterviewOrchestrator:
             "dsa_problems_total": 2,
             "dsa_problems_completed": dsa_problems_completed,
             "dsa_submissions": dsa_submissions,
-            "persona": selected_persona
+            "persona": selected_persona,
+            "resume_structured": candidate.resume_structured or {},
+            "asked_topics": [],
         }
 
         self._sessions[session_id] = state

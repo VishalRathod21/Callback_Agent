@@ -27,6 +27,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = "" # Alternative env variable name for JWT secret
     JWT_SECRET_KEY: str = ""
+    JWT_SECRET_IS_FALLBACK: bool = False
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -35,11 +36,7 @@ class Settings(BaseSettings):
     @property
     def get_jwt_secret(self) -> str:
         """Resolve JWT secret from JWT_SECRET_KEY or fallback SECRET_KEY."""
-        val = self.JWT_SECRET_KEY or self.SECRET_KEY
-        if not val:
-            # Fallback to a random key generated on startup (warning in production)
-            return secrets.token_hex(32)
-        return val
+        return self.JWT_SECRET_KEY
 
     @property
     def async_database_url(self) -> str:
@@ -97,6 +94,7 @@ class Settings(BaseSettings):
                 self.JWT_SECRET_KEY = self.SECRET_KEY
             else:
                 self.JWT_SECRET_KEY = secrets.token_hex(32)
+                self.JWT_SECRET_IS_FALLBACK = True
         # Resolve FAISS paths
         if self.FAISS_INDEX_PATH:
             self.FAISS_PERSIST_DIR = self.FAISS_INDEX_PATH

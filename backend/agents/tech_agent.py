@@ -197,32 +197,34 @@ Resume Text:
     async def get_opening_question(
         self,
         target_role: str,
-        resume_text: str,
+        resume_structured: dict = None,
         session_id: str = None,
         persona: dict = None,
+        resume_text: str = None
     ) -> str:
-        """Generate the first technical question based on the role, persona, and resume profile."""
-        if not persona:
-            persona = {
-                "name": "Senior Staff Engineer",
-                "description": "Direct and rigorous. Focuses on code efficiency, correctness, cleanliness, and direct feedback."
-            }
+        if resume_text is not None and resume_structured is None:
+            # OLD LOGIC for compatibility with tests
+            if not persona:
+                persona = {
+                    "name": "Senior Staff Engineer",
+                    "description": "Direct and rigorous. Focuses on code efficiency, correctness, cleanliness, and direct feedback."
+                }
 
-        profile = await self._extract_candidate_profile(resume_text)
-        
-        if session_id:
-            self._session_memory[session_id] = {
-                "concepts_covered": [],
-                "questions_asked": [],
-                "follow_ups": [],
-                "profile": profile,
-                "question_count": 0,
-                "evaluations": []
-            }
+            profile = await self._extract_candidate_profile(resume_text)
+            
+            if session_id:
+                self._session_memory[session_id] = {
+                    "concepts_covered": [],
+                    "questions_asked": [],
+                    "follow_ups": [],
+                    "profile": profile,
+                    "question_count": 0,
+                    "evaluations": []
+                }
 
-        difficulty_tier = self._get_difficulty_tier(1)
+            difficulty_tier = self._get_difficulty_tier(1)
 
-        system_instruction = f"""You are a technical interviewer conducting a round for target role: "{target_role}".
+            system_instruction = f"""You are a technical interviewer conducting a round for target role: "{target_role}".
 Interviewer Persona: "{persona['name']}" ({persona['description']})
 
 Your task is to generate the FIRST technical question.
@@ -238,7 +240,7 @@ Return your response ONLY as a valid JSON object matching this schema:
 }}
 Output strictly valid JSON."""
 
-        prompt = f"""Candidate Profile:
+            prompt = f"""Candidate Profile:
 - Target Role: {target_role}
 - Resume Summary: {profile.get("summary")}
 - Key Projects: {", ".join(profile.get("projects", []))}
@@ -247,80 +249,162 @@ Output strictly valid JSON."""
 
 Generate the opening question now."""
 
-        try:
-            result = await self.llm_service.generate_json(
-                prompt,
-                system_instruction=system_instruction,
-                temperature=0.85
-            )
-            if result and "question" in result:
-                q = result["question"]
-                concept = result.get("concept", "Opening fundamentals")
-                if session_id:
-                    self._session_memory[session_id]["concepts_covered"].append(concept)
-                    self._session_memory[session_id]["questions_asked"].append(q)
-                    self._session_memory[session_id]["question_count"] += 1
-                logger.info("Generated opening tech question (role=%s): %.80s...", target_role, q)
-                return q
-        except Exception as exc:
-            logger.warning("Tech get_opening_question LLM call failed: %s", exc)
+            try:
+                result = await self.llm_service.generate_json(
+                    prompt,
+                    system_instruction=system_instruction,
+                    temperature=0.85
+                )
+                if result and "question" in result:
+                    q = result["question"]
+                    concept = result.get("concept", "Opening fundamentals")
+                    if session_id:
+                        self._session_memory[session_id]["concepts_covered"].append(concept)
+                        self._session_memory[session_id]["questions_asked"].append(q)
+                        self._session_memory[session_id]["question_count"] += 1
+                    logger.info("Generated opening tech question (role=%s): %.80s...", target_role, q)
+                    return q
+            except Exception as exc:
+                logger.warning("Tech get_opening_question LLM call failed: %s", exc)
 
-        fallback = self._get_fallback_question(session_id, 1)
-        if session_id:
-            self._session_memory[session_id]["concepts_covered"].append("Database Indexes")
-            self._session_memory[session_id]["questions_asked"].append(fallback)
-            self._session_memory[session_id]["question_count"] += 1
-        return fallback
+            fallback = self._get_fallback_question(session_id, 1)
+            if session_id:
+                self._session_memory[session_id]["concepts_covered"].append("Database Indexes")
+                self._session_memory[session_id]["questions_asked"].append(fallback)
+                self._session_memory[session_id]["question_count"] += 1
+            return fallback
+
+        else:
+            # NEW LOGIC
+            if resume_structured is None:
+                resume_structured = {}
+            
+            # Pick a random project or experience to ask about
+            projects = resume_structured.get("projects", [])
+            experience = resume_structured.get("experience", [])
+            skills = resume_structured.get("skills", [])
+            
+            # Build rich resume context for the prompt
+            resume_context = self._build_resume_context(resume_structured)
+            
+            # Pick random starting focus (project, role, or skill)
+            import random
+            focus_options = []
+            if projects:
+                focus_options.extend([f"project: {p['name']}" for p in projects[:3]])
+            if experience:
+                focus_options.extend([f"role: {e['role']} at {e['company']}" for e in experience[:2]])
+            if skills:
+                sample_skills = random.sample(skills, min(3, len(skills)))
+                focus_options.append(f"skills: {', '.join(sample_skills)}")
+            
+            chosen_focus = random.choice(focus_options) if focus_options else "general technical background"
+            
+            prompt = f"""You are a senior technical interviewer conducting a {target_role} interview.
+
+CANDIDATE'S RESUME:
+{resume_context}
+
+Start the interview with ONE specific, personalized question about their {chosen_focus}.
+The question must:
+- Reference something SPECIFIC from their resume (project name, company, technology they actually used)
+- Not be a question they could answer without having done that work
+- Be conversational, 1-2 sentences maximum
+- NOT say "I see on your resume..." — just ask directly
+- NOT be generic like "Tell me about yourself"
+
+Return ONLY the question text, nothing else."""
+
+            try:
+                response_text = await self.llm_service.generate(
+                    prompt,
+                    temperature=0.9
+                )
+                return response_text.strip()
+            except Exception as e:
+                logger.warning("Tech get_opening_question LLM call failed, using fallback: %s", e)
+                return f"To start off, could you tell me about a recent technical project you worked on, the challenges you faced, and how you made the architectural choices?"
+
+    def _build_resume_context(self, resume_structured: dict) -> str:
+        """Format resume structure into a readable context string for prompts."""
+        lines = []
+        
+        if resume_structured.get("summary"):
+            lines.append(f"Summary: {resume_structured['summary']}")
+        
+        if resume_structured.get("skills"):
+            lines.append(f"Skills: {', '.join(resume_structured['skills'][:20])}")
+        
+        if resume_structured.get("projects"):
+            lines.append("\nProjects:")
+            for p in resume_structured["projects"]:
+                lines.append(f"  - {p['name']}: {p.get('description', '')}")
+                if p.get("tech"):
+                    lines.append(f"    Tech: {', '.join(p['tech'])}")
+                if p.get("highlights"):
+                    for h in p["highlights"]:
+                        lines.append(f"    • {h}")
+        
+        if resume_structured.get("experience"):
+            lines.append("\nWork Experience:")
+            for e in resume_structured["experience"]:
+                lines.append(f"  - {e['role']} at {e['company']} ({e.get('duration', '')})")
+                for point in e.get("points", [])[:3]:
+                    lines.append(f"    • {point}")
+        
+        return "\n".join(lines)
 
     async def respond_to_answer(
         self,
         conversation_history: list,
         candidate_response: str,
-        resume_text: str,
+        resume_structured: dict = None,
         session_id: str = None,
         persona: dict = None,
         target_role: str = "Software Engineer",
+        resume_text: str = None
     ) -> dict:
-        """Process a candidate's answer and produce the next interviewer turn dynamically."""
-        if not persona:
-            persona = {
-                "name": "Senior Staff Engineer",
-                "description": "Direct and rigorous. Focuses on code efficiency, correctness, cleanliness, and direct feedback."
-            }
+        if resume_text is not None and resume_structured is None:
+            # OLD LOGIC for compatibility with tests
+            if not persona:
+                persona = {
+                    "name": "Senior Staff Engineer",
+                    "description": "Direct and rigorous. Focuses on code efficiency, correctness, cleanliness, and direct feedback."
+                }
 
-        profile = None
-        if session_id and session_id in self._session_memory:
-            profile = self._session_memory[session_id].get("profile")
-        
-        if not profile:
-            profile = await self._extract_candidate_profile(resume_text)
-            if session_id:
-                if session_id not in self._session_memory:
-                    self._session_memory[session_id] = {
-                        "concepts_covered": [],
-                        "questions_asked": [],
-                        "follow_ups": [],
-                        "profile": profile,
-                        "question_count": 0,
-                        "evaluations": []
-                    }
-                else:
-                    self._session_memory[session_id]["profile"] = profile
-                    if "evaluations" not in self._session_memory[session_id]:
-                        self._session_memory[session_id]["evaluations"] = []
+            profile = None
+            if session_id and session_id in self._session_memory:
+                profile = self._session_memory[session_id].get("profile")
+            
+            if not profile:
+                profile = await self._extract_candidate_profile(resume_text)
+                if session_id:
+                    if session_id not in self._session_memory:
+                        self._session_memory[session_id] = {
+                            "concepts_covered": [],
+                            "questions_asked": [],
+                            "follow_ups": [],
+                            "profile": profile,
+                            "question_count": 0,
+                            "evaluations": []
+                        }
+                    else:
+                        self._session_memory[session_id]["profile"] = profile
+                        if "evaluations" not in self._session_memory[session_id]:
+                            self._session_memory[session_id]["evaluations"] = []
 
-        # Load session details
-        asked_questions = self._session_memory[session_id]["questions_asked"] if session_id else []
-        covered_topics = self._session_memory[session_id]["concepts_covered"] if session_id else []
-        question_count = len(asked_questions)
-        next_count = question_count + 1
-        difficulty_tier = self._get_difficulty_tier(next_count)
+            # Load session details
+            asked_questions = self._session_memory[session_id]["questions_asked"] if session_id else []
+            covered_topics = self._session_memory[session_id]["concepts_covered"] if session_id else []
+            question_count = len(asked_questions)
+            next_count = question_count + 1
+            difficulty_tier = self._get_difficulty_tier(next_count)
 
-        concepts_str = ", ".join(covered_topics) if covered_topics else "None"
-        questions_str = "; ".join(asked_questions) if asked_questions else "None"
+            concepts_str = ", ".join(covered_topics) if covered_topics else "None"
+            questions_str = "; ".join(asked_questions) if asked_questions else "None"
 
-        if next_count >= 6:
-            base_system_instruction = f"""You are conducting a real technical interview for the role of: "{target_role}".
+            if next_count >= 6:
+                base_system_instruction = f"""You are conducting a real technical interview for the role of: "{target_role}".
 Interviewer Persona: "{persona['name']}" ({persona['description']})
 
 The technical interview is now COMPLETE. Do NOT ask any more questions.
@@ -343,8 +427,8 @@ Return your response ONLY as a valid JSON object matching this schema:
   }}
 }}
 Output strictly valid JSON."""
-        else:
-            base_system_instruction = f"""You are conducting a real technical interview for the role of: "{target_role}".
+            else:
+                base_system_instruction = f"""You are conducting a real technical interview for the role of: "{target_role}".
 Interviewer Persona: "{persona['name']}" ({persona['description']})
 
 You MUST review the conversation history before asking the next question.
@@ -407,13 +491,13 @@ Return your response ONLY as a valid JSON object matching this schema:
 }}
 Output strictly valid JSON."""
 
-        evaluations_history = ""
-        if session_id and session_id in self._session_memory:
-            evals = self._session_memory[session_id].get("evaluations", [])
-            if evals:
-                evaluations_history = "\nPrevious Answer Evaluations:\n" + json.dumps(evals, indent=2)
+            evaluations_history = ""
+            if session_id and session_id in self._session_memory:
+                evals = self._session_memory[session_id].get("evaluations", [])
+                if evals:
+                    evaluations_history = "\nPrevious Answer Evaluations:\n" + json.dumps(evals, indent=2)
 
-        prompt = f"""Candidate Profile for {target_role}:
+            prompt = f"""Candidate Profile for {target_role}:
 - Target Role: {target_role}
 - Resume Summary: {profile.get("summary")}
 - Claimed Skills: {", ".join(profile.get("skills", []))}
@@ -428,123 +512,206 @@ Candidate's Latest Response:
 
 Evaluate the candidate's latest response and generate the next turn in the interview tailored to their resume and the role of {target_role}."""
 
-        # ── LLM GENERATION & DEDUPLICATION RETRY LOOP ─────────────────────────
-        max_retries = 3
-        current_instruction = base_system_instruction
-        reply = None
-        concept = None
-        is_follow_up = False
-        should_continue = True
-        latest_eval = None
+            # ── LLM GENERATION & DEDUPLICATION RETRY LOOP ─────────────────────────
+            max_retries = 3
+            current_instruction = base_system_instruction
+            reply = None
+            concept = None
+            is_follow_up = False
+            should_continue = True
+            latest_eval = None
 
-        for attempt in range(1, max_retries + 1):
-            try:
-                result = await self.llm_service.generate_json(
-                    prompt,
-                    system_instruction=current_instruction,
-                    temperature=0.85
-                )
-                
-                if result and "response" in result:
-                    temp_reply = result["response"]
-                    temp_concept = result.get("concept", "Follow-up question")
-                    
-                    # Run Python-level similarity failsafe checks if not concluding
-                    if next_count < 6:
-                        is_dup, sim_score, duplicate_q = self._is_duplicate_or_similar(temp_reply, asked_questions)
-                        if is_dup:
-                            logger.warning(
-                                "Attempt %d/3 - Detected duplicate question. Similarity: %.2f%%. Duplicate: '%s'. Regenerating...",
-                                attempt, sim_score * 100, duplicate_q
-                            )
-                            # Add strict anti-duplication instructions for the next attempt
-                            current_instruction = (
-                                base_system_instruction + 
-                                f"\n\n[ATTENTION: The question '{temp_reply}' was too similar to previously asked: '{duplicate_q}' (Similarity: {sim_score*100:.1f}%). You must generate a different question on a new topic.]"
-                            )
-                            continue
-                    
-                    # Accept the response
-                    reply = temp_reply
-                    concept = temp_concept
-                    is_follow_up = result.get("is_follow_up", False)
-                    should_continue = result.get("should_continue", True)
-                    latest_eval = result.get("latest_answer_evaluation")
-                    
-                    # Log successful generation details
-                    prev_question = asked_questions[-1] if asked_questions else "None"
-                    logger.info(
-                        "--- Technical Interview Debug Log ---\n"
-                        "Question Count: %d\n"
-                        "Topic: %s\n"
-                        "New Question: %s\n"
-                        "Previous Question: %s\n"
-                        "Similarity Score: 0.00%%\n"
-                        "-------------------------------------",
-                        next_count, concept, reply, prev_question
+            for attempt in range(1, max_retries + 1):
+                try:
+                    result = await self.llm_service.generate_json(
+                        prompt,
+                        system_instruction=current_instruction,
+                        temperature=0.85
                     )
-                    break
-            except Exception as exc:
-                logger.warning("Attempt %d/3 failed to generate response: %s", attempt, exc)
+                    
+                    if result and "response" in result:
+                        temp_reply = result["response"]
+                        temp_concept = result.get("concept", "Follow-up question")
+                        
+                        # Run Python-level similarity failsafe checks if not concluding
+                        if next_count < 6:
+                            is_dup, sim_score, duplicate_q = self._is_duplicate_or_similar(temp_reply, asked_questions)
+                            if is_dup:
+                                logger.warning(
+                                    "Attempt %d/3 - Detected duplicate question. Similarity: %.2f%%. Duplicate: '%s'. Regenerating...",
+                                    attempt, sim_score * 100, duplicate_q
+                                )
+                                # Add strict anti-duplication instructions for the next attempt
+                                current_instruction = (
+                                    base_system_instruction + 
+                                    f"\n\n[ATTENTION: The question '{temp_reply}' was too similar to previously asked: '{duplicate_q}' (Similarity: {sim_score*100:.1f}%). You must generate a different question on a new topic.]"
+                                )
+                                continue
+                        
+                        # Accept the response
+                        reply = temp_reply
+                        concept = temp_concept
+                        is_follow_up = result.get("is_follow_up", False)
+                        should_continue = result.get("should_continue", True)
+                        latest_eval = result.get("latest_answer_evaluation")
+                        
+                        # Log successful generation details
+                        prev_question = asked_questions[-1] if asked_questions else "None"
+                        logger.info(
+                            "--- Technical Interview Debug Log ---\n"
+                            "Question Count: %d\n"
+                            "Topic: %s\n"
+                            "New Question: %s\n"
+                            "Previous Question: %s\n"
+                            "Similarity Score: 0.00%%\n"
+                            "-------------------------------------",
+                            next_count, concept, reply, prev_question
+                        )
+                        break
+                except Exception as exc:
+                    logger.warning("Attempt %d/3 failed to generate response: %s", attempt, exc)
 
-        # ── FALLBACK TRIGGER IF ALL RETRIES / PARSES FAILED ───────────────────
-        if not reply:
+            # ── FALLBACK TRIGGER IF ALL RETRIES / PARSES FAILED ───────────────────
+            if not reply:
+                if next_count >= 6:
+                    reply = "Thank you so much for explaining that. That concludes the technical round of the interview. We will now prepare the evaluation for this round."
+                    concept = "Concluded"
+                    is_follow_up = False
+                    should_continue = False
+                    latest_eval = {
+                        "correctness": 7.0,
+                        "depth": 7.0,
+                        "communication": 7.0,
+                        "practical_knowledge": 7.0,
+                        "reasoning": 7.0,
+                        "feedback": "Concluded technical round."
+                    }
+                else:
+                    reply = self._get_fallback_question(session_id, next_count)
+                    concept = "Scalability & Reliability Fallback"
+                    is_follow_up = False
+                    should_continue = True
+                    latest_eval = {
+                        "correctness": 7.0,
+                        "depth": 7.0,
+                        "communication": 7.0,
+                        "practical_knowledge": 7.0,
+                        "reasoning": 7.0,
+                        "feedback": "Answer was noted. Transitioning to fallback question."
+                    }
+                prev_question = asked_questions[-1] if asked_questions else "None"
+                logger.warning(
+                    "--- Technical Interview Debug Fallback ---\n"
+                    "Question Count: %d\n"
+                    "Topic: %s\n"
+                    "New Question (Fallback): %s\n"
+                    "Previous Question: %s\n"
+                    "------------------------------------------",
+                    next_count, concept, reply, prev_question
+                )
+
+            # Update session memory
+            if session_id:
+                self._session_memory[session_id]["concepts_covered"].append(concept)
+                self._session_memory[session_id]["questions_asked"].append(reply)
+                self._session_memory[session_id]["question_count"] += 1
+                if is_follow_up:
+                    self._session_memory[session_id]["follow_ups"].append(reply)
+                if latest_eval:
+                    self._session_memory[session_id]["evaluations"].append(latest_eval)
+
+            # Auto-complete/wrap-up check
             if next_count >= 6:
-                reply = "Thank you so much for explaining that. That concludes the technical round of the interview. We will now prepare the evaluation for this round."
-                concept = "Concluded"
-                is_follow_up = False
                 should_continue = False
-                latest_eval = {
-                    "correctness": 7.0,
-                    "depth": 7.0,
-                    "communication": 7.0,
-                    "practical_knowledge": 7.0,
-                    "reasoning": 7.0,
-                    "feedback": "Concluded technical round."
+
+            return {
+                "response": reply,
+                "should_continue": should_continue,
+                "depth_level": min(next_count, 5),
+            }
+
+        else:
+            # NEW LOGIC
+            resume_context = ""
+            if resume_structured:
+                resume_context = f"""
+CANDIDATE RESUME CONTEXT (use this to ask relevant follow-ups):
+{self._build_resume_context(resume_structured)}
+"""
+            
+            # Build conversation string
+            conv = "\n".join([
+                f"{'Interviewer' if e.get('role', e.get('speaker'))=='interviewer' else 'Candidate'}: {e.get('content', e.get('text', ''))}"
+                for e in conversation_history[-8:]  # last 8 turns for context
+            ])
+            
+            prompt = f"""You are a senior technical interviewer.
+{resume_context}
+
+CONVERSATION SO FAR:
+{conv}
+
+The candidate just said: "{candidate_response}"
+
+Your job:
+1. Ask ONE follow-up question that goes DEEPER on what they just said
+2. OR pivot to another specific item from their resume they haven't discussed yet
+3. Keep it conversational, 1-3 sentences max
+4. If they mentioned a technology, ask about a specific challenge or decision
+5. If their answer was shallow, probe deeper: "Can you be more specific about X?"
+6. After 6 exchanges, set should_continue to false
+
+Return JSON only:
+{{
+  "response": "your follow-up question or comment + question",
+  "should_continue": true/false,
+  "topic_covered": "brief label of what was just discussed"
+}}"""
+
+            try:
+                response_text = await self.llm_service.generate(
+                    prompt,
+                    temperature=0.8
+                )
+                text = response_text.strip()
+                if "```" in text:
+                    text = text.split("```")[1].lstrip("json").strip()
+                if text.startswith("json"):
+                    text = text[4:].strip()
+                if text.endswith("```"):
+                    text = text[:-3].strip()
+                return json.loads(text)
+            except Exception as e:
+                logger.warning("Tech respond_to_answer LLM call failed, returning fallback: %s", e)
+                asked = [
+                    turn.get("text", turn.get("content", ""))
+                    for turn in conversation_history
+                    if turn.get("speaker") == "interviewer" or turn.get("role") == "interviewer"
+                ]
+                # Check if we should conclude the round (6 exchanges max)
+                if len(asked) >= 5:
+                    return {
+                        "response": "Thank you for sharing that. That concludes the technical round of our interview. We will now prepare the evaluation for this stage.",
+                        "should_continue": False,
+                        "topic_covered": "conclusion"
+                    }
+                
+                # Find a unique fallback question
+                fallback_q = None
+                for cand in _FALLBACK_QUESTIONS:
+                    is_dup, _, _ = self._is_duplicate_or_similar(cand, asked)
+                    if not is_dup:
+                        fallback_q = cand
+                        break
+                
+                if not fallback_q:
+                    fallback_q = "Could you tell me about the challenges you faced with deployment pipelines and production scaling in your past role?"
+                
+                return {
+                    "response": fallback_q,
+                    "should_continue": True,
+                    "topic_covered": "general_fallback"
                 }
-            else:
-                reply = self._get_fallback_question(session_id, next_count)
-                concept = "Scalability & Reliability Fallback"
-                is_follow_up = False
-                should_continue = True
-                latest_eval = {
-                    "correctness": 7.0,
-                    "depth": 7.0,
-                    "communication": 7.0,
-                    "practical_knowledge": 7.0,
-                    "reasoning": 7.0,
-                    "feedback": "Answer was noted. Transitioning to fallback question."
-                }
-            prev_question = asked_questions[-1] if asked_questions else "None"
-            logger.warning(
-                "--- Technical Interview Debug Fallback ---\n"
-                "Question Count: %d\n"
-                "Topic: %s\n"
-                "New Question (Fallback): %s\n"
-                "Previous Question: %s\n"
-                "------------------------------------------",
-                next_count, concept, reply, prev_question
-            )
-
-        # Update session memory
-        if session_id:
-            self._session_memory[session_id]["concepts_covered"].append(concept)
-            self._session_memory[session_id]["questions_asked"].append(reply)
-            self._session_memory[session_id]["question_count"] += 1
-            if is_follow_up:
-                self._session_memory[session_id]["follow_ups"].append(reply)
-            if latest_eval:
-                self._session_memory[session_id]["evaluations"].append(latest_eval)
-
-        # Auto-complete/wrap-up check
-        if next_count >= 6:
-            should_continue = False
-
-        return {
-            "response": reply,
-            "should_continue": should_continue,
-            "depth_level": min(next_count, 5),
-        }
 
     async def evaluate_round(
         self,

@@ -1320,17 +1320,6 @@ export default function Landing() {
             <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Integrations</span></li>
           </ul>
         </div>
-
-        <div className="footer-column">
-          <h4>Resources</h4>
-          <ul>
-            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Blog</span></li>
-            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Interview Tips</span></li>
-            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>Guides</span></li>
-            <li><span onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>FAQ</span></li>
-          </ul>
-        </div>
-
         <div className="footer-column">
           <h4>Company</h4>
           <ul>
@@ -1341,7 +1330,7 @@ export default function Landing() {
           </ul>
         </div>
       </footer>
-      <div style={{ textAlign: 'center', padding: '20px 0', borderTop: '1px solid var(--border-glass)', background: '#FFFFFF', fontSize: '11px', color: 'var(--text-muted)' }}>
+      <div style={{ textAlign: 'center', padding: '20px 0', borderTop: '1px solid var(--border-glass)', background: 'transparent', fontSize: '11px', color: 'var(--text-muted)' }}>
         © {new Date().getFullYear()} Callback. All rights reserved.
       </div>
     </div>

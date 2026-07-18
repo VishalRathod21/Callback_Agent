@@ -145,6 +145,7 @@ class Candidate(Base):
     status: Mapped[CandidateStatus] = mapped_column(
         Enum(CandidateStatus), default=CandidateStatus.UPLOADED, nullable=False
     )
+    resume_structured: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

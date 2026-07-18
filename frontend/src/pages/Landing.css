@@ -1193,11 +1193,11 @@
 /* ── Footer ── */
 .footer-container {
   display: grid;
-  grid-template-columns: 1.5fr repeat(3, 1fr);
+  grid-template-columns: 1.5fr repeat(2, 1fr);
   gap: 40px;
   border-top: 1px solid var(--border-glass);
   padding: 80px max(24px, calc((100vw - 1200px) / 2)) 40px;
-  background: #FFFFFF;
+  background: transparent;
 }
 
 @media (max-width: 768px) {

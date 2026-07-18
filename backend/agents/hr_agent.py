@@ -85,21 +85,82 @@ class HRInterviewAgent:
 
     # ── Public Methods ─────────────────────────────────────────────────
 
-    async def get_opening_question(self, target_role: str, session_id: str = None) -> str:
-        """Generate a warm introduction and the first behavioural question."""
+    def _build_resume_context(self, resume_structured: dict) -> str:
+        """Format resume structure into a readable context string for prompts."""
+        lines = []
+        
+        if resume_structured.get("summary"):
+            lines.append(f"Summary: {resume_structured['summary']}")
+        
+        if resume_structured.get("skills"):
+            lines.append(f"Skills: {', '.join(resume_structured['skills'][:20])}")
+        
+        if resume_structured.get("projects"):
+            lines.append("\nProjects:")
+            for p in resume_structured["projects"]:
+                lines.append(f"  - {p['name']}: {p.get('description', '')}")
+                if p.get("tech"):
+                    lines.append(f"    Tech: {', '.join(p['tech'])}")
+                if p.get("highlights"):
+                    for h in p["highlights"]:
+                        lines.append(f"    • {h}")
+        
+        if resume_structured.get("experience"):
+            lines.append("\nWork Experience:")
+            for e in resume_structured["experience"]:
+                lines.append(f"  - {e['role']} at {e['company']} ({e.get('duration', '')})")
+                for point in e.get("points", [])[:3]:
+                    lines.append(f"    • {point}")
+        
+        return "\n".join(lines)
+
+    async def get_opening_question(self, target_role: str, resume_structured: dict = None, session_id: str = None) -> str:
+        """Generate a warm introduction and the first behavioural question based on the resume."""
+        if resume_structured is None:
+            resume_structured = {}
         if session_id:
             self._session_memory[session_id] = {
                 "evaluations": []
             }
 
-        prompt = _OPENING_PROMPT.format(target_role=target_role)
+        resume_context = self._build_resume_context(resume_structured)
+        
+        # Pick specific focus options for HR behavioral question (experience company or project)
+        import random
+        experience = resume_structured.get("experience", [])
+        projects = resume_structured.get("projects", [])
+        
+        focus_options = []
+        if experience:
+            for exp in experience[:2]:
+                focus_options.append(f"your role as {exp['role']} at {exp['company']}")
+        if projects:
+            for proj in projects[:2]:
+                focus_options.append(f"your project {proj['name']}")
+                
+        chosen_focus = random.choice(focus_options) if focus_options else "your professional background"
+
+        prompt = f"""You are a warm, professional HR interviewer starting a behavioral interview for a candidate applying for the role of "{target_role}".
+
+CANDIDATE'S RESUME:
+{resume_context}
+
+Introduce yourself warmly, put the candidate at ease, and then ask a specific, personalized behavioral question about {chosen_focus}.
+The question must:
+- Reference a specific company or project from their resume (e.g. "You worked at [Company] - tell me about...")
+- Ask about a challenging deadline, team conflict, failure, or motivation in that specific context
+- Be conversational and warm, 2-3 sentences max
+- NOT say "I see on your resume..." - just reference it naturally
+
+Return ONLY the response text, nothing else."""
 
         try:
             response = await self.llm_service.generate(prompt, system_instruction=_SYSTEM_PROMPT)
             question = response.strip()
         except Exception as exc:
             logger.warning("HR get_opening_question LLM call failed, using local fallback: %s", exc)
-            question = f"Hi there! Welcome to the HR behavioral round. I am delighted to speak with you today. To get started, could you tell me about a challenging project you worked on recently, and how you worked within your team to resolve any conflicts or align on decisions?"
+            fallback_company = experience[0]['company'] if experience else "your last company"
+            question = f"Hi there! Welcome to the HR behavioral round. I am delighted to speak with you today. Looking at your experience, could you tell me about a challenging situation or tight deadline you faced while working at {fallback_company}, and how you handled it?"
 
         logger.info(
             "Generated HR opening (role=%s): %.80s...",
@@ -111,6 +172,7 @@ class HRInterviewAgent:
         self,
         conversation_history: list,
         candidate_response: str,
+        resume_structured: dict = None,
         session_id: str = None,
     ) -> dict:
         """Process a candidate's answer and generate the next conversational turn."""
@@ -121,6 +183,13 @@ class HRInterviewAgent:
                 }
             elif "evaluations" not in self._session_memory[session_id]:
                 self._session_memory[session_id]["evaluations"] = []
+
+        resume_context = ""
+        if resume_structured:
+            resume_context = f"""
+CANDIDATE RESUME CONTEXT (use this to customize follow-ups or reference past details):
+{self._build_resume_context(resume_structured)}
+"""
 
         system_instruction = """You are a warm, professional, but thorough HR interviewer.
 Rules:
@@ -159,14 +228,21 @@ Output strictly valid JSON."""
             if evals:
                 evaluations_history = "\nPrevious Answer Evaluations:\n" + json.dumps(evals, indent=2)
 
+        # Build conversation string
+        conv = "\n".join([
+            f"{'Interviewer' if e.get('role', e.get('speaker'))=='interviewer' else 'Candidate'}: {e.get('content', e.get('text', ''))}"
+            for e in conversation_history[-8:]
+        ])
+
         prompt = f"""HR Interview Conversation History:
-{json.dumps(conversation_history, indent=2)}
+{conv}
 {evaluations_history}
+{resume_context}
 
 Candidate's Latest Response:
 "{candidate_response}"
 
-Evaluate the candidate's latest response and generate the next turn in the interview."""
+Evaluate the candidate's latest response and generate the next turn in the interview. If relevant, reference their resume experience, role durations, or projects."""
 
         should_continue = True
         try:

@@ -85,6 +85,22 @@ const SendIcon = ({ size = 16 }) => (
   </svg>
 );
 
+const KeyboardIcon = ({ size = 28, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" ry="2"/>
+    <line x1="6" y1="8" x2="6" y2="8"/>
+    <line x1="10" y1="8" x2="10" y2="8"/>
+    <line x1="14" y1="8" x2="14" y2="8"/>
+    <line x1="18" y1="8" x2="18" y2="8"/>
+    <line x1="6" y1="12" x2="6" y2="12"/>
+    <line x1="10" y1="12" x2="10" y2="12"/>
+    <line x1="14" y1="12" x2="14" y2="12"/>
+    <line x1="18" y1="12" x2="18" y2="12"/>
+    <line x1="7" y1="16" x2="17" y2="16"/>
+  </svg>
+);
+
 // Thinking messages list
 const THINKING_MESSAGES = [
   "Analyzing your answer",
@@ -192,7 +208,7 @@ export default function InterviewRoom() {
 
   // WebSocket + audio hook
   const {
-    isConnected, status, isRecording, hasPermission, isSpeaking,
+    isConnected, status, isRecording, hasPermission, isSpeaking, voiceEnabled,
     startRound, sendText, endRound, startRecording, stopRecording, destroyAll,
   } = useWebSocket({
     sessionId,
@@ -293,7 +309,11 @@ export default function InterviewRoom() {
   // State configurations (including Thinking status label states)
   const stateConfig = {
     ai_speaking: { label: 'AI SPEAKING', color: 'var(--spotlight)', pulse: true },
-    listening:   { label: muted ? 'MUTED' : 'LISTENING', color: muted ? 'var(--spotlight)' : 'var(--success)', pulse: !muted },
+    listening:   {
+      label: voiceEnabled === false ? 'YOUR TURN' : (muted ? 'MUTED' : 'LISTENING'),
+      color: voiceEnabled === false ? 'var(--spotlight)' : (muted ? 'var(--spotlight)' : 'var(--success)'),
+      pulse: voiceEnabled === false ? false : !muted
+    },
     processing:  { label: THINKING_MESSAGES[thinkingIndex].toUpperCase(), color: 'var(--spotlight)', pulse: false },
     idle:        { label: 'CONNECTING', color: 'var(--text-muted)', pulse: false },
   };
@@ -506,7 +526,15 @@ export default function InterviewRoom() {
                 )}
                 {turnState === 'listening' && !muted && (
                   <motion.div
-                    style={{ position: 'absolute', inset: -24, borderRadius: '50%', background: 'radial-gradient(circle, rgba(62, 207, 142, 0.08) 0%, transparent 70%)', zIndex: -1 }}
+                    style={{
+                      position: 'absolute',
+                      inset: -24,
+                      borderRadius: '50%',
+                      background: voiceEnabled === false
+                        ? 'radial-gradient(circle, rgba(110, 168, 254, 0.08) 0%, transparent 70%)'
+                        : 'radial-gradient(circle, rgba(62, 207, 142, 0.08) 0%, transparent 70%)',
+                      zIndex: -1
+                    }}
                     animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.9, 0.5] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
                   />
@@ -540,13 +568,13 @@ export default function InterviewRoom() {
                   background: 'rgba(21, 24, 29, 0.75)',
                   border: turnState === 'processing' ? '2px solid transparent' : `2px solid ${
                     turnState === 'ai_speaking' ? 'var(--spotlight)'
-                    : turnState === 'listening' ? 'var(--success)'
+                    : turnState === 'listening' ? (voiceEnabled === false ? 'var(--spotlight)' : 'var(--success)')
                     : 'rgba(255,255,255,0.06)'
                   }`,
                   boxShadow: turnState === 'ai_speaking'
                     ? '0 0 30px rgba(110, 168, 254, 0.2)'
                     : turnState === 'listening'
-                    ? '0 0 30px rgba(62, 207, 142, 0.2)'
+                    ? (voiceEnabled === false ? '0 0 30px rgba(110, 168, 254, 0.15)' : '0 0 30px rgba(62, 207, 142, 0.2)')
                     : '0 8px 32px rgba(0, 0, 0, 0.3)',
                   backdropFilter: 'blur(20px)',
                   transition: 'border-color 300ms ease, box-shadow 300ms ease',
@@ -556,10 +584,14 @@ export default function InterviewRoom() {
                 animate={turnState === 'ai_speaking' ? { scale: [1, 1.03, 1] } : {}}
                 transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <AIIcon size={36} color={
-                  turnState === 'ai_speaking' ? 'var(--spotlight)'
-                  : turnState === 'listening' ? 'var(--success)' : 'var(--text-muted)'
-                } />
+                {turnState === 'listening' && voiceEnabled === false ? (
+                  <KeyboardIcon size={36} color="var(--spotlight)" />
+                ) : (
+                  <AIIcon size={36} color={
+                    turnState === 'ai_speaking' ? 'var(--spotlight)'
+                    : turnState === 'listening' ? 'var(--success)' : 'var(--text-muted)'
+                  } />
+                )}
               </motion.div>
 
               {/* Float state tag */}
@@ -569,12 +601,12 @@ export default function InterviewRoom() {
                 left: '50%',
                 transform: 'translateX(-50%)',
                 background: turnState === 'ai_speaking' ? 'var(--spotlight)'
-                            : turnState === 'listening' ? 'var(--success)' : 'var(--border-strong)',
+                            : turnState === 'listening' ? (voiceEnabled === false ? 'var(--spotlight)' : 'var(--success)') : 'var(--border-strong)',
                 borderRadius: '99px',
                 padding: '2px 10px',
                 fontFamily: 'var(--font-mono)',
                 fontSize: '8px',
-                color: turnState === 'ai_speaking' ? '#0A0A0B' : '#ffffff',
+                color: turnState === 'ai_speaking' || (turnState === 'listening' && voiceEnabled === false) ? '#0A0A0B' : '#ffffff',
                 fontWeight: 700,
                 letterSpacing: '0.04em',
                 whiteSpace: 'nowrap',
@@ -583,7 +615,7 @@ export default function InterviewRoom() {
                 zIndex: 2
               }}>
                 {turnState === 'ai_speaking' ? 'SPEAKING'
-                 : turnState === 'listening' ? 'LISTENING'
+                 : turnState === 'listening' ? (voiceEnabled === false ? 'YOUR TURN' : 'LISTENING')
                  : turnState === 'processing' ? 'PROCESSING'
                  : 'STANDBY'}
               </div>
@@ -635,7 +667,8 @@ export default function InterviewRoom() {
               {/* Mic mute button */}
               <button
                 onClick={handleMicToggle}
-                title={muted ? 'Unmute microphone' : 'Mute microphone'}
+                disabled={voiceEnabled === false}
+                title={voiceEnabled === false ? 'Voice mode disabled by server' : muted ? 'Unmute microphone' : 'Mute microphone'}
                 style={{
                   width: '48px',
                   height: '48px',
@@ -644,16 +677,21 @@ export default function InterviewRoom() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
+                  cursor: voiceEnabled === false ? 'not-allowed' : 'pointer',
                   border: 'none',
                   transition: 'all 200ms ease',
-                  background: muted ? 'rgba(110, 168, 254, 0.08)' : isRecording ? 'rgba(62, 207, 142, 0.08)' : 'var(--bg-inset)',
-                  outline: muted ? '2px solid var(--spotlight)' : isRecording ? '2px solid var(--success)' : '2px solid var(--border-strong)',
+                  background: voiceEnabled === false ? 'rgba(255, 255, 255, 0.02)' : muted ? 'rgba(110, 168, 254, 0.08)' : isRecording ? 'rgba(62, 207, 142, 0.08)' : 'var(--bg-inset)',
+                  outline: voiceEnabled === false ? '1px dashed var(--border)' : muted ? '2px solid var(--spotlight)' : isRecording ? '2px solid var(--success)' : '2px solid var(--border-strong)',
+                  opacity: voiceEnabled === false ? 0.4 : 1
                 }}
               >
-                {muted
-                  ? <MicOffIcon size={18} color="var(--spotlight)" />
-                  : <MicIcon size={18} color={isRecording ? 'var(--success)' : 'var(--text-muted)'} />}
+                {voiceEnabled === false ? (
+                  <MicOffIcon size={18} color="var(--text-muted)" />
+                ) : muted ? (
+                  <MicOffIcon size={18} color="var(--spotlight)" />
+                ) : (
+                  <MicIcon size={18} color={isRecording ? 'var(--success)' : 'var(--text-muted)'} />
+                )}
               </button>
 
               {/* Text input */}
@@ -704,6 +742,9 @@ export default function InterviewRoom() {
               <span>{status.toUpperCase()}</span>
               {hasPermission === false && (
                 <span style={{ color: 'var(--danger)', marginLeft: '8px' }}>— MIC ACCESS BLOCKED: Allow mic permissions</span>
+              )}
+              {voiceEnabled === false && (
+                <span style={{ color: 'var(--spotlight)', marginLeft: '8px' }}>— TEXT MODE: Voice processing disabled on server</span>
               )}
               <span style={{ marginLeft: 'auto' }}>SESSION: {sessionId?.slice(0, 8)}</span>
             </div>

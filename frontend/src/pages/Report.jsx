@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Navbar from '../components/ui/Navbar';
+import DebriefChat from '../components/DebriefChat';
 
 const ROUND_NAMES = {
   dsa: 'DSA Algorithmic',
@@ -110,6 +111,9 @@ export default function Report() {
       } finally { setLoading(false); }
     };
     fetchData();
+    if (candidateId) {
+      localStorage.setItem('candidateId', candidateId);
+    }
   }, [candidateId]);
 
   const handleDownloadPdf = () => {
@@ -129,6 +133,26 @@ export default function Report() {
       ``, `Areas to improve:`, ...(n.improvements || []).map(x => `  - ${x}`)
     ].join('\n');
     try { await navigator.clipboard.writeText(txt); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch {}
+  };
+
+  const handlePracticeWeakArea = () => {
+    let lowestRound = 'random';
+    if (data && data.session && data.session.round_scores) {
+      const scores = data.session.round_scores;
+      let minScore = Infinity;
+      const mapping = {
+        dsa: 'dsa_theory',
+        technical: 'system_design',
+        hr: 'behavioral'
+      };
+      Object.entries(scores).forEach(([roundKey, score]) => {
+        if (score !== null && score !== undefined && score < minScore) {
+          minScore = score;
+          lowestRound = mapping[roundKey] || 'random';
+        }
+      });
+    }
+    navigate('/practice', { state: { preselectedTopic: lowestRound } });
   };
 
   if (loading) {
@@ -409,10 +433,34 @@ export default function Report() {
           <Button variant="secondary" size="md" onClick={handleCopy}>
             {copied ? 'Copied!' : 'Copy Summary'}
           </Button>
+          <Button variant="primary" size="md" onClick={handlePracticeWeakArea} style={{ background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)', color: '#FFFFFF' }}>
+            Practice Weak Areas ⚡
+          </Button>
           <Button variant="ghost" size="md" onClick={() => navigate('/upload')}>
             Start New Rehearsal →
           </Button>
         </div>
+
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
+          <Button variant="ghost" size="md" onClick={() => navigate(`/dashboard/${candidateId}`)}>
+            View full progress dashboard →
+          </Button>
+        </div>
+
+        {/* Debrief Chat Section */}
+        <div style={{ marginTop: 'var(--space-12)', textAlign: 'center' }}>
+          <div style={{ fontFamily: 'var(--font-code)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>
+            DEBRIEF CHAT
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--paper-dimmer)', marginTop: '4px' }}>
+            Ask AI coach anything about your interview
+          </div>
+        </div>
+
+        <DebriefChat 
+          candidateId={candidateId}
+          roundScores={session?.round_scores || {}}
+        />
       </main>
 
       <style>{`

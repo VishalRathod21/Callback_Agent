@@ -10,7 +10,15 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [hoveredLink, setHoveredLink] = useState(null);
-  const [showResourcesDropdown, setShowResourcesDropdown] = useState(false);
+
+  const [candidateId, setCandidateId] = useState(null);
+
+  useEffect(() => {
+    const storedId = localStorage.getItem('candidateId');
+    if (storedId) {
+      setCandidateId(storedId);
+    }
+  }, [location]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,7 +45,12 @@ export default function Navbar() {
     { label: 'Rehearsal Rooms', hash: 'rooms-section', id: 'rooms' },
     { label: 'Pricing', hash: 'pricing-section', id: 'pricing' },
     { label: 'About', hash: 'about-section', id: 'about' },
+    { label: 'Quick Practice', path: '/practice', id: 'practice' },
   ];
+
+  if (candidateId) {
+    navItems.push({ label: 'My Progress', path: `/dashboard/${candidateId}`, id: 'progress' });
+  }
 
   const handleNavClick = (item) => {
     if (item.hash) {
@@ -123,60 +136,7 @@ export default function Navbar() {
           );
         })}
 
-        {/* Resources Dropdown Item */}
-        <div
-          onMouseEnter={() => setShowResourcesDropdown(true)}
-          onMouseLeave={() => setShowResourcesDropdown(false)}
-          className="nav-item-link"
-          style={{
-            padding: '6px 14px',
-            borderRadius: '999px',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 600,
-            color: 'var(--text-secondary)',
-            position: 'relative',
-            fontFamily: 'var(--font-sans)',
-          }}
-        >
-          Resources ▾
-          {showResourcesDropdown && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: '#FFFFFF',
-              border: '1px solid var(--border-glass-strong)',
-              borderRadius: '8px',
-              padding: '8px 0',
-              boxShadow: 'var(--shadow-md)',
-              width: '160px',
-              zIndex: 10,
-              marginTop: '4px',
-            }}>
-              {['Documentation', 'Blog', 'API Guide', 'FAQs'].map((sub, sIdx) => (
-                <div
-                  key={sIdx}
-                  onClick={() => {
-                    setShowResourcesDropdown(false);
-                    navigate('/');
-                  }}
-                  style={{
-                    padding: '8px 16px',
-                    fontSize: '12px',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(27, 35, 64, 0.04)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  {sub}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+
       </nav>
 
       {/* RIGHT — Actions */}

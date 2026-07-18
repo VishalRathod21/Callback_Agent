@@ -248,32 +248,30 @@ async def upload_candidate(
             detail="Could not extract any text from the resume. Please upload a readable PDF or DOCX.",
         )
 
-    # ── 6. Store in FAISS ───────────────────────────────────────────────
+    # ── 7. AI Screening & Structured Extraction ───────────────────────
+    import asyncio
+    screener = _screener
     try:
-        faiss_service = request.app.state.faiss
-        await faiss_service.add(
-            collection="resumes",
-            doc_id=str(candidate_id),
-            text=resume_text,
-            metadata={
-                "candidate_id": str(candidate_id),
-                "name": name,
-                "target_role": target_role,
-            }
+        ats_result, resume_structure = await asyncio.gather(
+            screener.screen(resume_text, target_role),
+            screener.extract_structure(resume_text)
         )
     except Exception as exc:
-        logger.error("FAISS storage failed: %s", exc)
-        # Non-fatal — continue with screening
+        logger.warning("Parallel screening & extraction failed, running fallbacks: %s", exc)
+        try:
+            ats_result = await screener.screen(resume_text, target_role)
+        except Exception:
+            ats_result = _fallback_screening(resume_text, target_role)
+        try:
+            resume_structure = await screener.extract_structure(resume_text)
+        except Exception:
+            resume_structure = {
+                "name": name, "skills": [], "projects": [],
+                "experience": [], "education": [], "summary": ""
+            }
 
-    # ── 7. AI Screening ────────────────────────────────────────────────
-    try:
-        screening = await _screener.screen(resume_text, target_role)
-    except Exception as exc:
-        logger.warning("AI screening failed via LLM, using local fallback matcher: %s", exc)
-        screening = _fallback_screening(resume_text, target_role)
-
-    ats_score = screening.get("ats_score", 0.0)
-    decision = screening.get("decision", "fail")
+    ats_score = ats_result.get("ats_score", 0.0)
+    decision = ats_result.get("decision", "fail")
 
     # ── 8. Determine status & save candidate ───────────────────────────
     status = CandidateStatus.SCREENED if decision == "pass" else CandidateStatus.REJECTED
@@ -283,6 +281,7 @@ async def upload_candidate(
         existing_candidate.resume_path = str(file_path)
         existing_candidate.target_role = target_role
         existing_candidate.ats_score = ats_score
+        existing_candidate.resume_structured = resume_structure
         existing_candidate.status = status
         existing_candidate.user_id = current_user.id
         
@@ -300,10 +299,28 @@ async def upload_candidate(
             resume_path=str(file_path),
             target_role=target_role,
             ats_score=ats_score,
+            resume_structured=resume_structure,
             status=status,
         )
         db.add(candidate)
         await db.flush()
+
+    # ── 8.5. Store in FAISS ─────────────────────────────────────────────
+    try:
+        faiss_service = request.app.state.faiss
+        await faiss_service.add(
+            collection="resumes",
+            doc_id=str(candidate_id),
+            text=resume_text,
+            metadata={
+                "candidate_id": str(candidate_id),
+                "target_role": target_role,
+                "skills": resume_structure.get("skills", []),
+                "has_structure": True
+            }
+        )
+    except Exception as exc:
+        logger.error("FAISS storage failed: %s", exc)
 
     logger.info(
         "Candidate %s ([REDACTED]) — ATS: %.1f, decision: %s",
@@ -315,10 +332,10 @@ async def upload_candidate(
         "candidate_id": str(candidate_id),
         "decision": decision,
         "ats_score": ats_score,
-        "matched_skills": screening.get("matched_skills", []),
-        "missing_skills": screening.get("missing_skills", []),
-        "experience_level": screening.get("experience_level"),
-        "reasoning": screening.get("reasoning"),
+        "matched_skills": ats_result.get("matched_skills", []),
+        "missing_skills": ats_result.get("missing_skills", []),
+        "experience_level": ats_result.get("experience_level"),
+        "reasoning": ats_result.get("reasoning"),
         "resume_info": {
             "word_count": parsed["word_count"],
             "pages": parsed["pages"],
@@ -328,12 +345,12 @@ async def upload_candidate(
     if decision == "pass":
         response["next_steps"] = {
             "message": "Resume screening passed. You may proceed to interview rounds.",
-            "suggested_rounds": screening.get("suggested_rounds", ["dsa", "technical", "hr"]),
+            "suggested_rounds": ats_result.get("suggested_rounds", ["dsa", "technical", "hr"]),
         }
     else:
         response["rejection"] = {
             "message": "Resume did not meet the minimum requirements for this role.",
-            "missing_skills": screening.get("missing_skills", []),
+            "missing_skills": ats_result.get("missing_skills", []),
         }
 
     return response

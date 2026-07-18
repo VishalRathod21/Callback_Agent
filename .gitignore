@@ -153,6 +153,8 @@ Thumbs.db
 # Project specific ignores
 backend/uploads/
 backend/chroma_db/
+backend/faiss_store/
+faiss_store/
 backend/*.sqlite3
 backend/*.db
 backend/.env

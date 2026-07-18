@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "true"
 
+# Security Limits
+MAX_AUDIO_CHUNK_SIZE = 100 * 1024  # 100KB max per chunk
+MAX_TEXT_LENGTH = 2000             # max candidate text input
+
 # Session state store
 _sessions: dict = {}
 active_sessions = _sessions
@@ -184,7 +188,11 @@ async def interview_ws(websocket: WebSocket, session_id: str):
         sess["buf_ms"] = 0
         sess["silence_ms"] = 0
         
-        await _send(websocket, {"type": "connected", "session_id": session_id})
+        await _send(websocket, {
+            "type": "connected",
+            "session_id": session_id,
+            "voice_enabled": getattr(websocket.app.state, "stt", None) is not None
+        })
         
         # Send session history to restore context
         await _send(websocket, {
@@ -207,7 +215,11 @@ async def interview_ws(websocket: WebSocket, session_id: str):
             "state": STATE_IDLE,
         }
         sess = active_sessions[session_id]
-        await _send(websocket, {"type": "connected", "session_id": session_id})
+        await _send(websocket, {
+            "type": "connected",
+            "session_id": session_id,
+            "voice_enabled": getattr(websocket.app.state, "stt", None) is not None
+        })
 
     try:
         # Keepalive task
@@ -269,8 +281,15 @@ async def interview_ws(websocket: WebSocket, session_id: str):
                 if sess["state"] != STATE_LISTENING:
                     continue
 
+                if not getattr(websocket.app.state, "stt", None):
+                    continue
+
                 data = validated_msg.data
                 if not data:
+                    continue
+
+                if len(data) > MAX_AUDIO_CHUNK_SIZE * 1.4:
+                    logger.warning("Oversized audio chunk received and rejected.")
                     continue
 
                 try:
@@ -292,12 +311,15 @@ async def interview_ws(websocket: WebSocket, session_id: str):
 
             elif t == "silence_detected":
                 # Frontend detected candidate stopped speaking
+                if not getattr(websocket.app.state, "stt", None):
+                    continue
                 if sess["state"] == STATE_LISTENING and len(sess["audio_buf"]) > 500:
                     await _process_candidate_audio(websocket, sess, session_id)
 
             elif t in ("candidate_text", "typed_answer"):
                 # Text fallback — candidate typed instead of speaking
                 text = validated_msg.text.strip()
+                text = text[:MAX_TEXT_LENGTH]
                 if text and sess["state"] == STATE_LISTENING:
                     await _handle_candidate_response(
                         websocket, sess, session_id, text
@@ -342,9 +364,25 @@ async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
         except Exception as e:
             logger.error(f"Could not load orch state or fallback resume_ctx in WS: {e}")
 
+    # Load resume_structured from DB
+    resume_structured = {}
+    try:
+        from core.database import AsyncSessionLocal
+        from core.models import Candidate, InterviewSession
+        async with AsyncSessionLocal() as db:
+            session_uuid = uuid.UUID(session_id)
+            session_obj = await db.get(InterviewSession, session_uuid)
+            if session_obj:
+                candidate = await db.get(Candidate, session_obj.candidate_id)
+                if candidate:
+                    resume_structured = candidate.resume_structured or {}
+    except Exception as e:
+        logger.error(f"Could not load resume_structured in WS start_round: {e}")
+
     sess["current_round"] = round_name
     sess["target_role"] = target_role
     sess["resume_context"] = resume_ctx
+    sess["resume_structured"] = resume_structured
     sess["conversation_history"] = []
     sess["audio_buf"] = bytearray()
     sess["buf_ms"] = 0
@@ -367,9 +405,9 @@ async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
     try:
         agent = _get_agent(websocket.app, round_name)
 
-        if round_name == "technical":
+        if round_name in ("technical", "hr"):
             question = await agent.get_opening_question(
-                target_role, resume_ctx, session_id
+                target_role, resume_structured, session_id
             )
         else:
             question = await agent.get_opening_question(
@@ -409,7 +447,7 @@ async def _speak_and_then_listen(websocket, sess, session_id, text):
     5. Frontend shows LISTENING indicator
     """
     try:
-        tts = websocket.app.state.tts
+        tts = getattr(websocket.app.state, "tts", None)
         if tts is not None:
             audio_bytes = await tts.synthesize(text)
 
@@ -454,6 +492,17 @@ async def _process_candidate_audio(websocket, sess, session_id):
     if sess["state"] != STATE_LISTENING:
         return
 
+    stt = getattr(websocket.app.state, "stt", None)
+    if not stt:
+        logger.warning("STT is not initialized. Ignoring audio processing request.")
+        sess["state"] = STATE_LISTENING
+        await _send(websocket, {
+            "type": "state_change",
+            "state": STATE_LISTENING,
+            "message": "Voice mode disabled. Please type your response."
+        })
+        return
+
     sess["state"] = STATE_PROCESSING
     audio = bytes(sess["audio_buf"])
     sess["audio_buf"] = bytearray()
@@ -466,7 +515,6 @@ async def _process_candidate_audio(websocket, sess, session_id):
     })
 
     try:
-        stt = websocket.app.state.stt
         result = await stt.transcribe_bytes(audio)
         text = result.get("text", "").strip()
 
@@ -516,7 +564,18 @@ async def _handle_candidate_response(websocket, sess, session_id, text):
 
         if round_name == "technical":
             response_data = await agent.respond_to_answer(
-                sess["conversation_history"], text, sess.get("resume_context", ""), session_id=session_id, target_role=sess.get("target_role", "Software Engineer")
+                conversation_history=sess["conversation_history"],
+                candidate_response=text,
+                resume_structured=sess.get("resume_structured", {}),
+                session_id=session_id,
+                target_role=sess.get("target_role", "Software Engineer")
+            )
+        elif round_name == "hr":
+            response_data = await agent.respond_to_answer(
+                conversation_history=sess["conversation_history"],
+                candidate_response=text,
+                resume_structured=sess.get("resume_structured", {}),
+                session_id=session_id
             )
         else:
             response_data = await agent.respond_to_answer(
@@ -571,7 +630,7 @@ async def _handle_candidate_response(websocket, sess, session_id, text):
 async def _speak_final(websocket, sess, session_id, text):
     """Speak final message without switching to listening"""
     try:
-        tts = websocket.app.state.tts
+        tts = getattr(websocket.app.state, "tts", None)
         if tts is not None:
             audio_bytes = await tts.synthesize(text)
             if audio_bytes:

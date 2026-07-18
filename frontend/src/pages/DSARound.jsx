@@ -112,7 +112,7 @@ export default function DSARound() {
     return () => clearInterval(t);
   }, []);
 
-  const { isConnected, status: connectionStatus, isRecording, hasPermission, startRecording, stopRecording, unlockAudio: unlockAudioContext } = useWebSocket({
+  const { isConnected, status: connectionStatus, isRecording, hasPermission, voiceEnabled, startRecording, stopRecording, unlockAudio: unlockAudioContext } = useWebSocket({
     sessionId,
     enabled: isAuthenticated && !authLoading,
     onCandidateTranscript: (msg) => addTranscript({ speaker: 'candidate', text: msg.text }),
@@ -485,10 +485,11 @@ export default function DSARound() {
           variant={isRecording ? 'danger' : 'outline'}
           size="sm"
           onClick={handleToggleMic}
-          icon={<MicIcon color={isRecording ? 'var(--danger)' : 'currentColor'} />}
+          disabled={voiceEnabled === false}
+          icon={<MicIcon color={voiceEnabled === false ? 'var(--text-muted)' : isRecording ? 'var(--danger)' : 'currentColor'} />}
           style={isRecording ? { borderColor: 'var(--danger)', background: 'rgba(226, 72, 61, 0.08)' } : { height: '36px' }}
         >
-          {isRecording ? 'Listening (Click to stop)' : 'Explain code approach'}
+          {voiceEnabled === false ? 'Voice explanation disabled' : isRecording ? 'Listening (Click to stop)' : 'Explain code approach'}
         </Button>
 
         {/* Center: Live speech transcription overlay + WS status */}
@@ -511,6 +512,20 @@ export default function DSARound() {
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
           }}>
             🎙️ {lastCandidateLine.text}
+          </div>
+        ) : voiceEnabled === false ? (
+          <div style={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: '9px',
+            color: 'var(--text-muted)',
+          }}>
+            TEXT MODE ONLY — VOICE RECORDING DISABLED
           </div>
         ) : !isConnected ? (
           <div style={{

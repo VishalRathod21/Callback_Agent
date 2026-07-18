@@ -18,6 +18,8 @@ import Lobby from './pages/Lobby';
 import InterviewRoom from './pages/InterviewRoom';
 import DSARound from './pages/DSARound';
 import Report from './pages/Report';
+import Dashboard from './pages/Dashboard';
+import QuickPractice from './pages/QuickPractice';
 
 import './App.css';
 
@@ -36,6 +38,7 @@ function App() {
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/practice" element={<QuickPractice />} />
 
               {/* Protected Routes */}
               <Route path="/upload" element={
@@ -61,6 +64,11 @@ function App() {
               <Route path="/report/:candidateId" element={
                 <ProtectedRoute>
                   <Report />
+                </ProtectedRoute>
+              } />
+              <Route path="/dashboard/:candidateId" element={
+                <ProtectedRoute>
+                  <Dashboard />
                 </ProtectedRoute>
               } />
             </Routes>

@@ -4,6 +4,27 @@ import warnings
 # Suppress the deprecation warning from google.generativeai
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+# Apply compatibility patches for Coqui TTS and transformers under PyTorch/Python 3.13
+try:
+    import torch
+    import transformers.pytorch_utils
+    if not hasattr(transformers.pytorch_utils, "isin_mps_friendly"):
+        transformers.pytorch_utils.isin_mps_friendly = torch.isin
+except Exception:
+    pass
+
+try:
+    import transformers.utils.import_utils as imp
+    if hasattr(imp, "is_torch_greater_or_equal"):
+        orig_check = imp.is_torch_greater_or_equal
+        def wrapped_check(version, *args, **kwargs):
+            if version == "2.9":
+                return False
+            return orig_check(version, *args, **kwargs)
+        imp.is_torch_greater_or_equal = wrapped_check
+except Exception:
+    pass
+
 
 import asyncio
 import logging
@@ -21,6 +42,9 @@ from api.routes.interviews import router as interviews_router
 from api.routes.reports import router as reports_router
 from api.routes.dsa import router as dsa_router
 from api.routes.auth import router as auth_router
+from api.routes.debrief import router as debrief_router
+from api.routes.dashboard import router as dashboard_router
+from api.routes.practice import router as practice_router
 from api.websocket import router as ws_router
 from core.config import settings
 from core.database import engine, Base
@@ -68,7 +92,7 @@ async def lifespan(app: FastAPI):
 
     # 2. Validate JWT_SECRET_KEY in production/non-testing environment
     if not is_testing:
-        if not os.environ.get("JWT_SECRET_KEY") and settings.JWT_SECRET_KEY in ("", None):
+        if settings.JWT_SECRET_IS_FALLBACK or not settings.JWT_SECRET_KEY or settings.JWT_SECRET_KEY.strip() in ("", "your_secret_here"):
             logger.error("CRITICAL: JWT_SECRET_KEY is not configured. Please set a static token secret in your .env file.")
             raise ValueError("JWT_SECRET_KEY is not configured. Please set it in your .env file.")
 
@@ -216,6 +240,9 @@ app.include_router(interviews_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
 app.include_router(dsa_router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
+app.include_router(debrief_router)
+app.include_router(dashboard_router)
+app.include_router(practice_router)
 app.include_router(ws_router)
 
 

@@ -100,6 +100,8 @@ export function useWebSocket({
   const [turnState, setTurnState] = useState(STATE_IDLE);
   const [volume, setVolume] = useState(0);
   const [status, setStatus] = useState('disconnected');
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const voiceEnabledRef = useRef(true);
 
   // Keep callback references fresh without triggering dependency changes
   const callbacksRef = useRef({
@@ -250,6 +252,10 @@ export function useWebSocket({
       switch (msg.type) {
         case 'connected':
           console.log('[WS] Session ready');
+          if (msg.voice_enabled !== undefined) {
+            voiceEnabledRef.current = !!msg.voice_enabled;
+            setVoiceEnabled(!!msg.voice_enabled);
+          }
           break;
 
         case 'state_change': {
@@ -261,7 +267,9 @@ export function useWebSocket({
           // AUTO-MIC: start recording when LISTENING, stop when AI speaks
           if (newState === 'listening') {
             // Small delay so AudioContext is ready
-            setTimeout(() => startRecordingRef.current?.(), 150);
+            if (voiceEnabledRef.current) {
+              setTimeout(() => startRecordingRef.current?.(), 150);
+            }
           } else if (newState === 'ai_speaking' || newState === 'processing') {
             stopRecordingRef.current?.();
           }
@@ -363,7 +371,7 @@ export function useWebSocket({
 
   return {
     isConnected, status, turnState, volume,
-    isRecording, hasPermission, isSpeaking,
+    isRecording, hasPermission, isSpeaking, voiceEnabled,
     unlockAudio, startRound, sendText, endRound,
     startRecording, stopRecording, destroyAll,
   };
