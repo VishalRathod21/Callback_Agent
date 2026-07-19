@@ -634,8 +634,8 @@ export default function HeroCanvas({ turnState, volume, phase }) {
 
   useEffect(() => {
     const handleScroll = () => {
-      const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(totalScroll > 0 ? window.scrollY / totalScroll : 0);
+      const storyScrollHeight = window.innerHeight * 7;
+      setScrollProgress(Math.min(1.0, window.scrollY / storyScrollHeight));
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -676,7 +676,7 @@ export default function HeroCanvas({ turnState, volume, phase }) {
   ];
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'fixed', top: 0, left: 0, zIndex: 1, pointerEvents: 'none' }}>
+    <div style={{ width: '100%', height: '100vh', position: 'sticky', top: 0, zIndex: 1, pointerEvents: 'none' }}>
       <Canvas camera={{ position: [0, 0, 7.0], fov: 60 }} style={{ pointerEvents: 'none' }}>
         <ambientLight intensity={0.4} />
         <directionalLight position={[3, 5, 2]} intensity={1.5} color="#ffffff" />
