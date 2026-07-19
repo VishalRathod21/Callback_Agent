@@ -166,14 +166,16 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown complete.")
 
 
+is_docs_enabled = os.environ.get("ENABLE_DOCS", "").lower() == "true" or getattr(settings, "ENABLE_DOCS", False)
+
 app = FastAPI(
     title="Callback Agent API",
     description="AI-powered interview preparation platform",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    docs_url="/docs" if is_docs_enabled else None,
+    redoc_url="/redoc" if is_docs_enabled else None,
+    openapi_url="/openapi.json" if is_docs_enabled else None,
 )
 
 # CORS configuration
@@ -185,34 +187,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Secure documentation route middleware (protects Swagger UI and schemas in production)
-@app.middleware("http")
-async def secure_docs_middleware(request: Request, call_next):
-    path = request.url.path
-    if path in ("/docs", "/redoc", "/openapi.json"):
-        # Check if docs are explicitly public (ENABLE_DOCS=true)
-        is_enabled = os.environ.get("ENABLE_DOCS", "").lower() == "true" or getattr(settings, "ENABLE_DOCS", False)
-        if not is_enabled:
-            auth_header = request.headers.get("Authorization")
-            authenticated = False
-            if auth_header and auth_header.startswith("Basic "):
-                try:
-                    auth_decoded = base64.b64decode(auth_header.split(" ")[1]).decode("utf-8")
-                    username, password = auth_decoded.split(":", 1)
-                    expected_username = os.environ.get("DOCS_USERNAME", "admin")
-                    expected_password = os.environ.get("DOCS_PASSWORD", getattr(settings, "JWT_SECRET_KEY", "callback-secure-docs"))
-                    if (secrets.compare_digest(username, expected_username) and 
-                            secrets.compare_digest(password, expected_password)):
-                        authenticated = True
-                except Exception:
-                    pass
-            
-            if not authenticated:
-                return JSONResponse(
-                    status_code=404,
-                    content={"detail": "Not Found"}
-                )
-    return await call_next(request)
 
 # Security headers middleware
 @app.middleware("http")
