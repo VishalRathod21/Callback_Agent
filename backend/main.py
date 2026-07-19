@@ -34,7 +34,9 @@ import tempfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+import base64
+import secrets
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.candidates import router as candidates_router
@@ -164,15 +166,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="InterviewAI",
+    title="Callback Agent API",
     description="AI-powered interview preparation platform",
-    version="0.1.0",
+    version="1.0.0",
     lifespan=lifespan,
-    # Disable public API docs to prevent endpoint enumeration by attackers.
-    # Re-enable by setting ENABLE_DOCS=true in .env (development only).
-    docs_url="/docs" if os.environ.get("ENABLE_DOCS", "").lower() == "true" else None,
-    redoc_url="/redoc" if os.environ.get("ENABLE_DOCS", "").lower() == "true" else None,
-    openapi_url="/openapi.json" if os.environ.get("ENABLE_DOCS", "").lower() == "true" else None,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 # CORS configuration
@@ -184,6 +184,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Secure documentation route middleware (protects Swagger UI and schemas in production)
+@app.middleware("http")
+async def secure_docs_middleware(request: Request, call_next):
+    path = request.url.path
+    if path in ("/docs", "/redoc", "/openapi.json"):
+        # Check if docs are explicitly public (ENABLE_DOCS=true)
+        if not (os.environ.get("ENABLE_DOCS", "").lower() == "true" or settings.ENABLE_DOCS):
+            auth_header = request.headers.get("Authorization")
+            if not auth_header or not auth_header.startswith("Basic "):
+                return Response(
+                    content="Unauthorized",
+                    status_code=401,
+                    headers={"WWW-Authenticate": 'Basic realm="Secure API Docs"'},
+                )
+            try:
+                auth_decoded = base64.b64decode(auth_header.split(" ")[1]).decode("utf-8")
+                username, password = auth_decoded.split(":", 1)
+            except Exception:
+                return Response(
+                    content="Unauthorized",
+                    status_code=401,
+                    headers={"WWW-Authenticate": 'Basic realm="Secure API Docs"'},
+                )
+            
+            expected_username = os.environ.get("DOCS_USERNAME", "admin")
+            expected_password = os.environ.get("DOCS_PASSWORD", settings.JWT_SECRET_KEY or "callback-secure-docs")
+            
+            if not (secrets.compare_digest(username, expected_username) and 
+                    secrets.compare_digest(password, expected_password)):
+                return Response(
+                    content="Unauthorized",
+                    status_code=401,
+                    headers={"WWW-Authenticate": 'Basic realm="Secure API Docs"'},
+                )
+    return await call_next(request)
+
 # Security headers middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -191,7 +227,17 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'"
+    
+    # Relax CSP dynamically for docs to load assets from CDN (e.g. jsdelivr)
+    if request.url.path in ("/docs", "/redoc"):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+            "img-src 'self' data: cdn.jsdelivr.net fastapi.tiangolo.com;"
+        )
+    else:
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'"
     return response
 
 # Rate Limiting configuration
@@ -244,6 +290,15 @@ app.include_router(debrief_router)
 app.include_router(dashboard_router)
 app.include_router(practice_router)
 app.include_router(ws_router)
+
+
+@app.get("/", tags=["Health"])
+async def root():
+    return {
+        "status": "healthy",
+        "service": "Callback Agent API",
+        "docs": "/docs"
+    }
 
 
 @app.get("/health")
