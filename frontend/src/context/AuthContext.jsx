@@ -10,7 +10,7 @@ async function fetchWithRetry(fn, maxAttempts = 5, baseDelayMs = 1000) {
     try {
       return await fn();
     } catch (err) {
-      const isNetworkError = !err.response; // axios sets err.response for HTTP errors
+      const isNetworkError = !err.status && !err.response; // axios sets err.response, interceptor sets err.status
       if (!isNetworkError || attempt === maxAttempts) throw err;
       const delay = baseDelayMs * Math.pow(2, attempt - 1);
       console.info(`[AuthContext] Backend not ready yet, retrying in ${delay}ms... (attempt ${attempt}/${maxAttempts})`);
