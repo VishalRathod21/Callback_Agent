@@ -1,6 +1,7 @@
 """Application configuration using Pydantic BaseSettings."""
 
 import secrets
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
@@ -49,6 +50,19 @@ class Settings(BaseSettings):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("sqlite://") and "+aiosqlite" not in url:
             url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+            return url
+        else:
+            return url
+
+        # asyncpg compatible parameters mapping
+        if "postgresql+asyncpg" in url:
+            parsed = urlparse(url)
+            params = dict(parse_qsl(parsed.query))
+            params.pop("channel_binding", None)
+            params.pop("sslmode", None)
+            new_query = urlencode(params) if params else ""
+            url = urlunparse(parsed._replace(query=new_query))
+
         return url
 
     @property

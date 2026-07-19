@@ -14,11 +14,11 @@ connect_args = {}
 is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "true"
 is_localhost = "localhost" in settings.async_database_url or "127.0.0.1" in settings.async_database_url
 
-if not is_testing and not is_localhost:
-    if settings.async_database_url.startswith("postgresql") or settings.async_database_url.startswith("postgres"):
-        connect_args["ssl"] = "require"
-    elif settings.async_database_url.startswith("mysql"):
+if "postgresql" in settings.async_database_url or "postgres" in settings.async_database_url:
+    if (not is_testing and not is_localhost) or "sslmode" in settings.DATABASE_URL:
         connect_args["ssl"] = True
+elif "mysql" in settings.async_database_url:
+    connect_args["ssl"] = True
 
 is_sqlite = "sqlite" in settings.async_database_url
 
