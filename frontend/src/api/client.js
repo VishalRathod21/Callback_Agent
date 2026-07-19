@@ -4,7 +4,7 @@ const getApiUrl = () => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
 
   if (envUrl) {
-  return envUrl.replace(/\/$/, "");
+    return envUrl.replace(/\/$/, "");
   }
 
   if (typeof window !== "undefined") {
@@ -90,15 +90,15 @@ client.interceptors.response.use(
     // Avoid infinite loops: check if error is 401 and not already retried,
     // and that we are not already trying to login or refresh
     if (
-      status === 401 && 
-      !originalRequest._retry && 
-      !url.includes('/auth/login') && 
+      status === 401 &&
+      !originalRequest._retry &&
+      !url.includes('/auth/login') &&
       !url.includes('/auth/refresh') &&
       !url.includes('/auth/signup')
     ) {
       originalRequest._retry = true;
       console.log('[API Interceptor] 401 Unauthorized detected. Attempting token refresh...');
-      
+
       try {
         const newAccessToken = await _doRefresh();
 
@@ -109,10 +109,10 @@ client.interceptors.response.use(
         }
       } catch (refreshError) {
         console.error('[API Interceptor] Token refresh failed. Logging out...', refreshError);
-        
+
         // Clear auth header
         delete client.defaults.headers.common['Authorization'];
-        
+
         // Redirect to signin page if browser environment and not already on an auth page
         if (typeof window !== 'undefined') {
           const path = window.location.pathname;
@@ -121,7 +121,7 @@ client.interceptors.response.use(
             window.location.href = '/signin';
           }
         }
-        
+
         return Promise.reject(refreshError);
       }
     }

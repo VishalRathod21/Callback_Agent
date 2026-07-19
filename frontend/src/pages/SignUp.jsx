@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import Input from '../components/ui/Input';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
+import AuthLayout from '../components/AuthLayout';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -14,177 +12,173 @@ export default function SignUp() {
   const [password, setPassword]   = useState('');
   const [confirm, setConfirm]     = useState('');
   const [loading, setLoading]     = useState(false);
-  const [error, setError]       = useState('');
+  const [error, setError]         = useState('');
+  
+  // 0: idle, 1: loading, 2: success, 3: error
+  const [authState, setAuthState] = useState(0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!fullName || !email || !password) { setError('Please fill in all fields.'); return; }
-    if (password !== confirm) { setError('Passwords do not match.'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    if (!fullName || !email || !password) { 
+      setError('Please fill in all fields.'); 
+      setAuthState(3);
+      return; 
+    }
+    if (password !== confirm) { 
+      setError('Passwords do not match.'); 
+      setAuthState(3);
+      return; 
+    }
+    if (password.length < 8) { 
+      setError('Password must be at least 8 characters.'); 
+      setAuthState(3);
+      return; 
+    }
+    
     setLoading(true);
     setError('');
+    setAuthState(1); // processing
+    
     try {
       await register(fullName, email, password, confirm);
-      navigate('/upload');
+      setAuthState(2); // success
+      
+      // Let the cinematic zoom animation play for 1.8 seconds before transition
+      setTimeout(() => {
+        navigate('/upload');
+      }, 1800);
     } catch (err) {
       setError(err.message || 'Could not create account. Please try again.');
+      setAuthState(3); // error
+      // Revert to idle after 3 seconds
+      setTimeout(() => {
+        setAuthState(0);
+      }, 3000);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: 'var(--bg)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px 24px',
-      fontFamily: 'var(--font-sans)',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      {/* Background spotlights */}
-      <div className="spotlight-glow" style={{ top: '15%', right: '15%', width: '450px', height: '450px', background: 'radial-gradient(circle, rgba(217, 142, 43, 0.06) 0%, transparent 70%)', opacity: 0.8, position: 'absolute', pointerEvents: 'none' }} />
-      <div className="spotlight-glow" style={{ bottom: '15%', left: '15%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(124, 58, 237, 0.04) 0%, transparent 70%)', opacity: 0.6, position: 'absolute', pointerEvents: 'none' }} />
+  const handleInputChange = (setter) => (e) => {
+    setter(e.target.value);
+    if (authState === 3) {
+      setAuthState(0);
+      setError('');
+    }
+  };
 
-      <Card 
-        depth={2} 
-        hoverable={false}
-        style={{
-          width: '100%',
-          maxWidth: '440px',
-          padding: '48px 40px',
-          zIndex: 5,
-        }}
-      >
-        {/* Logo Wordmark */}
-        <div 
-          onClick={() => navigate('/')}
+  return (
+    <AuthLayout
+      title="Create Account"
+      subtitle="Initialize your developer profile to begin your mock rehearsals."
+      authState={authState}
+      error={error}
+    >
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="auth-field">
+          <label className="auth-label">Full Name</label>
+          <div className="auth-input-wrapper">
+            <input
+              type="text"
+              className="auth-input"
+              placeholder="Jane Smith"
+              value={fullName}
+              onChange={handleInputChange(setFullName)}
+              disabled={loading}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="auth-field">
+          <label className="auth-label">Email Address</label>
+          <div className="auth-input-wrapper">
+            <input
+              type="email"
+              className="auth-input"
+              placeholder="you@example.com"
+              value={email}
+              onChange={handleInputChange(setEmail)}
+              disabled={loading}
+              required
+            />
+          </div>
+        </div>
+
+        <div className="auth-field">
+          <label className="auth-label">Password</label>
+          <div className="auth-input-wrapper">
+            <input
+              type="password"
+              className="auth-input"
+              placeholder="Min 8 characters"
+              value={password}
+              onChange={handleInputChange(setPassword)}
+              disabled={loading}
+              required
+            />
+          </div>
+          <span className="auth-input-hint">Must be at least 8 characters long</span>
+        </div>
+
+        <div className="auth-field">
+          <label className="auth-label">Confirm Password</label>
+          <div className="auth-input-wrapper">
+            <input
+              type="password"
+              className="auth-input"
+              placeholder="••••••••"
+              value={confirm}
+              onChange={handleInputChange(setConfirm)}
+              disabled={loading}
+              required
+            />
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          className="auth-button"
+          disabled={loading || authState === 2}
+          style={{ marginTop: '8px' }}
+        >
+          {loading ? 'INITIALIZING INTERFACE...' : 'CREATE ACCOUNT'}
+        </button>
+      </form>
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        margin: '28px 0',
+        color: 'rgba(255, 255, 255, 0.15)',
+        fontSize: '11px',
+        fontWeight: 600,
+        letterSpacing: '0.08em',
+      }}>
+        <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.06)' }} />
+        <span>OR</span>
+        <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.06)' }} />
+      </div>
+
+      <div style={{
+        textAlign: 'center',
+        fontSize: '14px',
+        color: 'rgba(255, 255, 255, 0.45)',
+      }}>
+        Already registered?{' '}
+        <span 
+          onClick={() => !loading && navigate('/signin')}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            marginBottom: '32px',
+            color: '#ffffff',
             cursor: 'pointer',
-            width: 'fit-content',
-            transition: 'transform 0.2s',
+            fontWeight: 600,
+            transition: 'color var(--duration-fast)',
           }}
         >
-          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent)' }} />
-          <span style={{
-            color: 'var(--text-primary)',
-            fontSize: '18px',
-            fontWeight: 700,
-            letterSpacing: '-0.02em',
-            fontFamily: 'var(--font-display)',
-          }}>Callback</span>
-        </div>
-
-        <h1 style={{
-          color: 'var(--text-primary)',
-          fontSize: '24px',
-          fontWeight: 800,
-          letterSpacing: '-0.02em',
-          margin: '0 0 8px 0',
-          fontFamily: 'var(--font-display)',
-        }}>Create account</h1>
-        
-        <p style={{
-          color: 'var(--text-secondary)',
-          fontSize: '14px',
-          margin: '0 0 32px 0',
-          lineHeight: 1.5,
-        }}>Start rehearsing for technical and behavioral interviews.</p>
-
-        {error && (
-          <div style={{
-            background: 'rgba(198, 40, 40, 0.05)',
-            border: '1px solid rgba(198, 40, 40, 0.2)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--rec-red)',
-            padding: '12px 16px',
-            fontSize: '13px',
-            marginBottom: '24px',
-            lineHeight: 1.5,
-            fontWeight: 500,
-          }}>
-            ⚠️ {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <Input
-            label="Full Name"
-            type="text"
-            placeholder="Jane Smith"
-            value={fullName}
-            onChange={e => setFullName(e.target.value)}
-          />
-
-          <Input
-            label="Email Address"
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-          />
-
-          <Input
-            label="Password"
-            type="password"
-            placeholder="Min 8 characters"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            hint="Must be at least 8 characters long"
-          />
-
-          <Input
-            label="Confirm Password"
-            type="password"
-            placeholder="••••••••"
-            value={confirm}
-            onChange={e => setConfirm(e.target.value)}
-          />
-
-          <Button type="submit" variant="primary" size="lg" fullWidth loading={loading} style={{ marginTop: '8px' }}>
-            {loading ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
-          </Button>
-        </form>
-
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-          margin: '28px 0',
-          color: 'var(--text-muted)',
-          fontSize: '11px',
-          fontWeight: 600,
-        }}>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(27, 35, 64, 0.08)' }} />
-          <span>OR</span>
-          <div style={{ flex: 1, height: '1px', background: 'rgba(27, 35, 64, 0.08)' }} />
-        </div>
-
-        <div style={{
-          textAlign: 'center',
-          fontSize: '14px',
-          color: 'var(--text-secondary)',
-        }}>
-          Already have an account?{' '}
-          <span 
-            onClick={() => navigate('/signin')}
-            style={{
-              color: 'var(--accent)',
-              cursor: 'pointer',
-              fontWeight: 600,
-            }}
-          >
-            Sign in
-          </span>
-        </div>
-      </Card>
-    </div>
+          Sign in
+        </span>
+      </div>
+    </AuthLayout>
   );
 }
