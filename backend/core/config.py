@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     FRONTEND_URL: str = "" # Injected from production frontend domains
     PORT: int = 8002
+    ENABLE_DOCS: bool = False
 
     SECRET_KEY: str = "" # Alternative env variable name for JWT secret
     JWT_SECRET_KEY: str = ""

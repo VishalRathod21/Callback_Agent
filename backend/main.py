@@ -37,6 +37,7 @@ from pathlib import Path
 import base64
 import secrets
 from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes.candidates import router as candidates_router
@@ -190,33 +191,26 @@ async def secure_docs_middleware(request: Request, call_next):
     path = request.url.path
     if path in ("/docs", "/redoc", "/openapi.json"):
         # Check if docs are explicitly public (ENABLE_DOCS=true)
-        if not (os.environ.get("ENABLE_DOCS", "").lower() == "true" or settings.ENABLE_DOCS):
+        is_enabled = os.environ.get("ENABLE_DOCS", "").lower() == "true" or getattr(settings, "ENABLE_DOCS", False)
+        if not is_enabled:
             auth_header = request.headers.get("Authorization")
-            if not auth_header or not auth_header.startswith("Basic "):
-                return Response(
-                    content="Unauthorized",
-                    status_code=401,
-                    headers={"WWW-Authenticate": 'Basic realm="Secure API Docs"'},
-                )
-            try:
-                auth_decoded = base64.b64decode(auth_header.split(" ")[1]).decode("utf-8")
-                username, password = auth_decoded.split(":", 1)
-            except Exception:
-                return Response(
-                    content="Unauthorized",
-                    status_code=401,
-                    headers={"WWW-Authenticate": 'Basic realm="Secure API Docs"'},
-                )
+            authenticated = False
+            if auth_header and auth_header.startswith("Basic "):
+                try:
+                    auth_decoded = base64.b64decode(auth_header.split(" ")[1]).decode("utf-8")
+                    username, password = auth_decoded.split(":", 1)
+                    expected_username = os.environ.get("DOCS_USERNAME", "admin")
+                    expected_password = os.environ.get("DOCS_PASSWORD", getattr(settings, "JWT_SECRET_KEY", "callback-secure-docs"))
+                    if (secrets.compare_digest(username, expected_username) and 
+                            secrets.compare_digest(password, expected_password)):
+                        authenticated = True
+                except Exception:
+                    pass
             
-            expected_username = os.environ.get("DOCS_USERNAME", "admin")
-            expected_password = os.environ.get("DOCS_PASSWORD", settings.JWT_SECRET_KEY or "callback-secure-docs")
-            
-            if not (secrets.compare_digest(username, expected_username) and 
-                    secrets.compare_digest(password, expected_password)):
-                return Response(
-                    content="Unauthorized",
-                    status_code=401,
-                    headers={"WWW-Authenticate": 'Basic realm="Secure API Docs"'},
+            if not authenticated:
+                return JSONResponse(
+                    status_code=404,
+                    content={"detail": "Not Found"}
                 )
     return await call_next(request)
 
