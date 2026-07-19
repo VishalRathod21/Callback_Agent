@@ -1,19 +1,23 @@
 import axios from 'axios';
 
 const getApiUrl = () => {
-  const envUrl = import.meta.env.VITE_API_URL;
-  if (envUrl) return envUrl;
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
 
-  if (typeof window !== 'undefined') {
-    const { protocol, hostname, port } = window.location;
-    // If local dev but running frontend on separate port without VITE_API_URL, target port 8002
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+  if (envUrl) {
+    return envUrl.replace(/\/$/, '') + "/api";
+  }
+
+  if (typeof window !== "undefined") {
+    const { protocol, hostname } = window.location;
+
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
       return `${protocol}//${hostname}:8002/api`;
     }
-    // In production, if they are served on the same domain or reverse proxied, use same host
-    return `${protocol}//${hostname}${port ? `:${port}` : ''}/api`;
+
+    return `${protocol}//${hostname}/api`;
   }
-  return 'http://localhost:8002/api';
+
+  return "http://localhost:8002/api";
 };
 
 const API_BASE = getApiUrl();
