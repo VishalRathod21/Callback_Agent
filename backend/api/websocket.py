@@ -274,7 +274,18 @@ async def interview_ws(websocket: WebSocket, session_id: str):
                 pass
 
             elif t == "start_round":
-                await _start_round(websocket, sess, session_id, validated_msg)
+                try:
+                    await _start_round(websocket, sess, session_id, validated_msg)
+                except Exception as _sr_exc:
+                    import traceback
+                    logger.error(
+                        "[%s] UNCAUGHT exception from _start_round: %s\n%s",
+                        session_id, _sr_exc, traceback.format_exc()
+                    )
+                    await _send(websocket, {
+                        "type": "error",
+                        "message": f"start_round failed: {_sr_exc}"
+                    })
 
             elif t == "audio_chunk":
                 # Only accept audio when in LISTENING state
@@ -335,21 +346,38 @@ async def interview_ws(websocket: WebSocket, session_id: str):
 
 
 async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
+    import traceback as _tb
     round_name = msg.round
     target_role = msg.target_role
     resume_ctx = msg.resume_context
 
+    # ── CHECKPOINT 1 ──────────────────────────────────────────────────────────
+    logger.info(
+        "[%s] START_ROUND_RECEIVED — round=%s role=%s resume_ctx_len=%d",
+        session_id, round_name, target_role, len(resume_ctx or "")
+    )
+
     # Self-correct target_role and resume_context if missing or default
     if not resume_ctx or target_role == "Software Engineer":
+        logger.info(
+            "[%s] Attempting to load resume/role from DB (resume_ctx empty=%s, role default=%s)",
+            session_id, not resume_ctx, target_role == "Software Engineer"
+        )
         try:
             from core.database import AsyncSessionLocal
             async with AsyncSessionLocal() as db:
-                orch_state = await _orchestrator.get_state(session_id, db)
+                try:
+                    orch_state = await _orchestrator.get_state(session_id, db)
+                except KeyError:
+                    orch_state = None
+                    logger.info("[%s] No orchestrator state found — will fall back to DB lookup", session_id)
                 if orch_state:
                     if not resume_ctx and orch_state.get("resume_text"):
                         resume_ctx = orch_state.get("resume_text", "")
+                        logger.info("[%s] Loaded resume_ctx from orch_state (%d chars)", session_id, len(resume_ctx))
                     if target_role == "Software Engineer" and orch_state.get("target_role"):
                         target_role = orch_state.get("target_role")
+                        logger.info("[%s] Loaded target_role from orch_state: %s", session_id, target_role)
 
                 if not resume_ctx or target_role == "Software Engineer":
                     sess_db = await _load_session(db, session_id)
@@ -358,11 +386,16 @@ async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
                         if cand_db:
                             if target_role == "Software Engineer" and cand_db.target_role:
                                 target_role = cand_db.target_role
+                                logger.info("[%s] Loaded target_role from candidate DB: %s", session_id, target_role)
                             if not resume_ctx:
                                 from api.routes.interviews import _get_resume_text
                                 resume_ctx = await _get_resume_text(cand_db)
+                                logger.info("[%s] Loaded resume_ctx from candidate DB (%d chars)", session_id, len(resume_ctx or ""))
         except Exception as e:
-            logger.error(f"Could not load orch state or fallback resume_ctx in WS: {e}")
+            logger.error(
+                "[%s] Could not load orch state or fallback resume_ctx: %s\n%s",
+                session_id, e, _tb.format_exc()
+            )
 
     # Load resume_structured from DB
     resume_structured = {}
@@ -376,8 +409,12 @@ async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
                 candidate = await db.get(Candidate, session_obj.candidate_id)
                 if candidate:
                     resume_structured = candidate.resume_structured or {}
+                    logger.info("[%s] Loaded resume_structured (%d keys)", session_id, len(resume_structured))
     except Exception as e:
-        logger.error(f"Could not load resume_structured in WS start_round: {e}")
+        logger.error(
+            "[%s] Could not load resume_structured: %s\n%s",
+            session_id, e, _tb.format_exc()
+        )
 
     sess["current_round"] = round_name
     sess["target_role"] = target_role
@@ -386,16 +423,15 @@ async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
     sess["conversation_history"] = []
     sess["audio_buf"] = bytearray()
     sess["buf_ms"] = 0
-    
+
     if is_testing:
         sess["state"] = STATE_LISTENING
     else:
         sess["state"] = STATE_AI_SPEAKING
 
-    logger.info(f"Starting round '{round_name}' for {session_id} (Role: {target_role})")
+    logger.info("[%s] Starting round '%s' (Role: %s)", session_id, round_name, target_role)
 
     if not is_testing:
-        # Notify frontend: AI is about to speak
         await _send(websocket, {
             "type": "state_change",
             "state": STATE_AI_SPEAKING,
@@ -403,88 +439,149 @@ async def _start_round(websocket, sess, session_id, msg: WSStartRoundMessage):
         })
 
     try:
+        logger.info("[%s] Resolving agent for round=%s", session_id, round_name)
         agent = _get_agent(websocket.app, round_name)
+        logger.info("[%s] Agent resolved: %s", session_id, type(agent).__name__)
 
-        if round_name in ("technical", "hr"):
-            question = await agent.get_opening_question(
-                target_role, resume_structured, session_id
+        # ── CHECKPOINT 2 ──────────────────────────────────────────────────────
+        logger.info(
+            "[%s] OPENING_QUESTION_REQUESTED — role=%s resume_structured_keys=%s",
+            session_id, target_role, list(resume_structured.keys())
+        )
+
+        try:
+            if round_name in ("technical", "hr"):
+                question = await agent.get_opening_question(
+                    target_role, resume_structured, session_id
+                )
+            else:
+                question = await agent.get_opening_question(
+                    target_role, session_id
+                )
+        except Exception as llm_exc:
+            logger.error(
+                "[%s] get_opening_question raised an exception: %s\n%s",
+                session_id, llm_exc, _tb.format_exc()
             )
-        else:
-            question = await agent.get_opening_question(
-                target_role, session_id
-            )
+            raise
+
+        # ── CHECKPOINT 3 ──────────────────────────────────────────────────────
+        logger.info(
+            "[%s] OPENING_QUESTION_GENERATED — length=%d preview=%s",
+            session_id, len(question), repr(question[:120])
+        )
 
         sess["conversation_history"].append({"speaker": "interviewer", "text": question})
         sess["current_question"] = question
 
-        # Send transcript text immediately (instant feedback)
+        # ── CRITICAL ORDER: ai_response MUST be sent BEFORE any TTS await ────
+        # Step 1: send ai_response immediately — frontend unblocks here
+        logger.info("[%s] >>> PRE send_json ai_response >>>", session_id)
         await _send(websocket, {
             "type": "ai_response",
             "text": question,
             "speaker": "interviewer"
         })
+        # ── CHECKPOINT 4 ──────────────────────────────────────────────────────
+        logger.info("[%s] AI_RESPONSE_SENT — frontend should now display question", session_id)
 
         if not is_testing:
-            # Synthesize and stream audio
-            await _speak_and_then_listen(websocket, sess, session_id, question)
+            # Step 2: dispatch TTS as background task — NEVER blocks ai_response
+            # ── CHECKPOINT 5 ──────────────────────────────────────────────────
+            logger.info("[%s] TTS_STARTED — dispatching background TTS task", session_id)
+            asyncio.create_task(
+                _speak_and_then_listen(websocket, sess, session_id, question)
+            )
 
     except Exception as e:
-        logger.error(f"start_round error: {e}")
+        logger.error(
+            "[%s] start_round error BEFORE ai_response: %s\n%s",
+            session_id, e, _tb.format_exc()
+        )
         await _send(websocket, {
             "type": "error",
             "message": f"Failed to start: {str(e)}"
         })
-        sess["state"] = STATE_IDLE
+        # Still switch to listening so the interview isn't dead
+        sess["state"] = STATE_LISTENING
+        await _send(websocket, {
+            "type": "state_change",
+            "state": STATE_LISTENING,
+            "message": "Error generating question — please type your response"
+        })
+        # ── CHECKPOINT 8 (error path) ─────────────────────────────────────────
+        logger.info("[%s] STATE_CHANGED_TO_LISTENING (after error in start_round)", session_id)
 
 
 async def _speak_and_then_listen(websocket, sess, session_id, text):
     """
-    Core turn-based function:
-    1. Synthesize TTS
-    2. Send audio to frontend (AI speaks)
-    3. Wait for audio to finish playing (estimate duration)
-    4. Switch to LISTENING state
-    5. Frontend shows LISTENING indicator
+    Background TTS task (always runs as asyncio.create_task):
+    1. Synthesize audio (or skip gracefully if TTS is None)
+    2. Send ai_audio chunk to frontend
+    3. Wait estimated playback duration
+    4. Switch to LISTENING
+
+    NEVER blocks the WebSocket message loop or the frontend question display.
+    ai_response is already sent before this function is ever called.
     """
+    import traceback as _tb
     try:
         tts = getattr(websocket.app.state, "tts", None)
-        if tts is not None:
-            audio_bytes = await tts.synthesize(text)
+        if tts is None:
+            logger.info("[%s] TTS not initialized — skipping audio synthesis", session_id)
+        else:
+            try:
+                logger.info("[%s] TTS_STARTED — calling tts.synthesize()", session_id)
+                audio_bytes = await tts.synthesize(text)
 
-            if audio_bytes:
-                b64 = base64.b64encode(audio_bytes).decode("utf-8")
-                await _send(websocket, {
-                    "type": "ai_audio",
-                    "data": b64,
-                    "format": "wav",
-                    # Estimate duration: ~150 words/min, wav is ~32kbps
-                    "duration_estimate_ms": max(2000, len(text.split()) * 400)
-                })
+                if audio_bytes:
+                    b64 = base64.b64encode(audio_bytes).decode("utf-8")
+                    duration_estimate_ms = max(2000, len(text.split()) * 400)
+                    logger.info("[%s] >>> PRE send_json ai_audio >>>", session_id)
+                    await _send(websocket, {
+                        "type": "ai_audio",
+                        "data": b64,
+                        "format": "wav",
+                        "duration_estimate_ms": duration_estimate_ms
+                    })
+                    # ── CHECKPOINT 6 ──────────────────────────────────────────
+                    logger.info("[%s] TTS_COMPLETED — AI_AUDIO_SENT (%d bytes)", session_id, len(audio_bytes))
 
-                # Wait estimated speaking time + small buffer
-                speak_ms = max(2000, len(text.split()) * 400)
-                await asyncio.sleep(speak_ms / 1000 + 0.5)
+                    # Wait estimated playback time so we don't start listening
+                    # before the user has heard the full question
+                    speak_ms = max(2000, len(text.split()) * 400)
+                    await asyncio.sleep(speak_ms / 1000 + 0.5)
+                else:
+                    logger.warning("[%s] TTS returned empty audio — proceeding without audio", session_id)
 
-        # Switch to LISTENING
+            except Exception as tts_exc:
+                # TTS failure must NEVER stop the interview
+                logger.warning(
+                    "[%s] TTS synthesis failed (continuing in text mode): %s\n%s",
+                    session_id, tts_exc, _tb.format_exc()
+                )
+
+    except Exception as e:
+        logger.error(
+            "[%s] _speak_and_then_listen outer error: %s\n%s",
+            session_id, e, _tb.format_exc()
+        )
+    finally:
+        # Always transition to LISTENING — even if TTS errored
         sess["state"] = STATE_LISTENING
         sess["audio_buf"] = bytearray()
         sess["buf_ms"] = 0
-
-        await _send(websocket, {
-            "type": "state_change",
-            "state": STATE_LISTENING,
-            "message": "Your turn — speak now"
-        })
-
-    except Exception as e:
-        logger.error(f"TTS/speak error: {e}")
-        # Even if TTS fails, still switch to listening
-        sess["state"] = STATE_LISTENING
-        await _send(websocket, {
-            "type": "state_change",
-            "state": STATE_LISTENING,
-            "message": "Your turn — speak now"
-        })
+        try:
+            logger.info("[%s] >>> PRE send_json state_change LISTENING >>>", session_id)
+            await _send(websocket, {
+                "type": "state_change",
+                "state": STATE_LISTENING,
+                "message": "Your turn — speak now"
+            })
+            # ── CHECKPOINT 7 ──────────────────────────────────────────────────
+            logger.info("[%s] STATE_CHANGED_TO_LISTENING", session_id)
+        except Exception:
+            pass  # WebSocket may have closed
 
 
 async def _process_candidate_audio(websocket, sess, session_id):
@@ -548,8 +645,10 @@ async def _process_candidate_audio(websocket, sess, session_id):
 
 
 async def _handle_candidate_response(websocket, sess, session_id, text):
-    """Get AI response and speak it"""
+    """Get AI follow-up and speak it."""
     try:
+        logger.info(f"[{session_id}] CANDIDATE_RESPONSE_RECEIVED: {text[:100]}")
+
         # Send candidate transcript confirming reception
         await _send(websocket, {
             "type": "transcript",
@@ -561,6 +660,8 @@ async def _handle_candidate_response(websocket, sess, session_id, text):
 
         round_name = sess.get("current_round", "technical")
         agent = _get_agent(websocket.app, round_name)
+
+        logger.info(f"[{session_id}] NEXT_QUESTION_GENERATING for round={round_name}")
 
         if round_name == "technical":
             response_data = await agent.respond_to_answer(
@@ -581,13 +682,16 @@ async def _handle_candidate_response(websocket, sess, session_id, text):
             response_data = await agent.respond_to_answer(
                 sess["conversation_history"], text, session_id=session_id
             )
+
         ai_text = response_data.get("response", "")
         should_continue = response_data.get("should_continue", True)
 
         if not ai_text:
-            if is_testing:
-                sess["state"] = STATE_LISTENING
+            logger.warning(f"[{session_id}] AI returned empty response — staying in listening")
+            sess["state"] = STATE_LISTENING
             return
+
+        logger.info(f"[{session_id}] NEXT_QUESTION_GENERATED: {ai_text[:120]}...")
 
         sess["conversation_history"].append({"speaker": "interviewer", "text": ai_text})
         sess["current_question"] = ai_text
@@ -601,23 +705,28 @@ async def _handle_candidate_response(websocket, sess, session_id, text):
                 "state": STATE_AI_SPEAKING
             })
 
-        # Send transcript immediately
+        # Send ai_response IMMEDIATELY — never delay for TTS
         await _send(websocket, {
             "type": "ai_response",
             "text": ai_text,
             "speaker": "interviewer"
         })
+        logger.info(f"[{session_id}] QUESTION_SENT to frontend")
 
         if is_testing:
             pass
         elif not should_continue:
             await _send(websocket, {"type": "round_should_end"})
-            await _speak_final(websocket, sess, session_id, ai_text)
+            # Fire final TTS as background task
+            asyncio.create_task(_speak_final(websocket, sess, session_id, ai_text))
         else:
-            await _speak_and_then_listen(websocket, sess, session_id, ai_text)
+            # Fire TTS as background task — never block question display
+            asyncio.create_task(
+                _speak_and_then_listen(websocket, sess, session_id, ai_text)
+            )
 
     except Exception as e:
-        logger.error(f"Response error: {e}")
+        logger.error(f"[{session_id}] _handle_candidate_response error: {e}", exc_info=True)
         sess["state"] = STATE_LISTENING
         if not is_testing:
             await _send(websocket, {
@@ -625,6 +734,7 @@ async def _handle_candidate_response(websocket, sess, session_id, text):
                 "state": STATE_LISTENING,
                 "message": "Error — please continue"
             })
+        logger.info(f"[{session_id}] STATE_CHANGED_TO_LISTENING (after error)")
 
 
 async def _speak_final(websocket, sess, session_id, text):
