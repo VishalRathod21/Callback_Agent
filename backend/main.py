@@ -106,21 +106,150 @@ async def lifespan(app: FastAPI):
         if "postgresql" in settings.DATABASE_URL and not any(k in settings.DATABASE_URL for k in ("ssl=", "sslmode=")):
             logger.warning("SECURITY WARNING: DATABASE_URL for PostgreSQL does not explicitly configure SSL/TLS. Please ensure sslmode=require is appended to the connection string in production.")
 
-    # 1. Create DB tables
+    # 1. Create DB tables (creates any brand-new tables; does NOT add columns to existing ones)
     logger.info("Creating database tables if not exist...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        from sqlalchemy import text
+    logger.info("Base table structure verified.")
+
+    # 2. Idempotent column migrations — each ALTER runs in its own transaction so
+    #    a single failure never blocks the rest or crashes the application.
+    #
+    #    Rule: every column added AFTER the initial DB creation must appear here.
+    #    Use  ADD COLUMN IF NOT EXISTS  so re-runs are always safe.
+    #    Use JSONB (not JSON) for dict fields — better indexing & validation on PG.
+    from sqlalchemy import text
+
+    migrations: list[tuple[str, str]] = [
+        # ── users table ───────────────────────────────────────────────────────
+        (
+            "users.profile_image",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image VARCHAR(512);",
+        ),
+        (
+            "users.is_active",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;",
+        ),
+        (
+            "users.updated_at",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();",
+        ),
+        (
+            "users.last_login",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;",
+        ),
+        (
+            "users.reset_token",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);",
+        ),
+        (
+            "users.reset_token_expires_at",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ;",
+        ),
+        (
+            "users.verification_token",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);",
+        ),
+        (
+            "users.verification_token_expires_at",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_expires_at TIMESTAMPTZ;",
+        ),
+        # ── candidates table ──────────────────────────────────────────────────
+        (
+            "candidates.user_id",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;",
+        ),
+        (
+            "candidates.resume_path",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_path VARCHAR(512);",
+        ),
+        (
+            "candidates.target_role",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS target_role VARCHAR(255);",
+        ),
+        (
+            "candidates.ats_score",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS ats_score FLOAT;",
+        ),
+        (
+            "candidates.resume_structured",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_structured JSONB;",
+        ),
+        # ── interview_sessions table ──────────────────────────────────────────
+        (
+            "interview_sessions.round_scores",
+            "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS round_scores JSONB;",
+        ),
+        (
+            "interview_sessions.overall_score",
+            "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS overall_score FLOAT;",
+        ),
+        (
+            "interview_sessions.ended_at",
+            "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;",
+        ),
+        # ── round_transcripts table ───────────────────────────────────────────
+        (
+            "round_transcripts.ai_evaluation",
+            "ALTER TABLE round_transcripts ADD COLUMN IF NOT EXISTS ai_evaluation JSONB;",
+        ),
+        (
+            "round_transcripts.score",
+            "ALTER TABLE round_transcripts ADD COLUMN IF NOT EXISTS score FLOAT;",
+        ),
+        # ── refresh_tokens table ──────────────────────────────────────────────
+        #    (entire table is new; create_all handles it, but guard extra cols)
+        (
+            "refresh_tokens.device_name",
+            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS device_name VARCHAR(255);",
+        ),
+        (
+            "refresh_tokens.browser",
+            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS browser VARCHAR(255);",
+        ),
+        (
+            "refresh_tokens.ip_address",
+            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45);",
+        ),
+        (
+            "refresh_tokens.revoked",
+            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS revoked BOOLEAN NOT NULL DEFAULT FALSE;",
+        ),
+    ]
+
+    success_count = 0
+    skip_count = 0
+    fail_count = 0
+
+    for label, sql in migrations:
         try:
-            await conn.execute(text("ALTER TABLE candidates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;"))
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);"))
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMP;"))
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);"))
-            await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_expires_at TIMESTAMP;"))
-            logger.info("Database schema migrations verified.")
+            async with engine.begin() as conn:
+                logger.info("Running migration: %s", label)
+                await conn.execute(text(sql))
+            success_count += 1
         except Exception as exc:
-            logger.warning("Could not execute candidates/users table schema migration: %s", exc)
-    logger.info("Database tables verified.")
+            err_str = str(exc).lower()
+            # asyncpg / psycopg surface "already exists" errors even with IF NOT EXISTS
+            # on some PG versions — treat them as harmless skips.
+            if "already exists" in err_str or "duplicate column" in err_str:
+                logger.debug("Migration skipped (already applied): %s", label)
+                skip_count += 1
+            else:
+                logger.warning(
+                    "Migration WARNING — could not apply [%s]: %s. "
+                    "Application will continue; fix manually if needed.",
+                    label,
+                    exc,
+                )
+                fail_count += 1
+
+    logger.info(
+        "Schema migrations complete — applied: %d, skipped: %d, warnings: %d.",
+        success_count,
+        skip_count,
+        fail_count,
+    )
+    logger.info("Database initialisation finished.")
 
     # 2. Initialize app states
     app.state.orchestrator = InterviewOrchestrator()
