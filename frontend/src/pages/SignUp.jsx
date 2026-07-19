@@ -24,7 +24,7 @@ export default function SignUp() {
     setLoading(true);
     setError('');
     try {
-      await register(fullName, email, password);
+      await register(fullName, email, password, confirm);
       navigate('/upload');
     } catch (err) {
       setError(err.message || 'Could not create account. Please try again.');

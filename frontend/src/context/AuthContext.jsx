@@ -94,8 +94,8 @@ export function AuthProvider({ children }) {
     return res.data.user;
   }, [scheduleRefresh]);
 
-  const register = useCallback(async (fullName, email, password) => {
-    const res = await client.post('/auth/signup', { full_name: fullName, email, password });
+  const register = useCallback(async (fullName, email, password, passwordConfirm) => {
+    const res = await client.post('/auth/signup', { full_name: fullName, email, password, password_confirm: passwordConfirm });
     setAccessToken(res.data.access_token);
     setUser(res.data.user);
     scheduleRefresh();
@@ -114,8 +114,8 @@ export function AuthProvider({ children }) {
     return res.data;
   }, []);
 
-  const resetPassword = useCallback(async (token, newPassword) => {
-    const res = await client.post('/auth/reset-password', { token, new_password: newPassword });
+  const resetPassword = useCallback(async (token, newPassword, newPasswordConfirm) => {
+    const res = await client.post('/auth/reset-password', { token, new_password: newPassword, new_password_confirm: newPasswordConfirm });
     return res.data;
   }, []);
 

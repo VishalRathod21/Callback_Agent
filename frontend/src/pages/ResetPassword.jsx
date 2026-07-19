@@ -23,7 +23,7 @@ export default function ResetPassword() {
     setLoading(true);
     setError('');
     try {
-      await resetPassword(token, password);
+      await resetPassword(token, password, confirm);
       setDone(true);
     } catch (err) {
       setError(err.message || 'Invalid or expired token. Please request a new one.');
