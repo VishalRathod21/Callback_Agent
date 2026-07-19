@@ -60,7 +60,7 @@ class ReportAgent:
         candidate: Candidate,
         session: InterviewSession,
         transcripts: list[RoundTranscript]
-    ) -> str:
+    ) -> tuple[str, bool]:
         """Analyze interview performance via LLM and render a stylized PDF report.
 
         Args:
@@ -69,15 +69,19 @@ class ReportAgent:
             transcripts: List of RoundTranscript objects associated with the session.
 
         Returns:
-            The local file path to the generated PDF.
+            A tuple of (pdf_path, is_fallback)
         """
+        is_fallback = False
         # 1. Fetch AI narrative summary via LLM
         try:
             summary_data = await self._generate_narrative_summary(candidate, session, transcripts)
         except Exception as exc:
             logger.warning("Narrative generation failed in PDF generator, using fallback: %s", exc)
+            is_fallback = True
+            overall_score = session.overall_score or 0.0
+            round_details = ", ".join([f"{t.round_name.upper()} (Score: {t.score or 0:.1f}%)" for t in transcripts])
             summary_data = {
-                "executive_summary": "Rehearsal evaluation scorecard successfully compiled. Individual round breakdown and detailed dialogue history are attached below.",
+                "executive_summary": f"Evaluation scorecard compiled for {candidate.name} applying for the {candidate.target_role or 'Software Engineer'} role. Overall score achieved: {overall_score:.1f}%. Completed rounds: {round_details or 'None'}.",
                 "strengths": [
                     "Completed the technical rehearsal round requirements.",
                     "Completed the behavioural rehearsal round requirements.",
@@ -88,19 +92,24 @@ class ReportAgent:
                     "Focus on STAR communication methodology.",
                     "Refine code optimization patterns."
                 ],
-                "final_recommendation": "maybe"
+                "final_recommendation": "hire" if overall_score >= 75 else ("maybe" if overall_score >= 50 else "no_hire")
             }
 
         # 2. Setup output directories
         candidate_dir = os.path.join(settings.UPLOAD_DIR, str(candidate.id))
         os.makedirs(candidate_dir, exist_ok=True)
-        pdf_path = os.path.join(candidate_dir, "report.pdf")
+        
+        # If it is a fallback, save to report_fallback.pdf to avoid caching fallback permanently as report.pdf
+        if is_fallback:
+            pdf_path = os.path.join(candidate_dir, "report_fallback.pdf")
+        else:
+            pdf_path = os.path.join(candidate_dir, "report.pdf")
 
         # 3. Render PDF document
         await self._render_pdf(pdf_path, candidate, session, transcripts, summary_data)
 
-        logger.info("Successfully generated PDF report for candidate %s at %s", candidate.id, pdf_path)
-        return pdf_path
+        logger.info("Successfully generated PDF report for candidate %s at %s (fallback=%s)", candidate.id, pdf_path, is_fallback)
+        return pdf_path, is_fallback
 
     # ── Narrative Generation ───────────────────────────────────────────
 

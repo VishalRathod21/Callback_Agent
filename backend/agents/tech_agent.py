@@ -644,8 +644,30 @@ CANDIDATE RESUME CONTEXT (use this to ask relevant follow-ups):
                 f"{'Interviewer' if e.get('role', e.get('speaker'))=='interviewer' else 'Candidate'}: {e.get('content', e.get('text', ''))}"
                 for e in conversation_history[-8:]  # last 8 turns for context
             ])
-            
-            prompt = f"""You are a senior technical interviewer.
+
+            asked = [
+                turn.get("text", turn.get("content", ""))
+                for turn in conversation_history
+                if turn.get("speaker") == "interviewer" or turn.get("role") == "interviewer"
+            ]
+
+            if len(asked) >= 5:
+                # Force conclusion prompt
+                prompt = f"""You are a senior technical interviewer.
+The interview is now COMPLETE. Do NOT ask any more questions.
+Acknowledge the candidate's last response, thank them for their time in this round, and explain that we are now concluding the technical round to move to the next stage.
+Keep your response under 3 sentences.
+
+The candidate just said: "{candidate_response}"
+
+Return JSON only:
+{{
+  "response": "The final warm concluding message thanking the candidate and wrapping up the round.",
+  "should_continue": false,
+  "topic_covered": "conclusion"
+}}"""
+            else:
+                prompt = f"""You are a senior technical interviewer.
 {resume_context}
 
 CONVERSATION SO FAR:
@@ -680,15 +702,19 @@ Return JSON only:
                     text = text[4:].strip()
                 if text.endswith("```"):
                     text = text[:-3].strip()
-                return json.loads(text)
+                result = json.loads(text)
+                
+                # Strict Python override to force conclusion
+                if len(asked) >= 5:
+                    result["should_continue"] = False
+                else:
+                    # Enforce that it continues if limit not reached
+                    result["should_continue"] = result.get("should_continue", True)
+
+                return result
             except Exception as e:
                 logger.warning("Tech respond_to_answer LLM call failed, returning fallback: %s", e)
-                asked = [
-                    turn.get("text", turn.get("content", ""))
-                    for turn in conversation_history
-                    if turn.get("speaker") == "interviewer" or turn.get("role") == "interviewer"
-                ]
-                # Check if we should conclude the round (6 exchanges max)
+                # Check if we should conclude the round (5 questions max)
                 if len(asked) >= 5:
                     return {
                         "response": "Thank you for sharing that. That concludes the technical round of our interview. We will now prepare the evaluation for this stage.",

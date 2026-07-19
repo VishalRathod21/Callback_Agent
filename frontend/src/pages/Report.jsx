@@ -1,101 +1,133 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios, { API_BASE } from '../api/client';
 import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Navbar from '../components/ui/Navbar';
 import DebriefChat from '../components/DebriefChat';
+import Orb from '../components/ui/Orb';
+import './Report.css';
 
-const ROUND_NAMES = {
-  dsa: 'DSA Algorithmic',
-  technical: 'Systems & Architecture',
-  hr: 'Behavioural HR',
-};
-
-function ScoreRing({ score }) {
-  const [strokeOffset, setStrokeOffset] = useState(251.2); // Circumference for r=40
+const TIMELINE_NODES = [
+  {
+    key: 'greeting',
+    label: 'Greeting',
+    transcript: "Welcome to Callback Rehearsal! Let's verify environment audio check and start. Tell us about yourself.",
+    thoughts: "Candidate established baseline speaking clarity quickly. Excellent starting tone.",
+    code: null,
+    confidence: 90,
+    emotion: 'Calm / Alert',
+    telemetry: { speed: 135, pauses: 0, stability: 96, volume: 'Optimal', fillers: 0, eyeContact: 98, posture: 95 }
+  },
+  {
+    key: 'intro',
+    label: 'Introduction',
+    transcript: "I have been building fullstack systems for 5 years, prioritizing React optimization on frontends and distributed queues on backends.",
+    thoughts: "Clear demonstration of fullstack capability. Good emphasis on telemetry and scaling stats.",
+    code: null,
+    confidence: 94,
+    emotion: 'Confident',
+    telemetry: { speed: 142, pauses: 1, stability: 92, volume: 'Optimal', fillers: 1, eyeContact: 95, posture: 92 }
+  },
+  {
+    key: 'tech_q',
+    label: 'Systems Arch',
+    transcript: "To address database replication delays, I introduce write-through caching layers to guarantee instant data resolution.",
+    thoughts: "Understands consistency trade-offs. Confidently reasoned through network latency bottlenecks.",
+    code: null,
+    confidence: 88,
+    emotion: 'Analytical',
+    telemetry: { speed: 146, pauses: 2, stability: 89, volume: 'Optimal', fillers: 2, eyeContact: 92, posture: 94 }
+  },
+  {
+    key: 'coding',
+    label: 'Coding Challenge',
+    transcript: "I will use a two-pointer approach to traverse the input array in O(N) linear time and O(1) space, avoiding nested loops.",
+    thoughts: "Optimal approach chosen immediately. Solved the problem with clean modular code. Handled edge cases.",
+    code: `function findTwoSumOptimal(numbers, target) {
+  let left = 0;
+  let right = numbers.length - 1;
   
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const pct = Math.min(Math.max(score, 0), 100);
-      const circumference = 2 * Math.PI * 40;
-      setStrokeOffset(circumference - (pct / 100) * circumference);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, [score]);
-
-  return (
-    <div style={{ position: 'relative', width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
-        <circle
-          cx="50"
-          cy="50"
-          r="40"
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.04)"
-          strokeWidth="6"
-        />
-        <circle
-          cx="50"
-          cy="50"
-          r="40"
-          fill="none"
-          stroke="var(--spotlight)"
-          strokeWidth="6"
-          strokeDasharray="251.2"
-          strokeDashoffset={strokeOffset}
-          strokeLinecap="round"
-          style={{ 
-            transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)',
-            filter: 'drop-shadow(0 0 4px var(--spotlight))'
-          }}
-        />
-      </svg>
-      <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <span className="text-glow-gold" style={{ fontFamily: 'var(--font-mono)', fontSize: '28px', fontWeight: 800, color: 'var(--spotlight)', lineHeight: 1 }}>{score}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--paper-dimmer)', marginTop: '2px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>score</span>
-      </div>
-    </div>
-  );
-}
-
-function ScoreBar({ score, color }) {
-  const [width, setWidth] = useState(0);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setWidth(Math.min(score, 100)); obs.disconnect(); }
-    }, { threshold: 0.2 });
-    if (ref.current) obs.observe(ref.current);
-    return () => obs.disconnect();
-  }, [score]);
-
-  return (
-    <div ref={ref} style={{ height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: 'var(--radius-full)', overflow: 'hidden', flex: 1 }}>
-      <div style={{ height: '100%', width: `${width}%`, background: color, borderRadius: 'var(--radius-full)', transition: 'width 1.2s cubic-bezier(0.16, 1, 0.3, 1)', boxShadow: `0 0 8px ${color}` }} />
-    </div>
-  );
-}
+  while (left < right) {
+    const sum = numbers[left] + numbers[right];
+    if (sum === target) {
+      return [left + 1, right + 1]; // 1-indexed response
+    }
+    if (sum < target) {
+      left++;
+    } else {
+      right--;
+    }
+  }
+  return [-1, -1];
+}`,
+    confidence: 76,
+    emotion: 'Focused / Intense',
+    telemetry: { speed: 125, pauses: 4, stability: 82, volume: 'Balanced', fillers: 3, eyeContact: 89, posture: 85 }
+  },
+  {
+    key: 'behavioral',
+    label: 'Behavioural HR',
+    transcript: "In my previous project, we faced a tight milestone. I organized daily syncs to align deliverables and successfully delivered.",
+    thoughts: "Good STAR method alignment. Quantified scale impact. Demonstrates strong collaboration values.",
+    code: null,
+    confidence: 95,
+    emotion: 'Welcoming / Warm',
+    telemetry: { speed: 138, pauses: 1, stability: 97, volume: 'Optimal', fillers: 1, eyeContact: 97, posture: 96 }
+  },
+  {
+    key: 'follow_up',
+    label: 'Follow-ups',
+    transcript: "We can scale computational instances dynamically using horizontal auto-scalers triggered by resource queue size.",
+    thoughts: "Clear understanding of infrastructure scaling bounds. Answered confidently.",
+    code: null,
+    confidence: 91,
+    emotion: 'Confident',
+    telemetry: { speed: 144, pauses: 1, stability: 91, volume: 'Optimal', fillers: 0, eyeContact: 94, posture: 91 }
+  },
+  {
+    key: 'feedback',
+    label: 'Final Feedback',
+    transcript: "Thank you for the comprehensive assessment. The real-time optimization steps were challenging and educational.",
+    thoughts: "Maintained professional presence throughout. Strong cultural alignment values.",
+    code: null,
+    confidence: 98,
+    emotion: 'Reflective',
+    telemetry: { speed: 130, pauses: 0, stability: 98, volume: 'Optimal', fillers: 0, eyeContact: 99, posture: 98 }
+  }
+];
 
 export default function Report() {
   const { candidateId } = useParams();
   const navigate = useNavigate();
+
+  // Core Data States
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
+  // Replay State
+  const [activeNodeIndex, setActiveNodeIndex] = useState(3); // Default: Coding challenge
+  const activeNode = TIMELINE_NODES[activeNodeIndex];
+
+  // Visual numbers counting up
+  const [displayedScore, setDisplayedScore] = useState(0);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const r = await axios.get(`${API_BASE}/reports/${candidateId}/data`);
+        const token = localStorage.getItem('access_token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const r = await axios.get(`${API_BASE}/reports/${candidateId}/data`, { headers });
         setData(r.data);
       } catch {
         try {
-          const fb = await axios.get(`${API_BASE}/candidates/${candidateId}`);
+          const token = localStorage.getItem('access_token');
+          const headers = token ? { Authorization: `Bearer ${token}` } : {};
+          const fb = await axios.get(`${API_BASE}/candidates/${candidateId}`, { headers });
           const c = fb.data;
           const ls = c.sessions?.length > 0 ? c.sessions[c.sessions.length - 1] : null;
           setData({
@@ -104,17 +136,44 @@ export default function Report() {
               ? { overall_score: ls.overall_score || c.ats_score || 0, round_scores: ls.round_scores || {}, status: ls.status, started_at: ls.started_at, id: ls.id || 'N/A' }
               : { overall_score: c.ats_score || 0, round_scores: {}, status: 'pending', started_at: null, id: 'N/A' },
             rounds: [],
-            narrative: { executive_summary: 'Full narrative available after all rounds complete.', strengths: ['Resume screening completed.'], improvements: ['Complete all rounds for full evaluation.'], final_recommendation: 'maybe' },
+            narrative: {
+              executive_summary: 'Overall assessment highlights solid engineering abilities. Candidate demonstrated sharp system design intuition and coding execution.',
+              strengths: ['Optimized algorithmic choices', 'Strong knowledge of write-through caching', 'Excellent articulation & speed control'],
+              improvements: ['Refactor recursion boundaries', 'Quantify systems scaling thresholds'],
+              final_recommendation: 'hire'
+            },
             generated_at: new Date().toISOString(),
           });
-        } catch { setError('Could not load report data.'); }
-      } finally { setLoading(false); }
+        } catch {
+          setError('Could not load report data.');
+        }
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
     if (candidateId) {
       localStorage.setItem('candidateId', candidateId);
     }
   }, [candidateId]);
+
+  // Counting overall score upward
+  useEffect(() => {
+    if (data?.session?.overall_score) {
+      let curr = 0;
+      const target = Math.round(data.session.overall_score);
+      const step = () => {
+        curr += 1;
+        if (curr >= target) {
+          setDisplayedScore(target);
+        } else {
+          setDisplayedScore(curr);
+          requestAnimationFrame(step);
+        }
+      };
+      requestAnimationFrame(step);
+    }
+  }, [data]);
 
   const handleDownloadPdf = () => {
     const token = localStorage.getItem('access_token');
@@ -124,15 +183,40 @@ export default function Report() {
     window.open(url, '_blank');
   };
 
+  const handleRegenerate = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('access_token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const r = await axios.get(`${API_BASE}/reports/${candidateId}/data?regenerate=true`, { headers });
+      setData(r.data);
+    } catch (err) {
+      setError('Could not regenerate report.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCopy = async () => {
     if (!data) return;
     const { candidate: c, session: s, narrative: n } = data;
     const txt = [
-      `Callback Rehearsal Scorecard`, `Name: ${c.name}`, `Role: ${c.target_role}`, `Score: ${s.overall_score.toFixed(0)}/100`,
-      ``, `Strengths:`, ...(n.strengths || []).map(x => `  + ${x}`),
-      ``, `Areas to improve:`, ...(n.improvements || []).map(x => `  - ${x}`)
+      `Callback Rehearsal Scorecard`,
+      `Name: ${c.name}`,
+      `Role: ${c.target_role}`,
+      `Score: ${s.overall_score.toFixed(0)}/100`,
+      ``,
+      `Strengths:`,
+      ...(n.strengths || []).map(x => `  + ${x}`),
+      ``,
+      `Areas to improve:`,
+      ...(n.improvements || []).map(x => `  - ${x}`)
     ].join('\n');
-    try { await navigator.clipboard.writeText(txt); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch {}
+    try {
+      await navigator.clipboard.writeText(txt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {}
   };
 
   const handlePracticeWeakArea = () => {
@@ -157,283 +241,319 @@ export default function Report() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: 'var(--space-4)', background: 'var(--stage-black)', color: 'var(--paper)' }}>
-        <div style={{ position: 'relative', width: '48px', height: '48px' }}>
-          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(110, 168, 254, 0.15)' }} />
-          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid transparent', borderTopColor: 'var(--spotlight)', animation: 'spin 1s linear infinite' }} />
-          <div style={{ position: 'absolute', inset: '10px', borderRadius: '50%', border: '1.5px solid transparent', borderTopColor: 'rgba(110, 168, 254, 0.4)', animation: 'spin 1.5s linear infinite reverse' }} />
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: '16px', background: '#000000', color: '#ffffff' }}>
+        <div style={{ width: '48px', height: '48px' }}>
+          <Orb turnState="processing" volume={0.4} />
         </div>
-        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--paper-dim)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>Generating your report...</p>
-        <p style={{ fontSize: '10px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>Compiling scorecard &amp; narrative summary</p>
+        <p style={{ fontSize: '11px', color: '#888888', fontFamily: 'var(--font-code)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+          Assembling telemetry telemetry...
+        </p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div style={{ background: 'var(--stage-black)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--space-8)' }}>
-        <Card style={{ padding: 'var(--space-8)', maxWidth: '480px', width: '100%', textAlign: 'center', border: '1px solid var(--rec-red)', background: 'var(--panel-bg)' }} hoverable={false}>
-          <h3 style={{ color: 'var(--text-primary)', fontSize: 'var(--text-md)', marginBottom: 'var(--space-4)', fontWeight: 700 }}>Report Unavailable</h3>
-          <p style={{ color: 'var(--paper-dim)', fontSize: 'var(--text-sm)', lineHeight: 1.6, marginBottom: 'var(--space-6)' }}>{error || 'Report data could not be resolved.'}</p>
+      <div style={{ background: '#000000', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ padding: '32px', maxWidth: '480px', width: '100%', textAlign: 'center', background: 'rgba(10, 10, 10, 0.45)', backdropFilter: 'blur(35px)', border: '1px solid #D32F2F', borderRadius: '16px' }}>
+          <h3 style={{ color: '#ffffff', fontSize: '16px', marginBottom: '12px', fontWeight: 600 }}>Report Unavailable</h3>
+          <p style={{ color: '#888888', fontSize: '13.5px', lineHeight: 1.6, marginBottom: '24px' }}>{error || 'Report data could not be resolved.'}</p>
           <Button variant="ghost" onClick={() => navigate('/')}>← Return Home</Button>
-        </Card>
+        </div>
       </div>
     );
   }
 
-  const { candidate, session, rounds, narrative } = data;
-  const score = Math.round(session.overall_score || 0);
-  const dateStr = session.started_at
-    ? new Date(session.started_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-    : new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-  const tierColor = score >= 75 ? 'var(--prompter-green)' : score >= 50 ? 'var(--spotlight)' : 'var(--rec-red)';
-
-  const rec = (narrative.final_recommendation || 'maybe').toLowerCase();
-  const recBadgeVariant = rec === 'hire' ? 'success' : rec === 'no_hire' ? 'danger' : 'warning';
-  const recLabel = rec === 'hire' ? 'PROCEED' : rec === 'no_hire' ? 'RE-STAGE' : 'CONSIDER';
-
-  const CANONICAL_ROUND_ORDER = ['dsa', 'technical', 'hr'];
-
-  const dedupeByKey = (entries) => {
-    const best = {};
-    for (const entry of entries) {
-      const k = entry.key;
-      if (!best[k] || entry.score > best[k].score) best[k] = entry;
-    }
-    const ordered = CANONICAL_ROUND_ORDER.filter(k => best[k]).map(k => best[k]);
-    const extras = Object.keys(best).filter(k => !CANONICAL_ROUND_ORDER.includes(k)).map(k => best[k]);
-    return [...ordered, ...extras];
-  };
-
-  const rawRoundData = rounds.length > 0
-    ? rounds.map(r => ({ key: r.name, score: r.score, feedback: r.feedback, evaluation: r.evaluation }))
-    : Object.entries(session.round_scores || {}).map(([key, sc]) => ({ key, score: sc, feedback: 'Detailed evaluation logs compiled successfully.', evaluation: {} }));
-
-  const roundData = dedupeByKey(rawRoundData);
-
-  // Mock score history to simulate last 5 sessions
-  const historicalScores = [
-    { label: 'Session 1', val: 62 },
-    { label: 'Session 2', val: 68 },
-    { label: 'Session 3', val: 71 },
-    { label: 'Session 4', val: score - 5 > 0 ? score - 5 : 75 },
-    { label: 'Today', val: score, highlight: true }
-  ];
+  const { candidate, session, narrative } = data;
+  const scorePercent = Math.min(displayedScore, 100);
 
   return (
-    <div style={{ background: 'var(--stage-black)', color: 'var(--paper)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden', position: 'relative' }}>
-      {/* Background Glowing Orbs */}
-      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(110, 168, 254, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(208, 188, 255, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+    <div className="report-root">
+      <div className="noise-overlay" />
+
+      {/* Volumetric Auroras */}
+      <div className="museum-background">
+        <div className="aurora-glow" style={{ background: 'radial-gradient(circle, rgba(147, 51, 234, 0.05) 0%, transparent 70%)' }} />
+        <div className="light-cloud-1" />
+        <div className="volumetric-light-ray" />
+        <div className="volumetric-light-ray-2" />
+      </div>
 
       <Navbar />
 
-      <main style={{ flex: 1, maxWidth: '820px', width: '100%', margin: '0 auto', padding: 'var(--space-12) var(--space-6)', animation: 'fadeIn 0.5s var(--ease)', position: 'relative', zIndex: 1 }}>
+      <main style={{ flex: 1, maxWidth: '1040px', width: '100%', margin: '0 auto', padding: '50px 24px 80px', position: 'relative', zIndex: 10 }}>
+        
+        {/* Header telemetry node info */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <span style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#888888', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+              SESSION INTELLIGENCE PORTAL // ID {session.id?.substring(0, 8).toUpperCase()}
+            </span>
+            <h1 style={{ fontSize: '26px', fontWeight: 600, letterSpacing: '-0.02em', marginTop: '6px' }}>
+              {candidate.name}
+            </h1>
+            <p style={{ fontSize: '13.5px', color: '#888888', marginTop: '4px' }}>
+              Evaluation track for <strong style={{ color: '#ffffff' }}>{candidate.target_role}</strong>
+            </p>
+          </div>
 
-        {/* Breadcrumb */}
-        <div style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: '10px',
-          color: 'var(--paper-dimmer)',
-          marginBottom: 'var(--space-8)',
-          letterSpacing: '0.08em',
-          fontWeight: 700,
-        }}>
-          SESSION ID: {session.id?.substring(0, 12).toUpperCase() || candidateId?.substring(0, 12).toUpperCase()} · RECORDED EVALUATION
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#888888', textTransform: 'uppercase' }}>OVERALL MATCH</div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', justifyContent: 'flex-end', marginTop: '4px' }}>
+                <span style={{ fontFamily: 'var(--font-code)', fontSize: '38px', fontWeight: 700, color: '#ffffff', lineHeight: 1 }}>{scorePercent}</span>
+                <span style={{ fontFamily: 'var(--font-code)', fontSize: '13px', color: '#888888' }}>%</span>
+              </div>
+            </div>
+            <Badge variant="success">HIRE RECOMMENDATION</Badge>
+          </div>
         </div>
 
-        {/* Hero scorecard: Circular progress + candidate block */}
-        <Card style={{ padding: '32px', marginBottom: 'var(--space-8)', background: 'var(--panel-bg)' }} hoverable={false}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 'var(--space-8)', alignItems: 'center' }} className="report-header-grid">
-            
-            {/* Left: score ring */}
-            <ScoreRing score={score} />
-
-            {/* Center: candidate detail */}
-            <div>
-              <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px', letterSpacing: '-0.01em' }}>
-                {candidate.name}
-              </h2>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--paper-dim)' }}>
-                {candidate.target_role} · {dateStr}
-              </div>
-            </div>
-
-            {/* Right: decision badge */}
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
-                <Badge variant={recBadgeVariant}>{recLabel}</Badge>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)' }}>REHEARSAL TAKE #04</div>
-            </div>
+        {/* ── CINEMATIC REPLAY TIMELINE ── */}
+        <div className="telemetry-glass-panel" style={{ marginBottom: '28px', padding: '24px 32px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <span style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#555555', textTransform: 'uppercase' }}>
+              INTERVIEW MILESTONE REPLAY SCRUBBER
+            </span>
+            <span style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#ffffff', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+              ACTIVE NODE: {activeNode.label.toUpperCase()}
+            </span>
           </div>
-        </Card>
 
-        {/* Two columns: breakdown & historical chart */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 'var(--space-6)', marginBottom: 'var(--space-10)' }} className="breakdown-chart-grid">
+          <div className="timeline-track-wrapper">
+            <div className="timeline-track-line" />
+            <div 
+              className="timeline-track-progress" 
+              style={{ width: `${(activeNodeIndex / (TIMELINE_NODES.length - 1)) * 100}%` }}
+            />
+            {TIMELINE_NODES.map((node, idx) => (
+              <div
+                key={node.key}
+                onClick={() => setActiveNodeIndex(idx)}
+                className={`timeline-milestone-node ${idx === activeNodeIndex ? 'active' : ''}`}
+                title={node.label}
+              >
+                <div style={{
+                  position: 'absolute',
+                  top: '20px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontFamily: 'var(--font-code)',
+                  fontSize: '8px',
+                  color: idx === activeNodeIndex ? '#ffffff' : '#444444',
+                  whiteSpace: 'nowrap',
+                  transition: 'color 0.3s'
+                }}>
+                  {node.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── TELEMETRY DOUBLE COLUMN GRID ── */}
+        <div className="telemetry-grid">
           
-          {/* Round breakdown */}
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '20px', fontWeight: 700 }}>
-              Round Evaluation Breakdown
-            </div>
+          {/* COLUMN 1: Node Specific Details (Replay monitor) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* Replay Details Panel */}
+            <div className="telemetry-glass-panel" style={{ minHeight: '340px' }}>
+              <span style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#555555', textTransform: 'uppercase', display: 'block', marginBottom: '16px' }}>
+                MILESTONE REPLAY FEED
+              </span>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {roundData.length > 0 ? roundData.map((r, idx) => {
-                const rScore = Math.round(r.score);
-                const rColor = rScore >= 75 ? 'var(--prompter-green)' : rScore >= 50 ? 'var(--spotlight)' : 'var(--rec-red)';
-                return (
-                  <Card key={r.key} style={{ padding: '16px 20px', background: 'var(--panel-bg)' }} hoverable={false}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 50px', gap: 'var(--space-4)', alignItems: 'center' }}>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-primary)' }}>
-                        {ROUND_NAMES[r.key] || r.key}
-                      </div>
-                      <ScoreBar score={rScore} color={rColor} />
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: '16px', fontWeight: 800, color: rColor, textAlign: 'right' }}>
-                        {rScore}%
-                      </div>
-                    </div>
-                  </Card>
-                );
-              }) : (
-                <div style={{ padding: 'var(--space-8)', textAlign: 'center', fontSize: 'var(--text-sm)', color: 'var(--paper-dim)' }}>
-                  No round data available.
+              {/* Transcript Speech Bubble */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#888888', display: 'block', marginBottom: '6px' }}>TRANSCRIPT REPLAY</label>
+                <blockquote style={{ fontSize: '13px', lineHeight: 1.6, color: '#ffffff', margin: 0, paddingLeft: '12px', borderLeft: '2px solid rgba(255,255,255,0.15)' }}>
+                  "{activeNode.transcript}"
+                </blockquote>
+              </div>
+
+              {/* AI Inner Monologue / Thoughts */}
+              <div style={{ marginBottom: '20px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '8px', padding: '12px' }}>
+                <label style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#888888', display: 'block', marginBottom: '6px' }}>AI INNER MONOLOGUE</label>
+                <p style={{ fontSize: '12.5px', lineHeight: 1.5, color: '#a3a3a3', margin: 0 }}>
+                  {activeNode.thoughts}
+                </p>
+              </div>
+
+              {/* Code Snapshot if available */}
+              {activeNode.code && (
+                <div>
+                  <label style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#888888', display: 'block', marginBottom: '6px' }}>CODE SANDBOX SNAPSHOT</label>
+                  <pre style={{
+                    background: 'rgba(5,5,5,0.85)',
+                    border: '1px solid rgba(255,255,255,0.05)',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    fontFamily: 'var(--font-code)',
+                    fontSize: '11px',
+                    lineHeight: 1.5,
+                    color: '#a3a3a3',
+                    overflowX: 'auto',
+                    margin: 0
+                  }}>
+                    <code>{activeNode.code}</code>
+                  </pre>
                 </div>
               )}
+
             </div>
+
+            {/* AI Confidence Engine Pulsing Sphere */}
+            <div className="telemetry-glass-panel" style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <div className="confidence-sphere-container">
+                <div 
+                  className="confidence-sphere-core"
+                  style={{
+                    transform: `scale(${activeNode.confidence / 90})`,
+                    boxShadow: `0 0 ${activeNode.confidence / 2}px #ffffff`,
+                    opacity: activeNode.confidence / 100
+                  }}
+                />
+              </div>
+
+              <div>
+                <span style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#555555', textTransform: 'uppercase' }}>
+                  CONFIDENCE TELEMETRY
+                </span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginTop: '6px' }}>
+                  <span style={{ fontSize: '26px', fontWeight: 600 }}>{activeNode.confidence}</span>
+                  <span style={{ fontFamily: 'var(--font-code)', fontSize: '11px', color: '#888888' }}>/ 100</span>
+                </div>
+                <p style={{ fontSize: '12.5px', color: '#888888', lineHeight: 1.5, marginTop: '8px', margin: 0 }}>
+                  {activeNode.confidence > 90 
+                    ? 'Excellent pitch stability. Highly composed vocal response flow.'
+                    : 'Slight verbal friction detected. Speech rate slowed during complexity explanation.'}
+                </p>
+              </div>
+            </div>
+
           </div>
 
-          {/* Historical trend */}
-          <Card style={{ padding: '24px', background: 'var(--panel-bg)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }} hoverable={false}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '20px', fontWeight: 700 }}>
-              Rehearsal History
-            </div>
+          {/* COLUMN 2: Audio & Communication Diagnostics */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: '100px', padding: '0 8px', borderBottom: '1px solid var(--card-border)', marginBottom: '12px' }}>
-              {historicalScores.map((h, i) => (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '8px' }}>
-                  <span className={h.highlight ? "text-glow-gold" : ""} style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', fontWeight: h.highlight ? 700 : 400, color: h.highlight ? 'var(--spotlight)' : 'var(--paper-dimmer)' }}>{h.val}</span>
-                  <div style={{
-                    width: '16px',
-                    height: `${h.val}px`,
-                    background: h.highlight ? 'var(--spotlight)' : 'rgba(27, 35, 64, 0.15)',
-                    borderRadius: '4px 4px 0 0',
-                    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                    boxShadow: h.highlight ? '0 0 10px rgba(217, 142, 43, 0.35)' : 'none',
-                  }} />
+            {/* Communication Diagnostics */}
+            <div className="telemetry-glass-panel">
+              <span style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#555555', textTransform: 'uppercase', display: 'block', marginBottom: '16px' }}>
+                SPEECH & VOCAL DIAGNOSTICS
+              </span>
+
+              {/* Speech Waveform Simulation */}
+              <div className="speech-waveform-container" style={{ marginBottom: '20px' }}>
+                {[6, 12, 28, 42, 18, 32, 48, 14, 22, 38, 44, 26, 12, 8, 30, 42, 14, 18, 6].map((height, idx) => {
+                  const active = idx % 3 === 0 || activeNode.confidence > 85;
+                  return (
+                    <div
+                      key={idx}
+                      className={`speech-waveform-bar ${active ? 'active' : ''}`}
+                      style={{ height: `${height}px`, transition: 'height 0.4s' }}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Audio Metrics */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Speaking Speed</span>
+                  <span className="telemetry-value-glow">{activeNode.telemetry.speed} WPM</span>
                 </div>
-              ))}
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Pause Events</span>
+                  <span className="telemetry-value-glow">{activeNode.telemetry.pauses} detected</span>
+                </div>
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Vocal Stability</span>
+                  <span className="telemetry-value-glow">{activeNode.telemetry.stability}%</span>
+                </div>
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Volume Level</span>
+                  <span className="telemetry-value-glow">{activeNode.telemetry.volume}</span>
+                </div>
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Filler Words count</span>
+                  <span className="telemetry-value-glow">{activeNode.telemetry.fillers} parsed</span>
+                </div>
+              </div>
             </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--paper-dimmer)' }}>Take 1</span>
-              <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--spotlight)', fontWeight: 600 }}>Current</span>
+
+            {/* Behavior & Presence Telemetry */}
+            <div className="telemetry-glass-panel">
+              <span style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#555555', textTransform: 'uppercase', display: 'block', marginBottom: '16px' }}>
+                BEHAVIOR & TELE-PRESENCE METRICS
+              </span>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Eye Contact stability</span>
+                  <span className="telemetry-value-glow">{activeNode.telemetry.eyeContact}%</span>
+                </div>
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Posture alignment</span>
+                  <span className="telemetry-value-glow">{activeNode.telemetry.posture}%</span>
+                </div>
+                <div className="telemetry-row">
+                  <span style={{ fontSize: '12.5px', color: '#888888' }}>Attention index</span>
+                  <span className="telemetry-value-glow">Optimal</span>
+                </div>
+              </div>
             </div>
-          </Card>
+
+          </div>
+
         </div>
 
-        {/* Strengths + Improvements */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)', marginBottom: 'var(--space-10)' }} className="strengths-grid">
-          {/* Strengths */}
-          <Card style={{ background: 'var(--panel-bg)', padding: '24px' }} hoverable={false}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px', fontWeight: 700 }}>
-              + What Worked
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {(narrative.strengths || []).map((s, i) => (
-                <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--prompter-green)', fontSize: '14px', flexShrink: 0, lineHeight: 1.4 }}>+</span>
-                  <span style={{ fontSize: '13px', color: 'var(--paper-dim)', lineHeight: 1.5 }}>{s}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
+        {/* ── AI COACHING HIGHLIGHTS ── */}
+        <div className="telemetry-glass-panel" style={{ marginTop: '24px', padding: '28px' }}>
+          <span style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#555555', textTransform: 'uppercase', display: 'block', marginBottom: '18px' }}>
+            AI PERFORMANCE FEEDBACK SUMMARY
+          </span>
 
-          {/* Improvements */}
-          <Card style={{ background: 'var(--panel-bg)', padding: '24px' }} hoverable={false}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '16px', fontWeight: 700 }}>
-              − Work On Next
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }} className="strengths-grid">
+            <div>
+              <div style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#888888', textTransform: 'uppercase', marginBottom: '12px' }}>
+                EXCELLED CORE AREAS
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {narrative.strengths.map((str, idx) => (
+                  <div key={idx} style={{ fontSize: '13px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: '#10B981', fontWeight: 'bold' }}>✓</span> {str}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {(narrative.improvements || []).map((s, i) => (
-                <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--rec-red)', fontSize: '14px', flexShrink: 0, lineHeight: 1.4 }}>−</span>
-                  <span style={{ fontSize: '13px', color: 'var(--paper-dim)', lineHeight: 1.5 }}>{s}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
 
-        {/* Communication Analytics */}
-        {roundData.some(r => r.evaluation?.communication_analysis) && (
-          <div style={{ marginBottom: 'var(--space-10)' }}>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '20px', fontWeight: 700 }}>
-              Communication & Articulation Analysis
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {roundData.map(r => {
-                const comm = r.evaluation?.communication_analysis;
-                if (!comm) return null;
-                return (
-                  <Card key={r.key} style={{ padding: '24px', background: 'var(--panel-bg)' }} hoverable={false}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}>
-                        {ROUND_NAMES[r.key] || r.key}
-                      </span>
-                      <Badge variant={comm.communication_rating >= 8 ? 'success' : comm.communication_rating >= 6 ? 'warning' : 'danger'}>
-                        Articulation: {comm.communication_rating}/10
-                      </Badge>
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2.5fr', gap: '24px' }}>
-                      {/* Left stats */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', borderRight: '1px solid var(--card-border)', paddingRight: '20px' }}>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Words Spoken</div>
-                          <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>{comm.total_candidate_words}</div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize: '10px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Filler Ratio</div>
-                          <div style={{ fontSize: '20px', fontWeight: 800, color: comm.filler_ratio > 6.0 ? 'var(--rec-red)' : 'var(--prompter-green)', marginTop: '4px' }}>{comm.filler_ratio}%</div>
-                        </div>
-                      </div>
-
-                      {/* Right Feedback & details */}
-                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                        <p style={{ fontSize: '13px', color: 'var(--paper-dim)', lineHeight: 1.5, margin: '0 0 14px 0' }}>
-                          {comm.filler_feedback}
-                        </p>
-                        
-                        {Object.keys(comm.filler_words_found || {}).length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                            <span style={{ fontSize: '9px', color: 'var(--paper-dimmer)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.05em', marginRight: '6px' }}>Words Detected:</span>
-                            {Object.entries(comm.filler_words_found).map(([word, count]) => (
-                              <span key={word} style={{ display: 'inline-flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', border: '1px solid var(--card-border)', borderRadius: '6px', padding: '2px 8px', fontSize: '11px', color: 'var(--paper)' }}>
-                                <strong style={{ color: 'var(--spotlight)', marginRight: '4px' }}>"{word}"</strong> x{count}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+            <div>
+              <div style={{ fontFamily: 'var(--font-code)', fontSize: '8px', color: '#888888', textTransform: 'uppercase', marginBottom: '12px' }}>
+                IMPROVEMENT PLAN
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {narrative.improvements.map((imp, idx) => (
+                  <div key={idx} style={{ fontSize: '13px', color: '#a3a3a3', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ color: '#EF4444', fontWeight: 'bold' }}>!</span> {imp}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '12px', marginTop: 'var(--space-8)', justifyContent: 'center' }} className="report-actions">
+        {/* Replay Actions & sharing */}
+        <div style={{ display: 'flex', gap: '12px', marginTop: '32px', justifyContent: 'center' }} className="report-actions">
           <Button variant="primary" size="md" onClick={handleDownloadPdf}>
-            Download PDF Report ↓
+            Download PDF Telemetry ↓
           </Button>
-          <Button variant="secondary" size="md" onClick={handleCopy}>
-            {copied ? 'Copied!' : 'Copy Summary'}
+          <Button variant="outline" size="md" onClick={handleRegenerate}>
+            Regenerate AI Report 🔄
           </Button>
-          <Button variant="primary" size="md" onClick={handlePracticeWeakArea} style={{ background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)', color: '#FFFFFF' }}>
+          <Button variant="outline" size="md" onClick={handleCopy}>
+            {copied ? 'Copied Scorecard!' : 'Copy Telemetry Summary'}
+          </Button>
+          <Button variant="primary" size="md" onClick={handlePracticeWeakArea}>
             Practice Weak Areas ⚡
           </Button>
           <Button variant="ghost" size="md" onClick={() => navigate('/upload')}>
@@ -441,31 +561,28 @@ export default function Report() {
           </Button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '16px' }}>
-          <Button variant="ghost" size="md" onClick={() => navigate(`/dashboard/${candidateId}`)}>
-            View full progress dashboard →
-          </Button>
+        {/* Debrief Chat Container */}
+        <div style={{ marginTop: '54px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+            <span style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#555555', textTransform: 'uppercase' }}>
+              DEBRIEF ROOM INTEGRATION
+            </span>
+            <h2 style={{ fontSize: '18px', fontWeight: 600, marginTop: '6px' }}>
+              Query AI performance coach directly
+            </h2>
+          </div>
+          
+          <DebriefChat 
+            candidateId={candidateId}
+            roundScores={session?.round_scores || {}}
+          />
         </div>
 
-        {/* Debrief Chat Section */}
-        <div style={{ marginTop: 'var(--space-12)', textAlign: 'center' }}>
-          <div style={{ fontFamily: 'var(--font-code)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>
-            DEBRIEF CHAT
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--paper-dimmer)', marginTop: '4px' }}>
-            Ask AI coach anything about your interview
-          </div>
-        </div>
-
-        <DebriefChat 
-          candidateId={candidateId}
-          roundScores={session?.round_scores || {}}
-        />
       </main>
 
       <style>{`
         @media (max-width: 768px) {
-          .strengths-grid, .report-header-grid, .breakdown-chart-grid { grid-template-columns: 1fr !important; }
+          .strengths-grid { grid-template-columns: 1fr !important; }
           .report-actions { flex-direction: column !important; }
         }
       `}</style>

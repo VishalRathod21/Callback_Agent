@@ -39,75 +39,78 @@ export default function Button({
     cursor: disabled || loading ? 'not-allowed' : 'pointer',
     opacity: disabled ? 0.55 : 1,
     pointerEvents: disabled || loading ? 'none' : 'auto',
-    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+    transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
     textDecoration: 'none',
     whiteSpace: 'nowrap',
     outline: 'none',
     boxSizing: 'border-box',
     border: 'none',
-    borderRadius: '8px',
-    transform: active ? 'scale(0.98)' : 'none',
+    transform: active ? 'scale(0.96)' : hovered ? 'scale(1.02)' : 'scale(1)',
     ...(fullWidth ? { width: '100%' } : {}),
   };
 
   const sizes = {
-    sm: { height: '36px', padding: '0 16px', fontSize: '13px', borderRadius: '6px' },
-    md: { height: '44px', padding: '0 24px', fontSize: '14px', borderRadius: '8px' },
-    lg: { height: '52px', padding: '0 32px', fontSize: '16px', borderRadius: '8px' },
+    sm: { height: '36px', padding: '0 16px', fontSize: '13px', borderRadius: 'var(--radius-sm)' },
+    md: { height: '44px', padding: '0 24px', fontSize: '14px', borderRadius: 'var(--radius-md)' },
+    lg: { height: '52px', padding: '0 32px', fontSize: '16px', borderRadius: 'var(--radius-md)' },
   };
 
   const variants = {
     primary: {
-      background: 'var(--text-primary)', /* Solid dark navy */
-      color: '#FFFFFF',
-      border: '1px solid transparent',
+      background: '#ffffff',
+      color: '#000000',
+      border: '1px solid #ffffff',
       boxShadow: hovered 
-        ? '0 4px 12px rgba(27, 35, 64, 0.15)' 
-        : 'none',
+        ? '0 6px 20px rgba(255, 255, 255, 0.15)' 
+        : '0 2px 4px rgba(0, 0, 0, 0.1)',
     },
     secondary: {
-      background: '#FFFFFF',
-      color: 'var(--text-primary)',
-      border: '1px solid var(--border-strong)',
+      background: 'rgba(255, 255, 255, 0.05)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      color: '#ffffff',
+      border: '1px solid rgba(255, 255, 255, 0.08)',
       boxShadow: hovered 
-        ? '0 4px 12px rgba(27, 35, 64, 0.05)' 
+        ? '0 6px 16px rgba(0, 0, 0, 0.3)' 
         : 'none',
     },
     outline: {
       background: 'transparent',
-      color: 'var(--text-primary)',
-      border: '1px solid var(--border-strong)',
+      color: '#ffffff',
+      border: '1px solid rgba(255, 255, 255, 0.15)',
+      boxShadow: hovered ? '0 4px 12px rgba(0, 0, 0, 0.2)' : 'none',
     },
     ghost: {
       background: 'transparent',
-      color: 'var(--text-secondary)',
+      color: 'rgba(255, 255, 255, 0.6)',
       border: 'none',
     },
     danger: {
-      background: 'rgba(198, 40, 40, 0.06)',
+      background: 'rgba(239, 68, 68, 0.1)',
       color: 'var(--rec-red)',
-      border: '1px solid rgba(198, 40, 40, 0.15)',
+      border: '1px solid rgba(239, 68, 68, 0.2)',
     },
   };
 
   const hoverOverrides = {
     primary: {
-      background: '#2b3558', /* slightly lighter navy */
+      background: '#e5e5e5',
+      borderColor: '#e5e5e5',
     },
     secondary: {
-      background: '#FAF8F3',
-      borderColor: 'var(--text-primary)',
+      background: 'rgba(255, 255, 255, 0.1)',
+      borderColor: 'rgba(255, 255, 255, 0.15)',
     },
     outline: {
-      background: 'rgba(27, 35, 64, 0.04)',
-      borderColor: 'var(--text-primary)',
+      background: 'rgba(255, 255, 255, 0.05)',
+      borderColor: '#ffffff',
     },
     ghost: {
-      background: 'rgba(27, 35, 64, 0.04)',
-      color: 'var(--text-primary)',
+      background: 'rgba(255, 255, 255, 0.05)',
+      color: '#ffffff',
     },
     danger: {
-      background: 'rgba(198, 40, 40, 0.12)',
+      background: 'rgba(239, 68, 68, 0.2)',
       borderColor: 'var(--rec-red)',
     },
   };

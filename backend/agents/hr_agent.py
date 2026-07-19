@@ -222,6 +222,33 @@ Return your response ONLY as a valid JSON object matching this schema:
 }
 Output strictly valid JSON."""
 
+        asked = [
+            turn.get("text", turn.get("content", ""))
+            for turn in conversation_history
+            if turn.get("speaker") == "interviewer" or turn.get("role") == "interviewer"
+        ]
+
+        if len(asked) >= 4:
+            system_instruction = """You are a warm, professional HR interviewer.
+The interview is now COMPLETE. Do NOT ask any more questions.
+Deliver a warm final concluding message thanking the candidate for their time, pitching the company briefly, and wrapping up the round.
+Keep your response under 3 sentences.
+
+Return your response ONLY as a valid JSON object matching this schema:
+{
+  "response": "The final warm concluding message thanking the candidate and wrapping up the round.",
+  "should_continue": false,
+  "latest_answer_evaluation": {
+    "communication": 8.0,
+    "confidence": 8.0,
+    "clarity": 8.0,
+    "professionalism": 8.0,
+    "leadership": 8.0,
+    "teamwork": 8.0
+  }
+}
+Output strictly valid JSON."""
+
         evaluations_history = ""
         if session_id and session_id in self._session_memory:
             evals = self._session_memory[session_id].get("evaluations", [])
@@ -252,23 +279,30 @@ Evaluate the candidate's latest response and generate the next turn in the inter
             )
             if result and "response" in result:
                 reply = result["response"]
-                should_continue = result.get("should_continue", True)
+                if len(asked) >= 4:
+                    should_continue = False
+                else:
+                    should_continue = result.get("should_continue", True)
                 if session_id and "latest_answer_evaluation" in result:
                     self._session_memory[session_id]["evaluations"].append(result["latest_answer_evaluation"])
             else:
                 raise ValueError("Invalid result format from LLM")
         except Exception as exc:
             logger.warning("HR respond_to_answer LLM call failed, using local fallback: %s", exc)
-            hist_len = len(conversation_history)
-            if hist_len <= 2:
-                reply = "That's a really great reflection. Team collaboration is key. Moving on, could you share an instance where you faced a failure or a significant setback in your career, and how you recovered and what you learned from it?"
-            elif hist_len <= 4:
-                reply = "Thank you for sharing that; resilience and learning from failure are so important. Let's discuss motivation: what drives your passion as a software professional, and why does this role appeal to you?"
-            elif hist_len <= 6:
-                reply = "Wonderful, I love that drive. Before we wrap up, do you have any questions for me about our company culture, the team structure, or next steps?"
-            else:
+            if len(asked) >= 4:
                 reply = "Thank you so much for your time today. It has been a pleasure getting to know you. We'll follow up with next steps very soon!"
-            should_continue = hist_len < 8
+                should_continue = False
+            else:
+                hist_len = len(conversation_history)
+                if hist_len <= 2:
+                    reply = "That's a really great reflection. Team collaboration is key. Moving on, could you share an instance where you faced a failure or a significant setback in your career, and how you recovered and what you learned from it?"
+                elif hist_len <= 4:
+                    reply = "Thank you for sharing that; resilience and learning from failure are so important. Let's discuss motivation: what drives your passion as a software professional, and why does this role appeal to you?"
+                elif hist_len <= 6:
+                    reply = "Wonderful, I love that drive. Before we wrap up, do you have any questions for me about our company culture, the team structure, or next steps?"
+                else:
+                    reply = "Thank you so much for your time today. It has been a pleasure getting to know you. We'll follow up with next steps very soon!"
+                should_continue = True
 
         # Track question progression (each Q-A pair ≈ 2 messages)
         qa_pairs = (len(conversation_history) + 1) // 2

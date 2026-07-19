@@ -48,8 +48,8 @@ from api.routes.practice import router as practice_router
 from api.websocket import router as ws_router
 from core.config import settings
 from core.database import engine, Base
-from services.stt_service import WhisperSTT
-from services.tts_service import TTSService
+from services.stt.deepgram_service import DeepgramSTT
+from services.tts.elevenlabs_service import ElevenLabsTTS
 from services.rate_limiter import RateLimitingMiddleware
 from agents.orchestrator import InterviewOrchestrator
 
@@ -137,11 +137,11 @@ async def lifespan(app: FastAPI):
         app.state.stt = None
         app.state.tts = None
     else:
-        logger.info("Loading Whisper STT (this may take 30-60s first time)...")
-        app.state.stt = WhisperSTT(model_size="base")
+        logger.info("Loading Deepgram STT...")
+        app.state.stt = DeepgramSTT()
 
-        logger.info("Loading TTS model (tacotron2-DDC, CPU-fast)...")
-        app.state.tts = TTSService()
+        logger.info("Loading ElevenLabs TTS...")
+        app.state.tts = ElevenLabsTTS()
 
     logger.info("Application startup complete. Services initialized.")
     yield

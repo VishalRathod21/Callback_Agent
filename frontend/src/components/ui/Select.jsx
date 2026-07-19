@@ -68,7 +68,7 @@ export default function Select({ label, value, onChange, options = [], error, hi
               <option
                 key={val}
                 value={val}
-                style={{ background: 'var(--card-bg)', color: 'var(--paper)' }}
+                style={{ background: '#12111e', color: 'var(--paper)' }}
               >
                 {lab}
               </option>

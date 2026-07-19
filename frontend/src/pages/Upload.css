@@ -1,0 +1,182 @@
+/* ── AI Career Portal & Resume Absorption Styles ── */
+
+.upload-root {
+  background-color: #000000;
+  color: #ffffff;
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
+}
+
+/* ── Interactive Living Portal ── */
+.portal-container {
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto;
+  padding: 80px 24px;
+  position: relative;
+  z-index: 10;
+}
+
+.portal-glass {
+  background: rgba(10, 10, 10, 0.45);
+  backdrop-filter: blur(35px);
+  -webkit-backdrop-filter: blur(35px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+/* ── Portal Breathing Visual ── */
+.portal-orb-zone {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 0 auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.01);
+  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.02);
+  transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.portal-orb-zone.dragover {
+  transform: scale(1.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.1), inset 0 0 40px rgba(255, 255, 255, 0.08);
+}
+
+.portal-pulse-ring {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.05);
+  animation: portal-ring-expand 4s infinite linear;
+}
+
+@keyframes portal-ring-expand {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* ── Scanning laser sweep ── */
+.hologram-laser-sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+  animation: laser-sweep-room 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes laser-sweep-room {
+  0%, 100% { top: 0%; }
+  50% { top: 100%; }
+}
+
+/* ── Floating Tags ── */
+.skill-bubble-tag {
+  font-family: var(--font-code);
+  font-size: 10.5px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding: 5px 12px;
+  border-radius: 99px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skill-bubble-tag:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+/* ── Visual Analytics Radar / Score ── */
+.circular-progress-svg {
+  width: 120px;
+  height: 120px;
+  transform: rotate(-90deg);
+}
+
+.circular-bg-ring {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.04);
+  stroke-width: 6;
+}
+
+.circular-fill-ring {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Interactive Bullet rewrites ── */
+.rewritten-bullet-card {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s;
+}
+
+.rewritten-bullet-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2.5px;
+  background: #ffffff;
+  opacity: 0.3;
+}
+
+.rewritten-bullet-card.active::before {
+  opacity: 1;
+  box-shadow: 0 0 10px #ffffff;
+}
+
+/* ── Role Selection Dropdown ── */
+.luxury-role-select {
+  background: rgba(10, 10, 10, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  height: 48px;
+  color: #ffffff;
+  padding: 0 16px;
+  font-size: 13.5px;
+  width: 100%;
+  outline: none;
+  transition: all 0.3s;
+}
+
+.luxury-role-select:focus {
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.05);
+}
+
+.luxury-role-select option {
+  background-color: #0b0b0b;
+  color: #ffffff;
+}

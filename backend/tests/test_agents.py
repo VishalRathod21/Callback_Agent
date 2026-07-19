@@ -4,7 +4,6 @@ import json
 from agents.dsa_agent import DSAInterviewAgent
 from agents.tech_agent import TechInterviewAgent
 from agents.hr_agent import HRInterviewAgent
-from services.stt_service import WhisperSTT
 
 @pytest.mark.asyncio
 async def test_dsa_agent_get_problem():
@@ -71,14 +70,6 @@ async def test_tech_agent_opening_question():
     assert "session-456" in agent._session_memory
     assert "ORM Optimization" in agent._session_memory["session-456"]["concepts_covered"]
 
-
-def test_whisper_stt_ffmpeg_check():
-    # Test that WhisperSTT raises RuntimeError if ffmpeg is missing
-    with patch("shutil.which", return_value=None):
-        with pytest.raises(RuntimeError) as exc_info:
-            with patch("whisper.load_model") as mock_load:
-                WhisperSTT(model_size="tiny")
-        assert "ffmpeg is required" in str(exc_info.value)
 
 
 @pytest.mark.asyncio

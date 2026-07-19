@@ -14,12 +14,13 @@ class Settings(BaseSettings):
     GROQ_FALLBACK_MODELS: str = "llama-3.3-70b-versatile,qwen/qwen3-32b,llama3-8b-8192"
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.0-flash"
+    DEEPGRAM_API_KEY: str = ""
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = "21m00Tcm4TlvDq8ikWAM"
     DATABASE_URL: str = "sqlite+aiosqlite:///:memory:"
     FAISS_PERSIST_DIR: str = "./faiss_store"
     FAISS_INDEX_PATH: str = "" # Fallback/alias to FAISS_PERSIST_DIR
     UPLOAD_DIR: str = "./uploads"
-    WHISPER_MODEL: str = "base"
-    XTTS_MODEL_PATH: str = "./models/xtts"
     VOICE_ENABLED: bool = False
     CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     FRONTEND_URL: str = "" # Injected from production frontend domains

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export default function SignUp() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--stage-black)',
+      background: 'var(--bg)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -44,22 +45,20 @@ export default function SignUp() {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Abstract Glowing Spotlight Orbs */}
-      <div className="spotlight-glow" style={{ top: '10%', right: '20%', width: '400px', height: '400px', opacity: 0.8 }} />
-      <div className="spotlight-glow" style={{ bottom: '15%', left: '10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(110, 168, 254, 0.03) 0%, transparent 70%)', opacity: 0.6 }} />
+      {/* Background spotlights */}
+      <div className="spotlight-glow" style={{ top: '15%', right: '15%', width: '450px', height: '450px', background: 'radial-gradient(circle, rgba(217, 142, 43, 0.06) 0%, transparent 70%)', opacity: 0.8, position: 'absolute', pointerEvents: 'none' }} />
+      <div className="spotlight-glow" style={{ bottom: '15%', left: '15%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(124, 58, 237, 0.04) 0%, transparent 70%)', opacity: 0.6, position: 'absolute', pointerEvents: 'none' }} />
 
-      <div style={{
-        width: '100%',
-        maxWidth: '440px',
-        background: 'var(--panel-bg)',
-        border: '1px solid var(--border)',
-        borderTop: '3px solid var(--spotlight)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '48px 40px',
-        boxShadow: 'var(--shadow-lg)',
-        zIndex: 5,
-        animation: 'fadeIn 0.6s var(--ease) forwards',
-      }}>
+      <Card 
+        depth={2} 
+        hoverable={false}
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          padding: '48px 40px',
+          zIndex: 5,
+        }}
+      >
         {/* Logo Wordmark */}
         <div 
           onClick={() => navigate('/')}
@@ -67,18 +66,16 @@ export default function SignUp() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            marginBottom: '36px',
+            marginBottom: '32px',
             cursor: 'pointer',
             width: 'fit-content',
             transition: 'transform 0.2s',
           }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          <span className="rec-dot" style={{ width: '8px', height: '8px' }} />
+          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent)' }} />
           <span style={{
-            color: 'var(--paper)',
-            fontSize: 'var(--text-lg)',
+            color: 'var(--text-primary)',
+            fontSize: '18px',
             fontWeight: 700,
             letterSpacing: '-0.02em',
             fontFamily: 'var(--font-display)',
@@ -86,33 +83,32 @@ export default function SignUp() {
         </div>
 
         <h1 style={{
-          color: 'var(--paper)',
-          fontSize: 'var(--text-xl)',
-          fontWeight: 700,
+          color: 'var(--text-primary)',
+          fontSize: '24px',
+          fontWeight: 800,
           letterSpacing: '-0.02em',
           margin: '0 0 8px 0',
           fontFamily: 'var(--font-display)',
         }}>Create account</h1>
         
         <p style={{
-          color: 'var(--paper-dim)',
-          fontSize: 'var(--text-sm)',
+          color: 'var(--text-secondary)',
+          fontSize: '14px',
           margin: '0 0 32px 0',
           lineHeight: 1.5,
         }}>Start rehearsing for technical and behavioral interviews.</p>
 
         {error && (
           <div style={{
-            background: 'var(--danger-subtle)',
-            border: '1px solid var(--danger)',
+            background: 'rgba(198, 40, 40, 0.05)',
+            border: '1px solid rgba(198, 40, 40, 0.2)',
             borderRadius: 'var(--radius-sm)',
             color: 'var(--rec-red)',
             padding: '12px 16px',
-            fontSize: 'var(--text-sm)',
+            fontSize: '13px',
             marginBottom: '24px',
             lineHeight: 1.5,
             fontWeight: 500,
-            animation: 'fadeIn 0.2s var(--ease)',
           }}>
             ⚠️ {error}
           </div>
@@ -162,37 +158,33 @@ export default function SignUp() {
           alignItems: 'center',
           gap: '16px',
           margin: '28px 0',
-          color: 'var(--paper-dimmer)',
-          fontSize: 'var(--text-xs)',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 500,
+          color: 'var(--text-muted)',
+          fontSize: '11px',
+          fontWeight: 600,
         }}>
-          <div style={{ flex: 1, height: '1.5px', background: 'var(--card-border)' }} />
+          <div style={{ flex: 1, height: '1px', background: 'rgba(27, 35, 64, 0.08)' }} />
           <span>OR</span>
-          <div style={{ flex: 1, height: '1.5px', background: 'var(--card-border)' }} />
+          <div style={{ flex: 1, height: '1px', background: 'rgba(27, 35, 64, 0.08)' }} />
         </div>
 
         <div style={{
           textAlign: 'center',
-          fontSize: 'var(--text-sm)',
-          color: 'var(--paper-dim)',
+          fontSize: '14px',
+          color: 'var(--text-secondary)',
         }}>
           Already have an account?{' '}
           <span 
             onClick={() => navigate('/signin')}
             style={{
-              color: 'var(--spotlight)',
+              color: 'var(--accent)',
               cursor: 'pointer',
               fontWeight: 600,
-              transition: 'color var(--duration-fast)',
             }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--accent-hover)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--spotlight)'}
           >
             Sign in
           </span>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -64,6 +64,18 @@ class PracticeAgent:
             "Describe a situation where you had to work with a difficult team member.",
             "What motivates you to do your best work?",
             "Tell me about a time you went above and beyond what was asked."
+        ],
+        "machine_learning": [
+            "What is the bias-variance tradeoff? How do you diagnose and fix a high-variance model?",
+            "How does gradient descent work? Explain the difference between SGD, Batch, and Adam optimizers.",
+            "Explain the architecture of a transformer block. Focus on self-attention.",
+            "How would you design a recommendation system for a video streaming platform?",
+            "What is overfitting? What regularization techniques do you use to prevent it?",
+            "Explain the difference between L1 and L2 regularization. What are their effects?",
+            "How would you handle highly imbalanced datasets in machine learning classification?",
+            "Explain the concept of backpropagation. How are weights updated?",
+            "What is a convolutional neural network (CNN) and why is it preferred for image processing?",
+            "How would you deploy a deep learning model to serve real-time predictions with low latency?"
         ]
     }
     
@@ -129,6 +141,7 @@ class PracticeAgent:
             "dsa_theory": "algorithmic thinking and technical accuracy",
             "system_design": "system design principles and scalability thinking", 
             "behavioral": "STAR method (Situation, Task, Action, Result) and communication clarity",
+            "machine_learning": "machine learning concepts, model selection, and engineering tradeoffs",
             "random": "accuracy and communication"
         }.get(topic, "accuracy and communication")
         

@@ -29,18 +29,21 @@ export default function Input({ label, placeholder, value, onChange, type = 'tex
         onBlur={() => setFocused(false)}
         style={{
           width: '100%',
-          height: '42px',
+          height: '44px',
           padding: '0 16px',
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(18px)',
-          border: `1px solid ${error ? 'var(--rec-red)' : focused ? 'var(--spotlight)' : 'rgba(255, 255, 255, 0.16)'}`,
-          borderRadius: 'var(--radius-sm)',
+          background: focused ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.5)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          border: `1px solid ${error ? 'var(--rec-red)' : focused ? 'var(--spotlight)' : 'rgba(27, 35, 64, 0.12)'}`,
+          borderRadius: 'var(--radius-md)',
           color: 'var(--paper)',
           fontSize: 'var(--text-sm)',
           fontFamily: 'var(--font-sans)',
           outline: 'none',
-          boxShadow: focused ? '0 0 8px rgba(110, 168, 254, 0.5)' : 'none',
-          transition: 'all 0.2s var(--ease)',
+          boxShadow: focused 
+            ? '0 0 0 2px rgba(217, 142, 43, 0.15), 0 4px 12px rgba(217, 142, 43, 0.05)' 
+            : 'inset 0 1px 1px rgba(255, 255, 255, 0.4), var(--shadow-sm)',
+          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           ...style,
         }}
         {...rest}

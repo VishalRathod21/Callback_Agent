@@ -1,0 +1,375 @@
+/* ── Cinematic Private AI Interview Room Styles ── */
+
+.interview-room-root {
+  background-color: #000000;
+  color: #ffffff;
+  min-height: 100vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-sans);
+}
+
+/* ── Asymmetric Layout ── */
+.interview-workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+/* Left Column: Cam & Transcript */
+.sidebar-glass {
+  background: rgba(8, 8, 8, 0.45);
+  backdrop-filter: blur(35px);
+  -webkit-backdrop-filter: blur(35px);
+  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 5;
+}
+
+/* ── Floating Timeline Flow ── */
+.timeline-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.timeline-node {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.timeline-node.completed {
+  background: #ffffff;
+  opacity: 0.45;
+  box-shadow: 0 0 6px #ffffff;
+}
+
+.timeline-node.active {
+  background: #ffffff;
+  transform: scale(1.4);
+  box-shadow: 0 0 10px #ffffff;
+  animation: node-pulse-glow 1.8s infinite alternate;
+}
+
+@keyframes node-pulse-glow {
+  0% { box-shadow: 0 0 4px rgba(255, 255, 255, 0.3); }
+  100% { box-shadow: 0 0 12px rgba(255, 255, 255, 0.9); }
+}
+
+.timeline-line {
+  height: 1px;
+  width: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.6s ease;
+}
+
+.timeline-line.active {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Camera Preview Glass ── */
+.camera-preview-box {
+  background: rgba(10, 10, 10, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  aspect-ratio: 4/3;
+  overflow: hidden;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.camera-preview-overlay-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(10, 10, 10, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 2.5px 6px;
+  font-family: var(--font-code);
+  font-size: 7.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Live Transcripts ── */
+.live-transcript-flow {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.transcript-message {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  padding-bottom: 14px;
+  transition: opacity 0.5s ease;
+}
+
+.transcript-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-family: var(--font-code);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.transcript-meta.ai {
+  color: #ffffff;
+}
+
+.transcript-meta.user {
+  color: #888888;
+}
+
+.transcript-content {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: #a3a3a3;
+  transition: color 0.4s ease;
+}
+
+.transcript-message.active .transcript-content {
+  color: #ffffff;
+}
+
+/* ── Center Stage & Floating Orb ── */
+.center-room-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 60px;
+  position: relative;
+}
+
+.hologram-question-box {
+  max-width: 580px;
+  text-align: center;
+  min-height: 100px;
+  margin-top: 14px;
+}
+
+.hologram-headline {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.65;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.hologram-cursor {
+  display: inline-block;
+  width: 2.5px;
+  height: 15px;
+  background: #ffffff;
+  margin-left: 3px;
+  vertical-align: text-bottom;
+  animation: cursor-blink-room 0.9s infinite;
+}
+
+@keyframes cursor-blink-room {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+/* ── Circular Waveform Surround ── */
+.circular-waveform-ring {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: rotate-ring 45s linear infinite;
+}
+
+@keyframes rotate-ring {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ── Live Performance Intelligence Panel ── */
+.intelligence-hud {
+  position: absolute;
+  right: 48px;
+  top: 110px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  pointer-events: auto;
+  z-index: 10;
+  width: 200px;
+}
+
+.intelligence-item {
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--font-code);
+  font-size: 8.5px;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.intelligence-item.active {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #a3a3a3;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.05), 0 12px 35px rgba(0, 0, 0, 0.65);
+}
+
+.intelligence-value {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.circular-eye-tracker {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: inline-block;
+  position: relative;
+}
+
+.circular-eye-tracker::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 6px #ffffff;
+  animation: eye-track-anim 3.2s infinite alternate ease-in-out;
+}
+
+@keyframes eye-track-anim {
+  0% { transform: translate(-80%, -80%); }
+  50% { transform: translate(40%, 60%); }
+  100% { transform: translate(-30%, -20%); }
+}
+
+/* ── Foot controls dock ── */
+.foot-controls-dock {
+  background: rgba(10, 10, 10, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 99px;
+  padding: 6px 14px 6px 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.foot-controls-dock:focus-within {
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.06), 0 25px 60px rgba(0, 0, 0, 0.85);
+}
+
+.foot-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 13.5px;
+  outline: none;
+  height: 38px;
+  font-family: var(--font-sans);
+}
+
+.foot-mic-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #888888;
+}
+
+.foot-mic-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.foot-mic-button.active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35);
+}
+
+.foot-send-button {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 99px;
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  font-weight: 700;
+  font-size: 11px;
+  font-family: var(--font-code);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.foot-send-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.9);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 992px) {
+  .intelligence-hud { display: none; }
+  .interview-workspace { grid-template-columns: 1fr; }
+  .sidebar-glass { display: none; }
+}

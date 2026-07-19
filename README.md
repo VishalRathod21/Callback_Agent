@@ -4,31 +4,39 @@
 [![React](https://img.shields.io/badge/Frontend-React%20%2F%20Vite-61DAFB.svg?style=flat-square&logo=react&logoColor=black)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2016-4169E1.svg?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![FAISS](https://img.shields.io/badge/VectorStore-FAISS-blue.svg?style=flat-square)](https://github.com/facebookresearch/faiss)
-[![Whisper STT](https://img.shields.io/badge/SpeechToText-Whisper--Base-brightgreen.svg?style=flat-square&logo=openai&logoColor=white)](https://github.com/openai/whisper)
+[![Deepgram STT](https://img.shields.io/badge/SpeechToText-Deepgram%20Nova--2-red.svg?style=flat-square&logo=deepgram&logoColor=white)](https://deepgram.com)
+[![ElevenLabs TTS](https://img.shields.io/badge/TextToSpeech-ElevenLabs-orange.svg?style=flat-square&logo=elevenlabs&logoColor=white)](https://elevenlabs.io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-**Callback Rehearsal** (InterviewAI) is a state-of-the-art, immersive AI-powered mock interview simulation platform. It replicates a high-fidelity, multi-round technical and behavioral hiring cycle. Using resume profiling, semantic RAG-based context injection, and agentic workflows, it tailors every question specifically to the candidate's target role and background.
+**Callback Rehearsal** (InterviewAI) is an immersive, high-fidelity AI-powered mock interview simulation platform. It replicates a production-grade multi-round technical and behavioral hiring cycle. Using resume profiling, semantic RAG-based context injection, and agentic workflows, it tailors every question specifically to the candidate's target role, background, and performance.
 
 ---
 
 ## ✨ Core Highlights
 
-*   **Resume Screening & RAG Integration**: Extracts skills and experience profiles from uploaded resumes, parsing them into FAISS Vector Store to inject relevant candidate history during rounds.
-*   **DSA / Algorithmic Coding Round**: Generates custom coding problems based on candidate tier. Includes a live code editor with diagnostic hints, evaluation metrics, and runtime complexity breakdown.
-*   **Systems Architecture Round**: Simulates design reviews targeting technical systems, microservices, and design patterns customized to target roles.
-*   **Behavioral HR (STAR Methodology)**: Evaluates corporate fit, leadership, and emotional intelligence using custom behavioral prompts aligned with the STAR framework.
-*   **Pacing & Articulation Analytics**: Monitors spoken verbal delivery, tracking total words spoken, filler words (e.g., *"like"*, *"um"*, *"ah"*, *"so"*), and calculates filler ratios to grade articulation.
+*   **Resume Screening & RAG Integration**: Extracts skills and experience profiles from uploaded resumes, parsing them into a FAISS Vector Store to inject relevant candidate history during rounds.
+*   **Persona Selection Evaluators**: Evaluators have randomized personas (e.g., *Senior Staff Engineer*, *Collaborative Mentor*, *Deep-Dive Architect*, *Fast-Paced Startup Interviewer*, *Research-Oriented Interviewer*) influencing their behavior, grading severity, and conversational tone.
+*   **DSA / Algorithmic Coding Round**: Generates custom coding problems based on candidate background. Features a live code editor with diagnostic hints, evaluation metrics, and runtime complexity breakdown handled via a REST API.
+*   **Systems Architecture Round**: Simulates design reviews targeting technical systems, microservices, and design patterns customized to target roles, streamed bidirectionally over WebSockets.
+*   **Behavioral HR (STAR Methodology)**: Evaluates cultural fit, leadership, and emotional intelligence using conversational prompts aligned with the STAR framework over WebSockets.
+*   **Pacing & Articulation Analytics**: Monitors spoken verbal delivery, tracking total words spoken, filler words (e.g., *"like"*, *"um"*, *"ah"*, *"so"*, *"literally"*), and calculates filler ratios to grade articulation.
+*   **Quick Practice Mode**: A rapid-fire question-and-feedback session across DSA Theory, System Design, Behavioral, or Machine Learning topics.
 *   **Rich Glassmorphic Design**: Sleek, modern dark-theme user experience built with customized CSS, micro-interactions, responsive score charts, and real-time audio visualizers.
 
 ---
 
 ## 🏗️ System Architecture
 
+The platform splits communication protocols based on real-time demands:
+1.  **REST API**: Handles high-volume transactional data, authentication (JWT with Refresh Token Rotation), resume uploads, DSA coding round code submissions/hints, and report analytics.
+2.  **WebSocket Protocol**: Manages real-time audio streaming, speech-to-text (STT) transcription, conversational turn-taking, and text-to-speech (TTS) audio synthesis.
+
 ```mermaid
 graph TD
     %% Frontend Components
     subgraph Frontend [React Single Page App]
         UI[Interview Room Page]
+        DSAP[DSA Coding Page]
         WH[useWebSocket Hook]
         AC[useAudioCapture Hook]
         AV[AudioVisualizer Component]
@@ -37,14 +45,16 @@ graph TD
     %% Gateway & Backend Services
     subgraph Backend [FastAPI Application Server]
         WSC[WebSocket Router]
-        STT[Whisper STT Service]
-        TTS[Coqui TTS Service]
+        REST[REST API Routers]
+        STT[Deepgram STT Service]
+        TTS[ElevenLabs TTS Service]
         
         %% Agents Layer
         subgraph Agents [Multi-Agent Orchestrator]
             DSA[DSA Algorithmic Agent]
             TECH[Technical Systems Agent]
             HR[STAR Behavioral HR Agent]
+            REP[ReportAgent ReportLab PDF]
         end
     end
 
@@ -57,18 +67,22 @@ graph TD
     %% Interactions
     UI --> WH
     UI --> AV
+    DSAP -->|REST Requests: Hints/Submit| REST
     AC -->|Audio Stream & volume data| AV
     AC -->|Base64 Opus/WebM Chunks| WH
     WH <-->|JSON Websocket / Audio Chunks| WSC
     
-    WSC -->|ffmpeg mono WAV| STT
+    WSC -->|Binary Audio Payload| STT
+    REST -->|Problem Generation & Submission| DSA
     WSC -->|Prompt history| Agents
     STT -->|Transcribed Text| WSC
     
     Agents -->|Evaluations / History| PG
     Agents -->|Vector Embeddings & RAG| FAISS
     Agents -->|AI Response Text| WSC
-    WSC -->|Synthesized Voice Bytes| TTS
+    WSC -->|Synthesized MP3 Bytes| TTS
+    
+    REST -->|Fetch PDF/JSON Scorecard| REP
 ```
 
 ---
@@ -82,9 +96,9 @@ sequenceDiagram
     autonumber
     participant Client as React Client (useAudioCapture)
     participant Server as FastAPI Server (websocket.py)
-    participant STT as Whisper Service
+    participant STT as Deepgram STT Service
     participant Agent as LLM Agent (Orchestrator)
-    participant TTS as Coqui TTS Service
+    participant TTS as ElevenLabs TTS Service
 
     Client->>Server: Connect to WebSocket Session
     Server-->>Client: Send 'state_change' (listening)
@@ -92,8 +106,8 @@ sequenceDiagram
     Client->>Server: Send base64 WebM/Opus audio chunks (every 400ms)
     Note over Client: Candidate stops speaking (1.8s silence detected)
     Client->>Server: Send 'silence_detected' event
-    Server->>Server: Accumulate buffer & run FFmpeg conversion (Opus -> mono WAV)
-    Server->>STT: Transcribe audio file
+    Server->>Server: Accumulate buffer
+    Server->>STT: Transcribe audio bytes (Nova-2 API)
     STT-->>Server: Return transcribed text
     Server->>Client: Send 'transcript' (candidate text)
     Server-->>Client: Send 'state_change' (processing)
@@ -101,8 +115,8 @@ sequenceDiagram
     Agent-->>Server: Return textual AI response
     Server->>Client: Send 'ai_response' (interviewer text)
     Server-->>Client: Send 'state_change' (ai_speaking)
-    Server->>TTS: Synthesize AI text response to audio
-    TTS-->>Server: Return WAV voice bytes
+    Server->>TTS: Synthesize AI text response to audio (Streaming MP3)
+    TTS-->>Server: Return MP3 voice bytes (Google TTS fallback if failed)
     Server->>Client: Send 'ai_audio' voice bytes
     Note over Client: Client plays audio queue sequentially...
     Note over Client: Audio finishes playing...
@@ -119,11 +133,14 @@ The backend enforces **Refresh Token Rotation (RTR)** to secure cookie-based ref
 *   **The Solution**: An in-flight promise mutex locks duplicate refresh attempts in the Axios interceptor (`frontend/src/api/client.js`). All concurrent requests queue up, waiting for the first request's rotated access token, avoiding unintended logouts.
 
 ### 2. Fast/Text-Only Startup Option (`VOICE_ENABLED`)
-*   **The Issue**: Local ML pipelines (Whisper STT & Coqui TTS) require substantial CPU memory and overhead, causing up to a 60-second delay during development startup, and massive synthesis freezes (2-3 minutes) on machines lacking GPUs.
-*   **The Solution**: Toggle `VOICE_ENABLED=false` in the backend environment. This bypasses Whisper and Coqui initializations, completing startup in under **1 second** and switching the interview interface to text mode.
+*   **The Issue**: High-fidelity speech networks (Deepgram and ElevenLabs) require internet connectivity, API calls, and startup latency. For local testing or situations without voice credentials, initial startup can be slowed.
+*   **The Solution**: Toggle `VOICE_ENABLED=false` in the backend environment. This bypasses Deepgram and ElevenLabs initializations, completing startup in under **1 second** and switching the interview interface to text-only mode.
 
 ### 3. Voice Silence Detection (`useAudioCapture.js`)
 *   Uses the Web Audio API (`AnalyserNode`) to compute RMS amplitude. When audio amplitude drops below `-50dB` for more than `1.8s` after active speaking, a `silence_detected` event is pushed to flush the speech chunk buffer.
+
+### 4. DSA Double Submission Guard
+*   The frontend uses a request interceptor in `useWebSocket.js` that tracks in-flight code submissions. If a user clicks the submit button multiple times, duplicate payloads are blocked, ensuring the backend state machine maintains consistency.
 
 ---
 
@@ -136,10 +153,12 @@ backend/
 │   ├── dsa_agent.py         # DSA problem generator & evaluator
 │   ├── hr_agent.py          # STAR Behavioral HR interviewer
 │   ├── tech_agent.py        # Technical Systems architecture interviewer
-│   ├── report_agent.py      # Final report markdown generator
+│   ├── report_agent.py      # PDF evaluation builder via ReportLab
+│   ├── resume_screener.py   # Resume ATS screening and parser
+│   ├── practice_agent.py    # Rapid-fire practice mode evaluator
 │   └── orchestrator.py      # Main state machine manager
 ├── api/                     # API routers & WebSocket endpoints
-│   ├── routes/              # Auth, Candidates, DSA, Reports, Sessions routers
+│   ├── routes/              # Auth, Candidates, DSA, Reports, Sessions, Practice routers
 │   └── websocket.py         # WebSocket audio handler & state events loop
 ├── core/                    # Core configuration and database engines
 │   ├── communication_analyzer.py # Word-count & filler-words parser
@@ -148,9 +167,12 @@ backend/
 │   ├── models.py            # DB schema definitions
 │   └── security.py          # Hash passwords, JWT signers, RTR handlers
 ├── services/                # Integration microservices
+│   ├── embeddings/          # Text embeddings pipeline
+│   ├── stt/                 # Deepgram Speech-To-Text wrapper
+│   ├── tts/                 # ElevenLabs Text-To-Speech engine
 │   ├── llm_service.py       # Groq & Gemini model client wrapper
-│   ├── stt_service.py       # Whisper speech-to-text wrapper
-│   ├── tts_service.py       # Coqui text-to-speech engine
+│   ├── rate_limiter.py      # Rate limiting middleware logic
+│   ├── resume_parser.py     # PDF & Word document parser
 │   └── faiss_service.py     # Vector store (FAISS) wrapper
 └── main.py                  # FastAPI server entrypoint
 ```
@@ -159,12 +181,14 @@ backend/
 ```
 frontend/
 ├── src/
-│   ├── api/                 # Axios clients and interceptors
-│   ├── components/ui/       # Shared premium ui modules (Navbar, Button, Card, Badge)
+│   ├── api/                 # Axios client, endpoints, and refresh interceptors
+│   ├── components/          # Shared premium ui modules and route protection
 │   ├── context/             # React Auth context provider
-│   ├── hooks/               # useAudioCapture, useWebSocket custom react hooks
-│   ├── pages/               # Landing, Upload, Lobby, DSARound, InterviewRoom, Report
-│   └── store/               # Zustand state stores
+│   ├── hooks/               # useAudioCapture, useWebSocket custom hooks
+│   ├── pages/               # Dashboard, DSARound, InterviewRoom, Practice, Report, Upload
+│   ├── store/               # Zustand state stores
+│   ├── App.jsx              # Routing setup
+│   └── main.jsx             # React entrypoint
 ```
 
 ---
@@ -248,7 +272,7 @@ erDiagram
 ---
 
 ### Step 1: Configure Environment Variables
-Create a `.env` file in the `backend/` directory:
+Create a `.env` file in the `backend/` directory based on `.env.example`:
 
 ```ini
 # --- LLM Providers ---
@@ -260,28 +284,32 @@ GROQ_FALLBACK_MODELS=llama-3.3-70b-versatile,qwen/qwen3-32b,llama3-8b-8192
 # --- Database & Storage ---
 # Postgres container port mapped to 5433 to avoid system clashes
 DATABASE_URL=postgresql+asyncpg://postgres:password@localhost:5433/interviewai
-FAISS_INDEX_PATH=./faiss_store
+FAISS_PERSIST_DIR=./faiss_store
 UPLOAD_DIR=./uploads
 
-# --- Models & Settings ---
-WHISPER_MODEL=base
-VOICE_ENABLED=false # Set to true to load local voice models
+# --- Audio & Speech API Keys ---
+DEEPGRAM_API_KEY=your_deepgram_api_key_here
+ELEVENLABS_API_KEY=your_elevenlabs_api_key_here
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
+
+# --- Settings ---
+VOICE_ENABLED=false # Set to true to load voice APIs
 JWT_SECRET_KEY=generate_a_secure_jwt_hex_secret_here
 ```
 
 ---
 
 ### Step 2: Spin Up Infrastructure Services
-Start Postgres Docker container:
+Start PostgreSQL via Docker container:
 ```bash
 docker compose up -d
 ```
-*   **PostgreSQL** will run on port `5433`.
+*   **PostgreSQL** will run on port `5433` (preventing conflicts with system-wide Postgres instances).
 
 ---
 
 ### Step 3: Run the Automated Startup Script
-An automated developer tool is provided to install node modules, setup python virtual environments, run migrations, and launch both client and server nodes:
+An automated developer tool is provided to install node modules, setup python virtual environments, run database migrations, and launch both client and server:
 
 ```bash
 chmod +x start_dev.sh
@@ -296,8 +324,9 @@ Once running, check the local setup:
 *   **FastAPI API Docs**: [http://localhost:8002/docs](http://localhost:8002/docs)
 *   **Backend Health Check**: [http://localhost:8002/health](http://localhost:8002/health)
 
-To stop development processes:
+To stop development processes and tear down container services:
 ```bash
+chmod +x stop_dev.sh
 ./stop_dev.sh
 ```
 
@@ -314,4 +343,4 @@ PYTHONPATH=. venv/bin/pytest
 
 ## 🔒 Security & Secrets Warning
 > [!WARNING]
-> **Key Rotation Warning**: Ensure any active credentials (such as custom `GROQ_API_KEY`, `GEMINI_API_KEY`, or custom database links) are never committed to version control. Always include `backend/.env` in your global `.gitignore` patterns. Rotate any compromised environment secret immediately.
+> **Key Rotation Warning**: Ensure any active credentials (such as custom `GROQ_API_KEY`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, or custom database links) are never committed to version control. Always include `backend/.env` in your global `.gitignore` patterns. Rotate any compromised environment secret immediately.

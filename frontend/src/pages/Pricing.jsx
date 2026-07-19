@@ -11,9 +11,9 @@ const plans = [
     price: '$0',
     period: 'forever',
     tag: 'GET STARTED',
-    tagColor: 'rgba(255,255,255,0.04)',
-    tagTextColor: 'var(--paper-dim)',
-    borderColor: 'rgba(255,255,255,0.06)',
+    tagColor: 'rgba(27,35,64,0.04)',
+    tagTextColor: 'var(--text-secondary)',
+    borderColor: 'rgba(27,35,64,0.06)',
     features: [
       '3 practice sessions / month',
       'Technical round simulation',
@@ -30,9 +30,9 @@ const plans = [
     price: '$19',
     period: 'per month',
     tag: 'RECOMMENDED',
-    tagColor: 'var(--accent-subtle)',
-    tagTextColor: 'var(--spotlight)',
-    borderColor: 'var(--accent-border)',
+    tagColor: 'rgba(99, 102, 241, 0.1)',
+    tagTextColor: 'var(--accent)',
+    borderColor: 'rgba(99, 102, 241, 0.25)',
     features: [
       'Unlimited practice sessions',
       'Technical + Behavioral (HR) rounds',
@@ -51,9 +51,9 @@ const plans = [
     price: '$49',
     period: 'per month',
     tag: 'FOR ORGANIZATIONS',
-    tagColor: 'rgba(255,255,255,0.04)',
-    tagTextColor: 'var(--paper-dim)',
-    borderColor: 'rgba(255,255,255,0.06)',
+    tagColor: 'rgba(27,35,64,0.04)',
+    tagTextColor: 'var(--text-secondary)',
+    borderColor: 'rgba(27,35,64,0.06)',
     features: [
       'Everything in Pro Stage',
       'Up to 10 active candidate seats',
@@ -80,29 +80,30 @@ export default function Pricing() {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--stage-black)',
+      background: 'var(--bg)',
       fontFamily: 'var(--font-sans)',
-      color: 'var(--paper)',
+      color: 'var(--text-primary)',
       position: 'relative',
       overflow: 'hidden',
     }}>
       <style>{`
         .pricing-card {
           transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-          background: rgba(255, 255, 255, 0.05);
+          background: rgba(255, 255, 255, 0.45);
           position: relative;
         }
         .pricing-card:hover {
           transform: translateY(-8px);
-          background: rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.65);
+          box-shadow: 0 12px 40px rgba(0, 0, 0, 0.03);
         }
         .pricing-card.highlight {
-          background: rgba(110, 168, 254, 0.04);
-          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+          background: rgba(255, 255, 255, 0.55);
+          box-shadow: 0 8px 32px rgba(99, 102, 241, 0.05);
         }
         .pricing-card.highlight:hover {
-          background: rgba(110, 168, 254, 0.08);
-          box-shadow: 0 20px 50px rgba(110, 168, 254, 0.15);
+          background: rgba(255, 255, 255, 0.7);
+          box-shadow: 0 20px 50px rgba(99, 102, 241, 0.12);
         }
       `}</style>
 
@@ -110,9 +111,9 @@ export default function Pricing() {
       <Navbar />
 
       {/* Background Glowing Spotlight Motif */}
-      <div className="spotlight-glow" style={{ top: '10%', left: '50%', transform: 'translateX(-50%)', width: '700px', height: '500px', opacity: 0.8 }} />
+      <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '700px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(124, 58, 237, 0.04) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
 
-      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '140px 24px 80px' }}>
+      <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '140px 24px 80px', position: 'relative', zIndex: 1 }}>
         
         {/* Header Hero Title */}
         <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 64px' }}>
@@ -120,23 +121,23 @@ export default function Pricing() {
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            background: 'var(--accent-subtle)',
-            border: '1px solid var(--accent-border)',
-            borderRadius: 'var(--radius-full)',
+            background: 'rgba(99, 102, 241, 0.08)',
+            border: '1px solid rgba(99, 102, 241, 0.15)',
+            borderRadius: '24px',
             padding: '6px 16px',
-            fontSize: 'var(--text-xs)',
+            fontSize: '11px',
             fontFamily: 'var(--font-mono)',
-            color: 'var(--spotlight)',
-            fontWeight: 600,
+            color: 'var(--accent)',
+            fontWeight: 700,
             letterSpacing: '0.08em',
             marginBottom: '20px',
           }}>
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--spotlight)', animation: 'tag-blink-anim 2s ease infinite' }} />
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent)', animation: 'tag-blink-anim 2s ease infinite' }} />
             SUBSCRIPTION PLANS
           </div>
           
           <h1 style={{
-            color: 'var(--paper)',
+            color: 'var(--text-primary)',
             fontSize: 'clamp(36px, 5vw, 56px)',
             fontWeight: 800,
             letterSpacing: '-0.03em',
@@ -148,8 +149,8 @@ export default function Pricing() {
           </h1>
           
           <p style={{
-            color: 'var(--paper-dim)',
-            fontSize: '16px',
+            color: 'var(--text-secondary)',
+            fontSize: '15px',
             lineHeight: 1.6,
             margin: 0,
           }}>
@@ -173,7 +174,7 @@ export default function Pricing() {
                 flex: '1 1 320px',
                 maxWidth: '350px',
                 border: `1px solid ${plan.borderColor}`,
-                borderRadius: 'var(--radius-lg)',
+                borderRadius: '16px',
                 padding: '40px 32px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -185,7 +186,7 @@ export default function Pricing() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                 <span style={{
                   background: plan.tagColor,
-                  borderRadius: 'var(--radius-full)',
+                  borderRadius: '24px',
                   padding: '4px 12px',
                   fontSize: '9px',
                   fontFamily: 'var(--font-mono)',
@@ -199,7 +200,7 @@ export default function Pricing() {
                   <span style={{
                     fontSize: '11px',
                     fontFamily: 'var(--font-mono)',
-                    color: 'var(--spotlight)',
+                    color: 'var(--accent)',
                     fontWeight: 700,
                   }}>
                     ★ BEST VALUE
@@ -208,21 +209,21 @@ export default function Pricing() {
               </div>
 
               {/* Title & Price */}
-              <div style={{ color: 'var(--paper)', fontSize: '22px', fontWeight: 700, marginBottom: '12px', fontFamily: 'var(--font-display)' }}>
+              <div style={{ color: 'var(--text-primary)', fontSize: '22px', fontWeight: 800, marginBottom: '12px', fontFamily: 'var(--font-display)' }}>
                 {plan.name}
               </div>
               
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginBottom: '28px' }}>
                 <span style={{
-                  color: 'var(--paper)',
+                  color: 'var(--text-primary)',
                   fontSize: '44px',
                   fontWeight: 800,
                   letterSpacing: '-0.02em',
                 }}>{plan.price}</span>
-                <span style={{ color: 'var(--paper-dimmer)', fontSize: 'var(--text-sm)' }}>/ {plan.period}</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '13.5px' }}>/ {plan.period}</span>
               </div>
 
-              <div style={{ height: '1.5px', background: 'var(--card-border)', marginBottom: '28px' }} />
+              <div style={{ height: '1px', background: 'rgba(27,35,64,0.06)', marginBottom: '28px' }} />
 
               {/* Features List */}
               <ul style={{
@@ -240,10 +241,10 @@ export default function Pricing() {
                     alignItems: 'flex-start',
                     gap: '10px',
                     fontSize: '13.5px',
-                    color: 'var(--paper-dim)',
+                    color: 'var(--text-secondary)',
                     lineHeight: 1.45,
                   }}>
-                    <span style={{ color: plan.highlight ? 'var(--spotlight)' : 'var(--prompter-green)', fontWeight: 'bold' }}>✓</span>
+                    <span style={{ color: plan.highlight ? 'var(--accent)' : 'var(--success-green)', fontWeight: 'bold' }}>✓</span>
                     <span>{feat}</span>
                   </li>
                 ))}
@@ -255,6 +256,10 @@ export default function Pricing() {
                 size="lg"
                 fullWidth
                 onClick={() => handleCta(plan.id)}
+                style={plan.highlight ? {
+                  background: 'linear-gradient(135deg, var(--accent) 0%, #6366f1 100%)',
+                  color: '#FFFFFF'
+                } : undefined}
               >
                 {plan.cta}
               </Button>
@@ -265,8 +270,8 @@ export default function Pricing() {
         {/* Footnote */}
         <p style={{
           textAlign: 'center',
-          color: 'var(--paper-dimmer)',
-          fontSize: 'var(--text-xs)',
+          color: 'var(--text-secondary)',
+          fontSize: '11px',
           marginTop: '64px',
           fontFamily: 'var(--font-mono)',
         }}>
@@ -277,4 +282,3 @@ export default function Pricing() {
     </div>
   );
 }
-

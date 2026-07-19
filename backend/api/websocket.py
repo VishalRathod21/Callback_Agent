@@ -515,8 +515,8 @@ async def _process_candidate_audio(websocket, sess, session_id):
     })
 
     try:
-        result = await stt.transcribe_bytes(audio)
-        text = result.get("text", "").strip()
+        text = await stt.transcribe(audio)
+        text = text.strip()
 
         if not text or len(text) < 2:
             logger.info("Empty transcription, back to listening")

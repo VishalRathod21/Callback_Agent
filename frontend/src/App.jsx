@@ -27,7 +27,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--stage-black)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
           <main style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
             <Routes>
               {/* Public Routes */}

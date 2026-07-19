@@ -58,19 +58,19 @@ export default function Lobby() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: 'var(--space-4)', backgroundColor: 'var(--stage-black)', color: 'var(--paper)' }}>
-        <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--spotlight)', boxShadow: '0 0 10px var(--spotlight)', animation: 'pulse-red 1.2s infinite ease-in-out' }} />
-        <p style={{ fontSize: 'var(--text-xs)', fontFamily: 'var(--font-mono)', color: 'var(--paper-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Syncing assessment lobby data...</p>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: '16px', backgroundColor: 'var(--bg)', color: 'var(--text-primary)' }}>
+        <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: 'var(--accent)', boxShadow: '0 0 10px var(--accent)', animation: 'pulse-dot 1.2s infinite ease-in-out' }} />
+        <p style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Syncing assessment lobby data...</p>
       </div>
     );
   }
 
   if (error || !candidate) {
     return (
-      <div style={{ maxWidth: '480px', margin: '80px auto', padding: '0 var(--space-6)', animation: 'fadeIn 0.4s var(--ease)' }}>
-        <Card style={{ padding: 'var(--space-8)', textAlign: 'center', border: '1px solid var(--rec-red)', background: 'var(--panel-bg)' }} hoverable={false}>
-          <h3 style={{ color: 'var(--text-primary)', fontSize: 'var(--text-md)', margin: '0 0 var(--space-3) 0', fontWeight: 700 }}>Workspace Sync Failed</h3>
-          <p style={{ color: 'var(--paper-dim)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: '0 0 var(--space-6) 0' }}>{error || 'Candidate profile details could not be resolved from database.'}</p>
+      <div style={{ maxWidth: '480px', margin: '80px auto', padding: '0 24px', animation: 'fadeIn 0.4s var(--ease)' }}>
+        <Card style={{ padding: '32px', textAlign: 'center', border: '1px solid #D32F2F' }} hoverable={false}>
+          <h3 style={{ color: 'var(--text-primary)', fontSize: '16px', margin: '0 0 12px 0', fontWeight: 700 }}>Workspace Sync Failed</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, margin: '0 0 24px 0' }}>{error || 'Candidate profile details could not be resolved from database.'}</p>
           <Button variant="ghost" onClick={() => navigate('/upload')}>← Return to Lobby Portal</Button>
         </Card>
       </div>
@@ -79,7 +79,7 @@ export default function Lobby() {
 
   const score = candidate.ats_score || 0;
   const isPass = candidate.status !== 'rejected';
-  const tierColor = isPass ? 'var(--prompter-green)' : 'var(--rec-red)';
+  const tierColor = isPass ? 'var(--success-green)' : '#D32F2F';
 
   const roundItems = [
     { icon: <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>, title: 'DSA Algorithmic', desc: 'Real-time interactive code sandboxing round.' },
@@ -88,55 +88,98 @@ export default function Lobby() {
   ];
 
   return (
-    <div style={{ backgroundColor: 'var(--stage-black)', color: 'var(--paper)', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden', position: 'relative' }}>
-      {/* Background Glowing Orbs */}
-      <div style={{ position: 'fixed', top: '-15%', left: '10%', width: '450px', height: '450px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(232, 201, 109, 0.08) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0 }} />
-      <div style={{ position: 'fixed', bottom: '-15%', right: '10%', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, rgba(0,0,0,0) 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }} />
+    <div style={{ backgroundColor: '#000000', color: '#ffffff', minHeight: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', overflowX: 'hidden', position: 'relative' }}>
+      <div className="noise-overlay" />
+      
+      {/* Background Museum Depth Layers */}
+      <div className="museum-background">
+        <div className="aurora-glow" />
+        <div className="light-cloud-1" />
+        <div className="volumetric-light-ray" />
+        <div className="volumetric-light-ray-2" />
+      </div>
 
       <Navbar />
 
-      <main style={{ flex: 1, maxWidth: '960px', width: '100%', margin: '0 auto', padding: 'var(--space-10) var(--space-6) var(--space-20)', display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', animation: 'fadeIn 0.5s var(--ease)', position: 'relative', zIndex: 1 }}>
+      <main style={{ flex: 1, maxWidth: '920px', width: '100%', margin: '0 auto', padding: '60px 24px 80px', display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative', zIndex: 10 }}>
         
-        {/* Header card */}
-        <Card style={{ padding: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 'var(--space-6)', background: 'var(--panel-bg)' }} hoverable={false}>
+        {/* Header glass card */}
+        <div style={{
+          background: 'rgba(10, 10, 10, 0.45)',
+          backdropFilter: 'blur(35px)',
+          WebkitBackdropFilter: 'blur(35px)',
+          border: '1px solid rgba(255, 255, 255, 0.04)',
+          borderRadius: '16px',
+          padding: '32px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '24px',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+        }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
               <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: tierColor, boxShadow: `0 0 8px ${tierColor}` }} />
-              <span style={{ fontSize: '10px', color: tierColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>{isPass ? 'Screening Passed' : 'Screening Rejected'}</span>
+              <span style={{ fontSize: '9px', color: tierColor, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-code)' }}>{isPass ? 'Screening Passed' : 'Screening Rejected'}</span>
             </div>
-            <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 800, color: 'var(--text-primary)', margin: '0 0 6px 0', letterSpacing: '-0.01em' }}>{candidate.name}</h2>
-            <p style={{ color: 'var(--paper-dim)', fontSize: 'var(--text-sm)', margin: 0 }}>Target Track: <strong style={{ color: 'var(--paper)' }}>{candidate.target_role}</strong></p>
+            <h2 style={{ fontSize: '24px', fontWeight: 600, color: '#ffffff', margin: '0 0 6px 0', letterSpacing: '-0.01em' }}>{candidate.name}</h2>
+            <p style={{ color: '#888888', fontSize: '13.5px', margin: 0 }}>Target Track: <strong style={{ color: '#ffffff', fontWeight: 650 }}>{candidate.target_role}</strong></p>
           </div>
           <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right', marginBottom: '4px', fontWeight: 600 }}>Screening score</div>
+            <div style={{ fontFamily: 'var(--font-code)', fontSize: '8.5px', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right', marginBottom: '4px' }}>Screening score</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px', justifyContent: 'flex-end' }}>
-              <span className={isPass ? "text-glow-green" : "text-glow-red"} style={{ fontFamily: 'var(--font-mono)', fontSize: '48px', fontWeight: 800, color: tierColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{score.toFixed(0)}</span>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '18px', color: 'var(--paper-dimmer)', fontWeight: 500 }}>%</span>
+              <span style={{ fontFamily: 'var(--font-code)', fontSize: '44px', fontWeight: 700, color: tierColor, fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{score.toFixed(0)}</span>
+              <span style={{ fontFamily: 'var(--font-code)', fontSize: '16px', color: '#888888', fontWeight: 500 }}>%</span>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Two columns */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)' }} className="lobby-columns">
-          {/* Context */}
-          <Card style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', background: 'var(--panel-bg)' }} hoverable={false}>
-            <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--paper-dimmer)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)', borderBottom: '1px solid var(--card-border)', paddingBottom: '10px' }}>Evaluation context</span>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }} className="lobby-columns">
+          
+          {/* Context Panel */}
+          <div style={{
+            background: 'rgba(10, 10, 10, 0.45)',
+            backdropFilter: 'blur(35px)',
+            WebkitBackdropFilter: 'blur(35px)',
+            border: '1px solid rgba(255, 255, 255, 0.04)',
+            borderRadius: '16px',
+            padding: '28px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }}>
+            <span style={{ fontSize: '9px', fontWeight: 700, color: '#888888', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-code)', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '10px' }}>Evaluation context</span>
             <div>
-              <span style={{ fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>Email Address</span>
-              <p style={{ margin: '6px 0 0 0', fontSize: 'var(--text-sm)', color: 'var(--text-primary)', fontWeight: 500 }}>{candidate.email}</p>
+              <span style={{ fontSize: '8.5px', color: '#555555', textTransform: 'uppercase', fontFamily: 'var(--font-code)' }}>Email Address</span>
+              <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#ffffff', fontWeight: 500 }}>{candidate.email}</p>
             </div>
             <div>
-              <span style={{ fontSize: '10px', color: 'var(--paper-dimmer)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>ATS Screening Summary</span>
-              <p style={{ margin: '6px 0 0 0', fontSize: 'var(--text-sm)', color: 'var(--paper-dim)', lineHeight: 1.6 }}>{screeningInfo.reasoning}</p>
+              <span style={{ fontSize: '8.5px', color: '#555555', textTransform: 'uppercase', fontFamily: 'var(--font-code)' }}>ATS Screening Summary</span>
+              <p style={{ margin: '6px 0 0 0', fontSize: '13.5px', color: '#a3a3a3', lineHeight: 1.6 }}>{screeningInfo.reasoning}</p>
             </div>
-          </Card>
+          </div>
 
-          {/* Actions */}
-          <Card style={{ padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '24px', background: 'var(--panel-bg)' }} hoverable={false}>
+          {/* Actions Panel */}
+          <div style={{
+            background: 'rgba(10, 10, 10, 0.45)',
+            backdropFilter: 'blur(35px)',
+            WebkitBackdropFilter: 'blur(35px)',
+            border: '1px solid rgba(255, 255, 255, 0.04)',
+            borderRadius: '16px',
+            padding: '28px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '24px',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }}>
             {isPass ? (
               <>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--spotlight)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>Assessment Rounds Staged</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-code)' }}>Assessment Rounds Staged</span>
                   {roundItems.map((item, i) => (
                     <div 
                       key={i} 
@@ -144,34 +187,19 @@ export default function Lobby() {
                         display: 'flex',
                         gap: '12px',
                         padding: '12px',
-                        border: '1px solid var(--border)',
-                        borderTop: '1px solid var(--border-strong)',
-                        borderRadius: 'var(--radius-sm)',
-                        transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                        border: '1px solid rgba(255, 255, 255, 0.04)',
+                        borderRadius: '8px',
+                        transition: 'all 0.3s ease',
                         cursor: 'default',
                         position: 'relative',
                         overflow: 'hidden',
-                        background: 'var(--bg-canvas)',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = 'var(--spotlight)';
-                        e.currentTarget.style.borderTopColor = 'var(--spotlight)';
-                        e.currentTarget.style.transform = 'translateX(4px)';
-                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                        e.currentTarget.style.background = 'var(--panel-bg)';
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                        e.currentTarget.style.borderTopColor = 'var(--border-strong)';
-                        e.currentTarget.style.transform = 'translateX(0)';
-                        e.currentTarget.style.boxShadow = 'none';
-                        e.currentTarget.style.background = 'var(--bg-canvas)';
+                        background: 'rgba(255, 255, 255, 0.01)',
                       }}
                     >
-                      <div style={{ color: 'var(--spotlight)', display: 'flex', zIndex: 1 }}>{item.icon}</div>
+                      <div style={{ color: '#ffffff', display: 'flex', zIndex: 1 }}>{item.icon}</div>
                       <div style={{ zIndex: 1 }}>
-                        <div style={{ fontWeight: 600, fontSize: 'var(--text-sm)', color: 'var(--text-primary)' }}>{item.title}</div>
-                        <p style={{ margin: '4px 0 0', fontSize: '11px', color: 'var(--paper-dim)' }}>{item.desc}</p>
+                        <div style={{ fontWeight: 600, fontSize: '13.5px', color: '#ffffff' }}>{item.title}</div>
+                        <p style={{ margin: '4px 0 0', fontSize: '11.5px', color: '#888888', lineHeight: 1.4 }}>{item.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -183,15 +211,15 @@ export default function Lobby() {
             ) : (
               <>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--rec-red)', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-mono)' }}>Alignment criteria missing</span>
-                  <p style={{ margin: 0, color: 'var(--paper-dim)', fontSize: 'var(--text-sm)', lineHeight: 1.6 }}>
+                  <span style={{ fontSize: '9px', fontWeight: 700, color: '#D32F2F', textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-code)' }}>Alignment criteria missing</span>
+                  <p style={{ margin: 0, color: '#a3a3a3', fontSize: '13.5px', lineHeight: 1.6 }}>
                     The screening evaluation flagged requirements gaps for {candidate.target_role}. Please review the missing skills list on the left and upload an updated resume document.
                   </p>
                 </div>
                 <Button variant="outline" size="lg" onClick={() => navigate('/upload')} style={{ width: '100%' }}>Upload New Resume</Button>
               </>
             )}
-          </Card>
+          </div>
         </div>
       </main>
 

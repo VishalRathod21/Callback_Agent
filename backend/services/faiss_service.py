@@ -2,41 +2,38 @@ import os
 import json
 import logging
 import asyncio
-import pickle
 from pathlib import Path
 from typing import Optional
 
 import faiss
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from services.embeddings.gemini_embeddings import GeminiEmbeddingService
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
 # ── Config ────────────────────────────────────────────────────
-EMBED_MODEL   = "all-MiniLM-L6-v2"   # 80MB, fast, good quality
-EMBED_DIM     = 384                    # output dimension of MiniLM
+EMBED_DIM     = 768                    # output dimension of Gemini text-embedding-004
 PERSIST_DIR   = settings.faiss_dir
 TOP_K_DEFAULT = 5
 
 
 class FAISSService:
     """
-    Drop-in replacement for ChromaDB.
+    Drop-in replacement for ChromaDB using FAISS and Gemini embeddings.
     
     Architecture:
     - One FAISS IndexFlatIP per "collection" (resumes, questions, etc.)
     - Metadata stored alongside as a JSON list (id, text, metadata)
-    - Embeddings via sentence-transformers (runs fully local, no API needed)
+    - Embeddings via Gemini API
     - Persists to disk as .index + .meta files
-    - All search/add operations are synchronous internally,
-      wrapped with asyncio.to_thread for async compatibility
+    - Async API matching the original implementation
     """
 
     def __init__(self):
-        logger.info(f"Loading embedding model '{EMBED_MODEL}'...")
-        self.model = SentenceTransformer(EMBED_MODEL)
-        logger.info("Embedding model loaded.")
+        logger.info("Initializing Gemini Embedding Service for FAISS...")
+        self.model = GeminiEmbeddingService()
+        logger.info("Gemini Embedding Service initialized.")
 
         self.indexes: dict[str, faiss.Index]     = {}
         self.metadata: dict[str, list[dict]]     = {}
@@ -52,13 +49,28 @@ class FAISSService:
             meta_path  = os.path.join(PERSIST_DIR, f"{collection}.meta")
 
             if os.path.exists(index_path) and os.path.exists(meta_path):
-                self.indexes[collection]  = faiss.read_index(index_path)
-                with open(meta_path, "r") as f:
-                    self.metadata[collection] = json.load(f)
-                logger.info(
-                    f"[FAISS] Loaded '{collection}' from disk "
-                    f"({self.indexes[collection].ntotal} vectors)"
-                )
+                try:
+                    loaded_index = faiss.read_index(index_path)
+                    # Check if dimension matches (new model has 768 dimensions)
+                    if loaded_index.d == EMBED_DIM:
+                        self.indexes[collection]  = loaded_index
+                        with open(meta_path, "r") as f:
+                            self.metadata[collection] = json.load(f)
+                        logger.info(
+                            f"[FAISS] Loaded '{collection}' from disk "
+                            f"({self.indexes[collection].ntotal} vectors)"
+                        )
+                    else:
+                        logger.warning(
+                            f"[FAISS] Dimension mismatch for '{collection}'. "
+                            f"Expected {EMBED_DIM}, got {loaded_index.d}. Recreating index."
+                        )
+                        self.indexes[collection]  = faiss.IndexFlatIP(EMBED_DIM)
+                        self.metadata[collection] = []
+                except Exception as e:
+                    logger.error(f"[FAISS] Error loading index '{collection}': {e}. Recreating index.")
+                    self.indexes[collection]  = faiss.IndexFlatIP(EMBED_DIM)
+                    self.metadata[collection] = []
             else:
                 # Create new flat inner-product index (cosine similarity after normalize)
                 self.indexes[collection]  = faiss.IndexFlatIP(EMBED_DIM)
@@ -76,17 +88,20 @@ class FAISSService:
             json.dump(self.metadata[collection], f)
 
     # ── Internal: embed text ──────────────────────────────────
-    def _embed(self, texts: list[str]) -> np.ndarray:
-        embeddings = self.model.encode(
-            texts,
-            normalize_embeddings=True,   # normalize for cosine similarity
-            show_progress_bar=False,
-            batch_size=32,
-        )
-        return embeddings.astype(np.float32)
+    async def _embed_async(self, texts: list[str]) -> np.ndarray:
+        embeddings_list = await self.model.embed_batch(texts)
+        # Convert to numpy array
+        embeddings = np.array(embeddings_list, dtype=np.float32)
+        if embeddings.ndim == 1:
+            embeddings = np.expand_dims(embeddings, axis=0)
+        # Normalize for cosine similarity
+        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1.0, norms)
+        normalized_embeddings = embeddings / norms
+        return normalized_embeddings.astype(np.float32)
 
     # ══════════════════════════════════════════════════════════
-    # PUBLIC API — matches ChromaDB usage patterns
+    # PUBLIC API — matches ChromaDB/previous FAISS usage patterns
     # ══════════════════════════════════════════════════════════
 
     async def add(
@@ -97,27 +112,31 @@ class FAISSService:
         metadata: Optional[dict] = None,
     ) -> None:
         """Add a single document to a collection."""
-        def _add():
-            index = self._get_index(collection)
+        index = self._get_index(collection)
+        existing_ids = [m["id"] for m in self.metadata[collection]]
 
-            # Check for duplicate id — remove old entry if exists
-            existing_ids = [m["id"] for m in self.metadata[collection]]
-            if doc_id in existing_ids:
-                logger.info(f"[FAISS] Updating existing doc '{doc_id}' in '{collection}'")
-                idx = existing_ids.index(doc_id)
-                # FAISS FlatIP doesn't support deletion — rebuild index without the old entry
-                self.metadata[collection].pop(idx)
-                all_texts = [m["text"] for m in self.metadata[collection]]
-                if all_texts:
-                    new_embeddings = self._embed(all_texts)
+        if doc_id in existing_ids:
+            logger.info(f"[FAISS] Updating existing doc '{doc_id}' in '{collection}'")
+            idx = existing_ids.index(doc_id)
+            self.metadata[collection].pop(idx)
+
+            # Rebuild index with remaining documents
+            all_texts = [m["text"] for m in self.metadata[collection]]
+            if all_texts:
+                new_embeddings = await self._embed_async(all_texts)
+                def _rebuild():
                     new_index = faiss.IndexFlatIP(EMBED_DIM)
                     new_index.add(new_embeddings)
                     self.indexes[collection] = new_index
-                else:
-                    self.indexes[collection] = faiss.IndexFlatIP(EMBED_DIM)
+                await asyncio.to_thread(_rebuild)
+            else:
+                self.indexes[collection] = faiss.IndexFlatIP(EMBED_DIM)
 
-            # Add new entry
-            embedding = self._embed([text])
+        # Generate embedding for the new text
+        embedding = await self._embed_async([text])
+
+        # Add to index and save
+        def _add_to_index():
             self.indexes[collection].add(embedding)
             self.metadata[collection].append({
                 "id":       doc_id,
@@ -130,7 +149,7 @@ class FAISSService:
                 f"(total: {self.indexes[collection].ntotal})"
             )
 
-        await asyncio.to_thread(_add)
+        await asyncio.to_thread(_add_to_index)
 
     async def add_many(
         self,
@@ -138,10 +157,11 @@ class FAISSService:
         documents: list[dict],  # each: {"id": str, "text": str, "metadata": dict}
     ) -> None:
         """Batch add multiple documents."""
+        index = self._get_index(collection)
+        texts = [d["text"] for d in documents]
+        embeddings = await self._embed_async(texts)
+
         def _add_many():
-            index = self._get_index(collection)
-            texts = [d["text"] for d in documents]
-            embeddings = self._embed(texts)
             index.add(embeddings)
             for doc in documents:
                 self.metadata[collection].append({
@@ -169,16 +189,16 @@ class FAISSService:
         Returns list of dicts: [{"id", "text", "metadata", "score"}, ...]
         Score is cosine similarity (0-1, higher = more similar).
         """
+        index = self._get_index(collection)
+
+        if index.ntotal == 0:
+            return []
+
+        query_embedding = await self._embed_async([query])
+        k = min(n_results * 3, index.ntotal)  # over-fetch for metadata filtering
+
         def _search():
-            index = self._get_index(collection)
-
-            if index.ntotal == 0:
-                return []
-
-            query_embedding = self._embed([query])
-            k = min(n_results * 3, index.ntotal)  # over-fetch for metadata filtering
             scores, indices = index.search(query_embedding, k)
-
             results = []
             for score, idx in zip(scores[0], indices[0]):
                 if idx == -1:
@@ -191,8 +211,8 @@ class FAISSService:
                 # Apply metadata filter if provided
                 if filter_metadata:
                     match = all(
-                        meta["metadata"].get(k) == v
-                        for k, v in filter_metadata.items()
+                        meta["metadata"].get(key) == value
+                        for key, value in filter_metadata.items()
                     )
                     if not match:
                         continue
@@ -213,31 +233,33 @@ class FAISSService:
 
     async def delete(self, collection: str, doc_id: str) -> bool:
         """Remove a document by ID. Returns True if found and deleted."""
-        def _delete():
-            index = self._get_index(collection)
-            existing_ids = [m["id"] for m in self.metadata[collection]]
+        index = self._get_index(collection)
+        existing_ids = [m["id"] for m in self.metadata[collection]]
 
-            if doc_id not in existing_ids:
-                return False
+        if doc_id not in existing_ids:
+            return False
 
-            idx = existing_ids.index(doc_id)
-            self.metadata[collection].pop(idx)
+        idx = existing_ids.index(doc_id)
+        self.metadata[collection].pop(idx)
 
-            # Rebuild index without the deleted entry
-            remaining_texts = [m["text"] for m in self.metadata[collection]]
-            if remaining_texts:
-                new_embeddings = self._embed(remaining_texts)
+        # Rebuild index without the deleted entry
+        remaining_texts = [m["text"] for m in self.metadata[collection]]
+        if remaining_texts:
+            remaining_embeddings = await self._embed_async(remaining_texts)
+            def _rebuild():
                 new_index = faiss.IndexFlatIP(EMBED_DIM)
-                new_index.add(new_embeddings)
+                new_index.add(remaining_embeddings)
                 self.indexes[collection] = new_index
-            else:
-                self.indexes[collection] = faiss.IndexFlatIP(EMBED_DIM)
+            await asyncio.to_thread(_rebuild)
+        else:
+            self.indexes[collection] = faiss.IndexFlatIP(EMBED_DIM)
 
+        def _save_changes():
             self._save(collection)
             logger.info(f"[FAISS] Deleted '{doc_id}' from '{collection}'")
-            return True
 
-        return await asyncio.to_thread(_delete)
+        await asyncio.to_thread(_save_changes)
+        return True
 
     async def get(self, collection: str, doc_id: str) -> Optional[dict]:
         """Retrieve a specific document by ID."""
