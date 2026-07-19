@@ -50,10 +50,14 @@ const getWsUrl = () => {
     }
     return `${wsProtocol}//${hostname}${port ? `:${port}` : ''}`;
   }
+
   return 'ws://localhost:8002';
 };
 
 const WS_URL = getWsUrl();
+
+console.log("VITE_WS_URL =", import.meta.env.VITE_WS_URL);
+console.log("WS_URL =", WS_URL);
 
 // Close codes that indicate a permanent server-side rejection (not transient network drops).
 // We must NOT reconnect on these — doing so causes the infinite loop visible in the logs:
