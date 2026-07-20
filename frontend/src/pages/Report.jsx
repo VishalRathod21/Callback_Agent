@@ -6,7 +6,6 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Navbar from '../components/ui/Navbar';
 import DebriefChat from '../components/DebriefChat';
-import Orb from '../components/ui/Orb';
 import './Report.css';
 
 const TIMELINE_NODES = [
@@ -242,8 +241,8 @@ export default function Report() {
   if (loading) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '80vh', gap: '16px', background: '#000000', color: '#ffffff' }}>
-        <div style={{ width: '48px', height: '48px' }}>
-          <Orb turnState="processing" volume={0.4} />
+        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', border: '2px solid rgba(255, 255, 255, 0.2)', position: 'relative' }}>
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.3)', animation: 'pulse 1.5s infinite' }} />
         </div>
         <p style={{ fontSize: '11px', color: '#888888', fontFamily: 'var(--font-code)', textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
           Assembling telemetry telemetry...

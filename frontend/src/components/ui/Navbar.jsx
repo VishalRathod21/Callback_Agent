@@ -12,6 +12,19 @@ export default function Navbar() {
   const [candidateId, setCandidateId] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Navbar entrance is handled by CSS animation (nav-fade-slide in Navbar.css)
+
+  // Navbar scroll effect — CSS .scrolled class handles the visual change
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 30);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Magnetic hover is handled by CSS :hover transitions in Navbar.css
+
   // Sync candidateId from local storage to show scorecard link
   useEffect(() => {
     const storedId = localStorage.getItem('candidateId');
@@ -21,13 +34,7 @@ export default function Navbar() {
   }, [location]);
 
   // Adjust scroll state for structural compacting
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 30);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // (Removed - merged with scroll blur effect above)
 
   // Smooth routing anchor triggers
   useEffect(() => {
@@ -41,9 +48,8 @@ export default function Navbar() {
   }, [location]);
 
   const navItems = [
-    { label: 'Features', hash: 'features-section', id: 'features' },
-    { label: 'Rehearsal Rooms', hash: 'rooms-section', id: 'rooms' },
-    { label: 'Pricing', hash: 'pricing-section', id: 'pricing' },
+    { label: 'Home', path: '/', id: 'home' },
+    { label: 'How It Works', path: '/#how-it-works', id: 'how-it-works' },
     { label: 'Quick Practice', path: '/practice', id: 'practice' },
   ];
 
@@ -53,21 +59,41 @@ export default function Navbar() {
 
   const handleNavClick = (item) => {
     setMobileOpen(false);
-    if (item.hash) {
+    
+    // Home link - navigate to root
+    if (item.path === '/') {
+      navigate('/');
+      window.scrollTo(0, 0);
+      return;
+    }
+    
+    // On-page section navigation
+    if (item.path && item.path.startsWith('/#')) {
+      const sectionId = item.path.replace('/#', '');
       if (location.pathname === '/') {
-        const el = document.getElementById(item.hash);
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
+        const el = document.getElementById(sectionId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
       } else {
-        navigate(`/#${item.hash}`);
+        navigate('/');
+        // Wait for page to mount before scrolling
+        setTimeout(() => {
+          const el = document.getElementById(sectionId);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 300);
       }
     } else {
+      // External route navigation
       navigate(item.path);
     }
   };
 
   return (
     <>
-      <header className={`luxury-nav-header ${scrolled ? 'scrolled' : ''}`}>
+      <header className={`luxury-nav-header navbar-root ${scrolled ? 'scrolled' : ''}`}>
         
         {/* Left Side: Logo */}
         <button
@@ -203,17 +229,17 @@ export default function Navbar() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '180px', marginTop: '20px' }}>
               {!isAuthenticated ? (
-                <Button variant="outline" onClick={() => { setMobileOpen(false); navigate('/signin'); }}>
+                <button className="hero-cta-secondary" style={{ width: '100%' }} onClick={() => { setMobileOpen(false); navigate('/signin'); }}>
                   Log in
-                </Button>
+                </button>
               ) : (
-                <Button variant="outline" onClick={async () => { setMobileOpen(false); await logout(); navigate('/'); }}>
+                <button className="hero-cta-secondary" style={{ width: '100%' }} onClick={async () => { setMobileOpen(false); await logout(); navigate('/'); }}>
                   Sign Out
-                </Button>
+                </button>
               )}
-              <Button variant="primary" onClick={() => { setMobileOpen(false); navigate('/upload'); }}>
+              <button className="cta-button-luxury" style={{ width: '100%' }} onClick={() => { setMobileOpen(false); navigate('/upload'); }}>
                 Start Free
-              </Button>
+              </button>
             </div>
           </motion.div>
         )}

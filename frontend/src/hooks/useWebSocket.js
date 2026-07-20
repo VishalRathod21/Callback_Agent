@@ -31,7 +31,7 @@ client.interceptors.response.use(
       activeSubmissions.delete(error.config.url);
     }
     if (error.message === 'DUPLICATE_SUBMISSION_BLOCKED') {
-      return new Promise(() => {}); // Keep it pending to discard silently
+      return new Promise(() => { }); // Keep it pending to discard silently
     }
     return Promise.reject(error);
   }

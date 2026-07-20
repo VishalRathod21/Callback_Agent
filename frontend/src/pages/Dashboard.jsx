@@ -372,7 +372,8 @@ export default function Dashboard() {
         setData(res.data);
       } catch (err) {
         console.error("Error fetching dashboard metrics:", err);
-        setError('Could not load progress metrics.');
+        const detailMsg = err.response?.data?.detail;
+        setError(typeof detailMsg === 'string' ? detailMsg : 'Candidate telemetry record not found or access expired.');
       } finally {
         setLoading(false);
       }
@@ -418,11 +419,28 @@ export default function Dashboard() {
 
   if (error || !data) {
     return (
-      <div style={{ background: '#020202', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-        <div className="glass-panel" style={{ padding: '40px', maxWidth: '480px', width: '100%', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
-          <h3 style={{ color: '#ffffff', fontSize: '16px', marginBottom: '12px', fontWeight: 700, fontFamily: 'monospace' }}>TELEMETRY_OFFLINE</h3>
-          <p style={{ color: '#888888', fontSize: '13.5px', lineHeight: 1.6, marginBottom: '28px' }}>{error || 'Dashboard statistics could not be loaded.'}</p>
-          <button className="capsule-btn" onClick={() => navigate('/')}>← Return Home</button>
+      <div className="dashboard-root">
+        <Navbar />
+        <div style={{ background: '#020202', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '120px 24px 40px' }}>
+          <div className="glass-panel" style={{ padding: '40px', maxWidth: '520px', width: '100%', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ fontSize: '10px', color: '#888888', fontFamily: 'monospace', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: '12px' }}>
+              TELEMETRY_OFFLINE // RECORD_NOT_FOUND
+            </div>
+            <h3 style={{ color: '#ffffff', fontSize: '20px', marginBottom: '12px', fontWeight: 700 }}>
+              Candidate Session Not Found
+            </h3>
+            <p style={{ color: '#888888', fontSize: '14px', lineHeight: 1.6, marginBottom: '28px' }}>
+              {error || 'No candidate record was found for this ID. Start a new practice session by uploading your resume.'}
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button className="capsule-btn" onClick={() => navigate('/upload')}>
+                Upload Resume & Practice →
+              </button>
+              <button className="capsule-btn" style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#a1a1aa' }} onClick={() => navigate('/')}>
+                ← Return Home
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     );

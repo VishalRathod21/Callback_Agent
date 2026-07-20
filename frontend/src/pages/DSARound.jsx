@@ -8,7 +8,6 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
-import Orb from '../components/ui/Orb';
 import './DSARound.css';
 
 // ── SVG ICONS ──
@@ -656,7 +655,10 @@ export default function DSARound() {
             justifyContent: 'center',
             overflow: 'hidden'
           }}>
-            <Orb turnState={isRecording ? 'listening' : (isSubmitting ? 'processing' : 'idle')} volume={volume} />
+            <div style={{ width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.05)', border: '2px solid rgba(255, 255, 255, 0.1)', position: 'relative' }}>
+              <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.2)', animation: 'pulse 2s infinite' }} />
+              <div style={{ position: 'absolute', inset: 15, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.15)', animation: 'pulse 2s infinite reverse' }} />
+            </div>
           </div>
 
           {/* Evaluation Result overlay */}

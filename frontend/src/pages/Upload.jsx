@@ -7,7 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Navbar from '../components/ui/Navbar';
-import Orb from '../components/ui/Orb';
 import './Upload.css';
 
 const ROLES = [
@@ -262,8 +261,8 @@ export default function Upload() {
                       <div className="portal-pulse-ring" />
                       <div className="portal-pulse-ring" style={{ animationDelay: '2s' }} />
 
-                      <div style={{ width: '80px', height: '80px', position: 'relative', zIndex: 5 }}>
-                        <Orb turnState="idle" volume={0} />
+                      <div style={{ width: '80px', height: '80px', position: 'relative', zIndex: 5, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', border: '2px solid rgba(255, 255, 255, 0.2)' }}>
+                        <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.3)', animation: 'pulse 2s infinite' }} />
                       </div>
 
                       {file && (
@@ -299,8 +298,9 @@ export default function Upload() {
                     {/* Laser sweep */}
                     <div className="hologram-laser-sweep" />
 
-                    <div style={{ width: '120px', height: '120px', marginBottom: '24px' }}>
-                      <Orb turnState="processing" volume={0.3} />
+                    <div style={{ width: '120px', height: '120px', marginBottom: '24px', borderRadius: '50%', background: 'rgba(255, 255, 255, 0.1)', border: '2px solid rgba(255, 255, 255, 0.2)', position: 'relative' }}>
+                      <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.3)', animation: 'pulse 1.5s infinite' }} />
+                      <div style={{ position: 'absolute', inset: 8, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.2)', animation: 'pulse 1.5s infinite reverse' }} />
                     </div>
 
                     <h2 style={{ fontSize: '18px', fontWeight: 600, textAlign: 'center', marginBottom: '8px' }}>

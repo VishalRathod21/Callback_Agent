@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from '../api/client';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useAuth } from '../context/AuthContext';
-import Orb from '../components/ui/Orb';
 import './InterviewRoom.css';
 
 // ── TYPEWRITER HOOK ──
@@ -493,9 +492,11 @@ export default function InterviewRoom() {
           {/* Orbital visual backdrop */}
           <div className="circular-waveform-ring" />
 
-          {/* Core Orb canvas */}
-          <div style={{ width: '260px', height: '260px', position: 'relative', zIndex: 3 }}>
-            <Orb turnState={turnState} volume={volume} />
+          {/* Core loading indicator */}
+          <div style={{ width: '260px', height: '260px', position: 'relative', zIndex: 3, borderRadius: '50%', background: 'rgba(255, 255, 255, 0.05)', border: '2px solid rgba(255, 255, 255, 0.1)' }}>
+            <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.2)', animation: 'pulse 2s infinite' }} />
+            <div style={{ position: 'absolute', inset: 20, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.15)', animation: 'pulse 2s infinite reverse' }} />
+            <div style={{ position: 'absolute', inset: 40, borderRadius: '50%', border: '2px solid rgba(255, 255, 255, 0.1)', animation: 'pulse 2s infinite', animationDelay: '0.5s' }} />
           </div>
 
           {/* Hologram project question */}
