@@ -378,17 +378,17 @@ venv/bin/python experiments/run_all.py          # macOS / Linux
 
 | Document | Content |
 |---|---|
-| [`API_DOCUMENTATION.md`](API_DOCUMENTATION.md) | Every REST endpoint, the WebSocket protocol and state machine, rate limits, provenance fields, examples |
-| [`DATABASE_SCHEMA.md`](DATABASE_SCHEMA.md) | Tables, enums, constraints, ER diagram, JSON column structures, migration strategy, example queries |
-| [`PROJECT_AUDIT.md`](PROJECT_AUDIT.md) | Baseline audit of the repository before the current iteration, with the prioritised fix list |
-| `PROJECT_SYNOPSIS.md` | Project synopsis (problem statement, objectives, scope) |
-| `SYSTEM_ARCHITECTURE.md` | Component and sequence diagrams, LangGraph topology |
-| `METHODOLOGY.md` | RAG pipeline, rubric, adaptive policy, evaluation protocol |
-| `EXPERIMENTAL_RESULTS.md` | Results of `experiments/run_all.py` with the environment they were produced in |
-| `TESTING_REPORT.md` | Test strategy and results |
-| `FUTURE_SCOPE.md` | Limitations and planned work |
+| [`API_DOCUMENTATION.md`](docs/API_DOCUMENTATION.md) | Every REST endpoint, the WebSocket protocol and state machine, rate limits, provenance fields, examples |
+| [`DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md) | Tables, enums, constraints, ER diagram, JSON column structures, migration strategy, example queries |
+| [`PROJECT_AUDIT.md`](docs/PROJECT_AUDIT.md) | Baseline audit of the repository before the current iteration, with the prioritised fix list |
+| [`PROJECT_SYNOPSIS.md`](docs/PROJECT_SYNOPSIS.md) | Project synopsis (problem statement, objectives, scope) |
+| [`SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md) | Component and sequence diagrams, LangGraph topology |
+| [`METHODOLOGY.md`](docs/METHODOLOGY.md) | RAG pipeline, rubric, adaptive policy, evaluation protocol |
+| [`EXPERIMENTAL_RESULTS.md`](docs/EXPERIMENTAL_RESULTS.md) | Results of `experiments/run_all.py` with the environment they were produced in |
+| [`TESTING_REPORT.md`](docs/TESTING_REPORT.md) | Test strategy and results |
+| [`FUTURE_SCOPE.md`](docs/FUTURE_SCOPE.md) | Limitations and planned work |
 
-(Documents without a link are part of the project documentation set and may be added alongside this README.)
+All project documentation lives in the [`docs/`](docs/) folder, including the full project report (`docs/Project_Report.docx` / `docs/Project_Report.pdf`).
 
 ## Security notes
 

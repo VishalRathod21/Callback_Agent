@@ -30,7 +30,7 @@ question text in bank mode because the bank cannot consume the retrieved context
 retrieved chunks into question wording. The citation rate therefore measures the *grounding evidence available to
 the model and the user*, not model behaviour, until the experiment is re-run with a key.
 
-![exp1](backend/experiments/results/exp1_relevance.png)
+![exp1](../backend/experiments/results/exp1_relevance.png)
 
 ## Experiment 2 — Retrieval quality (Precision@K / Recall@K)
 
@@ -46,7 +46,7 @@ Precision falls with K because most queries have a single relevant section and e
 Per-candidate filtering produced zero leakage across 54 returned hits. These figures are for the hashing backend;
 semantic embeddings are expected to help paraphrased queries, which the lexical backend cannot match.
 
-![exp2](backend/experiments/results/exp2_retrieval.png)
+![exp2](../backend/experiments/results/exp2_retrieval.png)
 
 ## Experiment 3 — Fixed vs adaptive difficulty (policy simulation)
 
@@ -69,7 +69,7 @@ has the lowest MAE because the simulated score is centred on θ at medium diffic
 property of the toy model, not evidence against adaptivity. A learning-outcome study with real candidates is
 listed in `FUTURE_SCOPE.md`.
 
-![exp3](backend/experiments/results/exp3_adaptive.png)
+![exp3](../backend/experiments/results/exp3_adaptive.png)
 
 ## Experiment 4 — AI vs human evaluation agreement
 
