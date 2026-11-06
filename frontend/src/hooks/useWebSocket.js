@@ -1,191 +1,99 @@
+/* Interview WebSocket hook — implements the v2 protocol (see backend/api/websocket.py).
+ *
+ * States: initializing | listening | processing | generating | speaking | waiting | completed | error
+ * Every interviewer turn has a turn_id; audio for a turn is played sequentially and
+ * `playback_finished` is sent back so the server can switch to listening precisely.
+ */
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useAudioCapture } from './useAudioCapture';
-import client from '../api/client';
-
-// Deduplicate DSA submissions to prevent backend state corruption
-const activeSubmissions = new Set();
-
-client.interceptors.request.use(
-  (config) => {
-    if (config.url && config.url.includes('/dsa/submit')) {
-      if (activeSubmissions.has(config.url)) {
-        console.warn('[API Interceptor] Blocking duplicate DSA submission');
-        return Promise.reject(new Error('DUPLICATE_SUBMISSION_BLOCKED'));
-      }
-      activeSubmissions.add(config.url);
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-client.interceptors.response.use(
-  (response) => {
-    if (response.config?.url && response.config.url.includes('/dsa/submit')) {
-      activeSubmissions.delete(response.config.url);
-    }
-    return response;
-  },
-  (error) => {
-    if (error.config?.url && error.config.url.includes('/dsa/submit')) {
-      activeSubmissions.delete(error.config.url);
-    }
-    if (error.message === 'DUPLICATE_SUBMISSION_BLOCKED') {
-      return new Promise(() => { }); // Keep it pending to discard silently
-    }
-    return Promise.reject(error);
-  }
-);
-
 
 const getWsUrl = () => {
   const envUrl = import.meta.env.VITE_WS_URL;
-  if (envUrl) return envUrl;
-
+  if (envUrl) return envUrl.replace(/\/$/, '');
   if (typeof window !== 'undefined') {
     const { protocol, hostname, port } = window.location;
     const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return `${wsProtocol}//${hostname}:8002`;
-    }
+    if (hostname === 'localhost' || hostname === '127.0.0.1') return `${wsProtocol}//${hostname}:8002`;
     return `${wsProtocol}//${hostname}${port ? `:${port}` : ''}`;
   }
-
   return 'ws://localhost:8002';
 };
-
 const WS_URL = getWsUrl();
 
-console.log("VITE_WS_URL =", import.meta.env.VITE_WS_URL);
-console.log("WS_URL =", WS_URL);
-
-// Close codes that indicate a permanent server-side rejection (not transient network drops).
-// We must NOT reconnect on these — doing so causes the infinite loop visible in the logs:
-//   4000 = invalid session_id format
-//   4003 = auth token missing / invalid / access denied
-//   4004 = session not found
+// Permanent server-side rejections: never reconnect on these.
 const PERMANENT_CLOSE_CODES = new Set([4000, 4003, 4004]);
 
-// Turn states (mirrors backend)
-export const STATE_IDLE = 'idle';
-export const STATE_AI_SPEAKING = 'ai_speaking';
-export const STATE_LISTENING = 'listening';
-export const STATE_PROCESSING = 'processing';
+export const STATES = {
+  INITIALIZING: 'initializing', LISTENING: 'listening', PROCESSING: 'processing', GENERATING: 'generating',
+  SPEAKING: 'speaking', WAITING: 'waiting', COMPLETED: 'completed', ERROR: 'error',
+};
 
 export function useWebSocket({
-  sessionId,
-  onAITranscript,
-  onCandidateTranscript,
-  onStateChange,
-  onRoundComplete,
-  onError,
-  volume: onVolumeChangeCallback,
-  muted,
-  enabled = true,   // set to false to defer connection until auth is confirmed
+  sessionId, enabled = true, voiceMode = true, muted = false,
+  onAITranscript, onCandidateTranscript, onStateChange, onEvaluation, onRoundComplete, onInterviewComplete,
+  onHistory, onError, onRedirect, volume: onVolumeChangeCallback,
 }) {
   const wsRef = useRef(null);
   const audioCtxRef = useRef(null);
   const audioQueueRef = useRef([]);
   const playingRef = useRef(false);
-  const unlockedRef = useRef(false);
   const reconnectRef = useRef(0);
-  const volumeRef = useRef(0);
-  const shouldEndRoundRef = useRef(false);
+  const seenTurnsRef = useRef(new Set());
+  const closedByUsRef = useRef(false);
 
-  // Refs to stabilize callback dependencies and prevent reconnect loops
   const startRecordingRef = useRef(null);
   const stopRecordingRef = useRef(null);
-  const endRoundRef = useRef(null);
   const drainQueueRef = useRef(null);
   const sendRef = useRef(null);
   const connectRef = useRef(null);
+  const voiceModeRef = useRef(voiceMode);
+  useEffect(() => { voiceModeRef.current = voiceMode; }, [voiceMode]);
 
   const [isConnected, setIsConnected] = useState(false);
-  const [turnState, setTurnState] = useState(STATE_IDLE);
+  const [turnState, setTurnState] = useState(STATES.INITIALIZING);
+  const [stateMessage, setStateMessage] = useState('');
   const [volume, setVolume] = useState(0);
   const [status, setStatus] = useState('disconnected');
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const voiceEnabledRef = useRef(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const voiceEnabledRef = useRef(false);
 
-  // Keep callback references fresh without triggering dependency changes
-  const callbacksRef = useRef({
-    onAITranscript,
-    onCandidateTranscript,
-    onStateChange,
-    onRoundComplete,
-    onError,
-    volume: onVolumeChangeCallback,
-  });
-
+  const callbacksRef = useRef({});
   useEffect(() => {
-    callbacksRef.current = {
-      onAITranscript,
-      onCandidateTranscript,
-      onStateChange,
-      onRoundComplete,
-      onError,
-      volume: onVolumeChangeCallback,
-    };
+    callbacksRef.current = { onAITranscript, onCandidateTranscript, onStateChange, onEvaluation, onRoundComplete, onInterviewComplete, onHistory, onError, onRedirect, volume: onVolumeChangeCallback };
   });
 
-  // ── Unlock AudioContext (MUST happen on user gesture) ──
-  const unlockAudio = useCallback(async () => {
-    if (unlockedRef.current) return;
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      await ctx.resume();
-      await ctx.close();
-      unlockedRef.current = true;
-      console.log('[Audio] Unlocked');
-    } catch (e) {
-      console.warn('[Audio] Unlock failed:', e);
-    }
-  }, []);
-
-  // ── WebSocket Send Helper ──
   const send = useCallback((data) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
-    }
+    if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(data));
   }, []);
 
-  // ── Audio capture integration ──
+  const unlockAudio = useCallback(async () => {
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtxRef.current.state === 'suspended') await audioCtxRef.current.resume();
+    } catch (e) { console.warn('[Audio] unlock failed', e); }
+  }, []);
+
   const { startRecording, stopRecording, destroyAll, isRecording, hasPermission, isSpeaking } = useAudioCapture({
-    onChunk: ({ data, duration_ms }) => {
-      sendRef.current?.({ type: 'audio_chunk', data, duration_ms });
-    },
-    onFlush: () => {
-      sendRef.current?.({ type: 'silence_detected' });
-    },
-    onSilenceDetected: () => {
-      sendRef.current?.({ type: 'silence_detected' });
-    },
-    onVolumeChange: (v) => {
-      setVolume(v);
-      callbacksRef.current.volume?.(v);
-    },
+    onChunk: ({ data, duration_ms }) => sendRef.current?.({ type: 'audio_chunk', data, duration_ms }),
+    onSilenceDetected: () => sendRef.current?.({ type: 'silence_detected' }),
+    onVolumeChange: (v) => { setVolume(v); callbacksRef.current.volume?.(v); },
     muted,
   });
 
-  // ── Round control helpers ──
-  const startRound = useCallback((round, targetRole, resumeContext = '') => {
-    send({ type: 'start_round', round, target_role: targetRole, resume_context: resumeContext });
-  }, [send]);
+  const startRound = useCallback((round) => send({ type: 'start_round', ...(round ? { round } : {}) }), [send]);
+  const sendText = useCallback((text) => send({ type: 'candidate_text', text }), [send]);
+  const endRound = useCallback(() => { stopRecording(); send({ type: 'end_round' }); }, [send, stopRecording]);
+  const cancelInterview = useCallback(() => { stopRecording(); send({ type: 'cancel_interview' }); }, [send, stopRecording]);
 
-  const sendText = useCallback((text) => {
-    send({ type: 'candidate_text', text });
-  }, [send]);
-
-  const endRound = useCallback(() => {
-    stopRecording();
-    send({ type: 'end_round' });
-  }, [send, stopRecording]);
-
-  // ── Audio playback queue (sequential, never overlap) ──
+  /* Sequential audio playback; notifies the server when a turn's audio finished. */
   const drainQueue = useCallback(async () => {
     if (playingRef.current || audioQueueRef.current.length === 0) return;
     playingRef.current = true;
-
+    setIsPlaying(true);
     while (audioQueueRef.current.length > 0) {
       const item = audioQueueRef.current.shift();
       try {
@@ -194,13 +102,10 @@ export function useWebSocket({
         }
         const ctx = audioCtxRef.current;
         if (ctx.state === 'suspended') await ctx.resume();
-
         const bin = atob(item.data);
-        const buf = new ArrayBuffer(bin.length);
-        const view = new Uint8Array(buf);
-        for (let i = 0; i < bin.length; i++) view[i] = bin.charCodeAt(i);
-
-        const audioBuf = await ctx.decodeAudioData(buf);
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        const audioBuf = await ctx.decodeAudioData(buf.buffer);
         await new Promise((resolve) => {
           const src = ctx.createBufferSource();
           src.buffer = audioBuf;
@@ -209,174 +114,135 @@ export function useWebSocket({
           src.start(0);
         });
       } catch (err) {
-        console.error('[Audio] Playback error:', err);
+        console.error('[Audio] playback error', err);
+      } finally {
+        sendRef.current?.({ type: 'playback_finished', turn_id: item.turn_id });
       }
     }
     playingRef.current = false;
-
-    // Auto-trigger endRound once concluding speech has finished playing
-    if (shouldEndRoundRef.current) {
-      shouldEndRoundRef.current = false;
-      endRoundRef.current?.();
-    }
+    setIsPlaying(false);
   }, []);
 
-  // ── WebSocket Connection and Message Loop ──
-  // NOTE: `enabled` is in deps so the callback is re-created when auth resolves,
-  // ensuring the fresh access token in localStorage is read at connection time.
   const connect = useCallback(() => {
     if (!sessionId) return;
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) {
-      return;
-    }
-
-    // Attach the access token as a query parameter so the backend can authenticate
-    // the WebSocket handshake. Browsers don't allow custom headers on WS connections,
-    // so the token must go in the URL. The backend reads ?token=<jwt> to verify identity.
+    if (wsRef.current && (wsRef.current.readyState === WebSocket.CONNECTING || wsRef.current.readyState === WebSocket.OPEN)) return;
+    closedByUsRef.current = false;
     const token = localStorage.getItem('access_token') || '';
-    const wsUrl = token
-      ? `${WS_URL}/ws/interview/${sessionId}?token=${encodeURIComponent(token)}`
-      : `${WS_URL}/ws/interview/${sessionId}`;
-
-    const ws = new WebSocket(wsUrl);
+    const ws = new WebSocket(`${WS_URL}/ws/interview/${sessionId}${token ? `?token=${encodeURIComponent(token)}` : ''}`);
     wsRef.current = ws;
     setStatus('connecting');
 
-    ws.onopen = () => {
-      setIsConnected(true);
-      setStatus('connected');
-      reconnectRef.current = 0;
-      console.log('[WS] Connected');
-    };
+    ws.onopen = () => { setIsConnected(true); setStatus('connected'); reconnectRef.current = 0; };
 
-    ws.onmessage = async (event) => {
+    ws.onmessage = (event) => {
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
-
       switch (msg.type) {
         case 'connected':
-          console.log('[WS] Session ready');
-          if (msg.voice_enabled !== undefined) {
-            voiceEnabledRef.current = !!msg.voice_enabled;
-            setVoiceEnabled(!!msg.voice_enabled);
-          }
+          voiceEnabledRef.current = !!msg.voice_enabled;
+          setVoiceEnabled(!!msg.voice_enabled);
+          if (msg.progress) setProgress(msg.progress);
+          if (msg.state) setTurnState(msg.state);
           break;
-
+        case 'session_history':
+          if (msg.progress) setProgress(msg.progress);
+          callbacksRef.current.onHistory?.(msg);
+          break;
         case 'state_change': {
-          const newState = msg.state;
-          console.log('[WS] State:', newState);
-          setTurnState(newState);
-          callbacksRef.current.onStateChange?.(newState, msg.message);
-
-          // AUTO-MIC: start recording when LISTENING, stop when AI speaks
-          if (newState === 'listening') {
-            // Small delay so AudioContext is ready
-            if (voiceEnabledRef.current) {
-              setTimeout(() => startRecordingRef.current?.(), 150);
-            }
-          } else if (newState === 'ai_speaking' || newState === 'processing') {
+          const s = msg.state;
+          setTurnState(s);
+          setStateMessage(msg.message || '');
+          callbacksRef.current.onStateChange?.(s, msg.message);
+          if (msg.redirect) callbacksRef.current.onRedirect?.(msg.redirect);
+          if (s === STATES.LISTENING) {
+            if (voiceEnabledRef.current && voiceModeRef.current) setTimeout(() => startRecordingRef.current?.(), 120);
+          } else {
             stopRecordingRef.current?.();
           }
           break;
         }
-
         case 'ai_response':
-          callbacksRef.current.onAITranscript?.({ text: msg.text, speaker: msg.speaker });
+          if (msg.turn_id && seenTurnsRef.current.has(msg.turn_id)) break;   // duplicate guard
+          if (msg.turn_id) seenTurnsRef.current.add(msg.turn_id);
+          if (msg.progress) setProgress(msg.progress);
+          callbacksRef.current.onAITranscript?.({ text: msg.text, turnId: msg.turn_id, meta: msg.question_meta, progress: msg.progress });
           break;
-
         case 'transcript':
-          callbacksRef.current.onCandidateTranscript?.({ text: msg.text });
+          callbacksRef.current.onCandidateTranscript?.({ text: msg.text, turnId: msg.turn_id, sttLatencyMs: msg.stt_latency_ms });
           break;
-
+        case 'answer_evaluated':
+          if (msg.progress) setProgress(msg.progress);
+          callbacksRef.current.onEvaluation?.(msg);
+          break;
         case 'ai_audio':
-          audioQueueRef.current.push({ data: msg.data });
-          drainQueueRef.current?.();
+          if (voiceModeRef.current) { audioQueueRef.current.push({ data: msg.data, turn_id: msg.turn_id }); drainQueueRef.current?.(); }
+          else sendRef.current?.({ type: 'playback_finished', turn_id: msg.turn_id });
           break;
-
         case 'round_should_end':
-          shouldEndRoundRef.current = true;
-          // Fallback in case no audio is queued/played within 1.5 seconds
-          setTimeout(() => {
-            if (shouldEndRoundRef.current && !playingRef.current && audioQueueRef.current.length === 0) {
-              shouldEndRoundRef.current = false;
-              endRoundRef.current?.();
-            }
-          }, 1500);
-          break;
-
+          break; // the server finalises the round itself
         case 'round_complete':
           callbacksRef.current.onRoundComplete?.(msg);
           break;
-
         case 'interview_complete':
-          callbacksRef.current.onRoundComplete?.({ ...msg, next_round: 'complete' });
+          callbacksRef.current.onInterviewComplete?.(msg);
           break;
-
+        case 'interview_cancelled':
+          callbacksRef.current.onInterviewComplete?.({ ...msg, cancelled: true });
+          break;
         case 'error':
-          console.error('[WS] Error:', msg.message);
-          callbacksRef.current.onError?.(msg.message);
+          callbacksRef.current.onError?.(msg.message, msg.code);
           break;
-
         case 'ping':
           sendRef.current?.({ type: 'pong' });
+          break;
+        default:
           break;
       }
     };
 
     ws.onerror = () => setStatus('error');
-
     ws.onclose = (event) => {
       setIsConnected(false);
-
-      // Do NOT reconnect on permanent server-side rejections.
-      // These are auth failures or invalid IDs — retrying will always fail
-      // and creates the reconnect storm visible in the server logs.
+      if (closedByUsRef.current) { setStatus('disconnected'); return; }
       if (PERMANENT_CLOSE_CODES.has(event.code)) {
-        console.warn(`[WS] Permanent close (code ${event.code}: ${event.reason}). Not reconnecting.`);
         setStatus('disconnected');
-        if (event.code === 4003) {
-          callbacksRef.current.onError?.('Session authentication failed. Please refresh and try again.');
-        }
+        if (event.code === 4003) callbacksRef.current.onError?.('Session authentication failed. Please sign in again.', 4003);
+        if (event.code === 4004) callbacksRef.current.onError?.('Interview session not found.', 4004);
         return;
       }
-
-      if (reconnectRef.current < 3) {
-        reconnectRef.current++;
-        setStatus(`reconnecting...`);
-        setTimeout(() => {
-          connectRef.current?.();
-        }, reconnectRef.current * 2000);
+      if (reconnectRef.current < 5) {
+        reconnectRef.current += 1;
+        setStatus('reconnecting');
+        setTimeout(() => connectRef.current?.(), Math.min(8000, 1000 * 2 ** reconnectRef.current));
       } else {
         setStatus('disconnected');
+        callbacksRef.current.onError?.('Connection lost. Please refresh the page to resume.', 'offline');
       }
     };
-  }, [sessionId, enabled]);
-
-  // Keep references updated on every render
-  startRecordingRef.current = startRecording;
-  stopRecordingRef.current = stopRecording;
-  endRoundRef.current = endRound;
-  drainQueueRef.current = drainQueue;
-  sendRef.current = send;
-  connectRef.current = connect;
+  }, [sessionId]);
 
   useEffect(() => {
-    if (!enabled) return;   // don't open until caller says auth is ready
+    startRecordingRef.current = startRecording;
+    stopRecordingRef.current = stopRecording;
+    drainQueueRef.current = drainQueue;
+    sendRef.current = send;
+    connectRef.current = connect;
+  });
+
+  useEffect(() => {
+    if (!enabled) return undefined;
     connect();
     return () => {
-      if (wsRef.current) {
-        wsRef.current.onclose = null;
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      audioCtxRef.current?.close();
+      closedByUsRef.current = true;
+      if (wsRef.current) { wsRef.current.onclose = null; wsRef.current.close(); wsRef.current = null; }
+      audioCtxRef.current?.close().catch(() => {});
+      audioCtxRef.current = null;
     };
   }, [connect, enabled]);
 
   return {
-    isConnected, status, turnState, volume,
+    isConnected, status, turnState, stateMessage, volume, progress, isPlaying,
     isRecording, hasPermission, isSpeaking, voiceEnabled,
-    unlockAudio, startRound, sendText, endRound,
-    startRecording, stopRecording, destroyAll,
+    unlockAudio, startRound, sendText, endRound, cancelInterview, startRecording, stopRecording, destroyAll,
   };
 }

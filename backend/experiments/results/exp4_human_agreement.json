@@ -1,0 +1,20 @@
+{
+  "environment": {
+    "llm_provider": "none",
+    "llm_available": false,
+    "embedding_backend": "hashing",
+    "adaptive_thresholds": {
+      "decrease_max": 4.0,
+      "increase_min": 8.0
+    },
+    "rubric_weights": {
+      "technical_correctness": 0.4,
+      "conceptual_understanding": 0.25,
+      "answer_completeness": 0.2,
+      "communication_clarity": 0.15
+    },
+    "timestamp": "2026-11-06 06:44:14"
+  },
+  "status": "not_run",
+  "reason": "only 0 rated rows (need \u22653)"
+}

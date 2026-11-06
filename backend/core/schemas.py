@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class UserSignup(BaseModel):
@@ -54,9 +54,9 @@ class UserResponse(BaseModel):
     is_active: bool
     created_at: datetime
     last_login: Optional[datetime] = None
+    preferences: Optional[dict] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(BaseModel):
@@ -147,3 +147,25 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+
+
+class UserPreferences(BaseModel):
+    """Editable user preferences (all optional, merged on update)."""
+
+    default_mode: Optional[str] = Field(None, pattern="^(voice|text)$")
+    default_difficulty: Optional[str] = Field(None, pattern="^(easy|medium|hard)$")
+    default_rounds: Optional[list[str]] = None
+    questions_per_round: Optional[int] = Field(None, ge=2, le=12)
+    adaptive: Optional[bool] = None
+    target_role: Optional[str] = Field(None, min_length=2, max_length=100)
+    theme: Optional[str] = Field(None, pattern="^(dark|light|system)$")
+
+    @field_validator("default_rounds")
+    @classmethod
+    def validate_rounds(cls, v):
+        if v is None:
+            return v
+        allowed = {"dsa", "technical", "hr"}
+        if not v or any(r not in allowed for r in v):
+            raise ValueError("default_rounds must be a non-empty subset of dsa, technical, hr")
+        return v

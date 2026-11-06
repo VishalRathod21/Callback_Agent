@@ -1,142 +1,69 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Mail, KeyRound } from 'lucide-react';
+import AuthLayout from '../components/layout/AuthLayout';
 import { useAuth } from '../context/AuthContext';
-import AuthLayout from '../components/AuthLayout';
+import { Button, Input, Alert } from '../components/ui';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ForgotPassword() {
-  const navigate = useNavigate();
   const { forgotPassword } = useAuth();
-  
-  const [email, setEmail]     = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
-  const [sent, setSent]       = useState(false);
-  
-  // 0: idle, 1: loading, 2: success, 3: error
-  const [authState, setAuthState] = useState(0);
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [serverError, setServerError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [sent, setSent] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const validate = (v) => (!v.trim() ? 'Email is required.' : !EMAIL_RE.test(v.trim()) ? 'Enter a valid email address.' : '');
+
+  const onSubmit = async (e) => {
     e.preventDefault();
-    if (!email) { 
-      setError('Please enter your email address.'); 
-      setAuthState(3);
-      return; 
-    }
-    
-    setLoading(true);
-    setError('');
-    setAuthState(1); // processing
-    
+    const err = validate(email);
+    setError(err);
+    if (err) return;
+    setServerError('');
+    setSubmitting(true);
     try {
-      await forgotPassword(email);
+      await forgotPassword(email.trim());
       setSent(true);
-      setAuthState(2); // success
-      
-      // Keep authState as success but do not instantly redirect so they see the success message
-      // Wait 1.5 seconds, then transition to success state view (where we show the token link)
-      setTimeout(() => {
-        // We set authState back to 0 so the form overlay is not completely hidden,
-        // but we show the 'sent' state layout inside children.
-        setAuthState(0);
-      }, 1500);
-    } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
-      setAuthState(3); // error
-      setTimeout(() => {
-        setAuthState(0);
-      }, 3000);
+    } catch (err2) {
+      setServerError(err2.message || 'Could not start the password reset. Please try again.');
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    setEmail(e.target.value);
-    if (authState === 3) {
-      setAuthState(0);
-      setError('');
+      setSubmitting(false);
     }
   };
 
   return (
     <AuthLayout
-      title="Reset Password"
-      subtitle="Enter your email to retrieve a secure cryptographic recovery token."
-      authState={authState}
-      error={error}
+      title="Reset your password"
+      subtitle="Enter the email you signed up with and we’ll issue a reset token."
+      footer={<>Remembered it? <Link to="/signin" className="link">Back to sign in</Link></>}
     >
       {sent ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div style={{
-            background: 'rgba(16, 185, 129, 0.05)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            borderRadius: '12px',
-            color: 'var(--prompter-green)',
-            padding: '18px',
-            fontSize: '14px',
-            lineHeight: 1.6,
-            fontWeight: 500,
-          }}>
-            ✓ Verification token dispatched. Please inspect the backend server console log to copy the secret reset token.
-          </div>
-
-          <button 
-            type="button" 
-            className="auth-button"
-            onClick={() => navigate('/reset-password')}
-          >
-            ENTER TOKEN →
-          </button>
+        <div className="space-y-5">
+          <Alert tone="success" title="Reset token issued">
+            If an account exists for <span className="text-fg">{email.trim()}</span>, a reset token has been generated.
+            This deployment has no mailer, so the token is written to the <span className="font-mono">backend log</span> instead of being emailed.
+            Copy it from the server output and paste it on the reset page.
+          </Alert>
+          <Link to="/reset-password" className="btn btn-md btn-primary w-full"><KeyRound size={16} /> Go to reset page</Link>
+          <button type="button" className="btn btn-md btn-ghost w-full" onClick={() => { setSent(false); setEmail(''); }}>Use a different email</button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="auth-field">
-            <label className="auth-label">Email Address</label>
-            <div className="auth-input-wrapper">
-              <input
-                type="email"
-                className="auth-input"
-                placeholder="you@example.com"
-                value={email}
-                onChange={handleInputChange}
-                disabled={loading}
-                required
-              />
-            </div>
-          </div>
-
-          <button 
-            type="submit" 
-            className="auth-button"
-            disabled={loading}
-            style={{ marginTop: '8px' }}
-          >
-            {loading ? 'DISPATCHING TOKEN...' : 'REQUEST TOKEN'}
-          </button>
+        <form onSubmit={onSubmit} noValidate className="space-y-5">
+          {serverError && <Alert tone="error" title="Request failed">{serverError}</Alert>}
+          <Input
+            label="Email" name="email" type="email" autoComplete="email" placeholder="you@example.com"
+            value={email} onChange={(e) => { setEmail(e.target.value); if (error) setError(validate(e.target.value)); }}
+            onBlur={() => setError(validate(email))} error={error || undefined} required
+          />
+          <Button type="submit" size="lg" className="w-full" loading={submitting} icon={Mail}>
+            {submitting ? 'Requesting…' : 'Send reset token'}
+          </Button>
+          <p className="t-meta">Already have a token? <Link to="/reset-password" className="link">Reset your password</Link>.</p>
         </form>
       )}
-
-      <div style={{
-        textAlign: 'center',
-        fontSize: '13.5px',
-        color: 'rgba(255, 255, 255, 0.45)',
-        marginTop: '28px',
-      }}>
-        <span 
-          onClick={() => !loading && navigate('/signin')}
-          style={{
-            color: '#ffffff',
-            cursor: 'pointer',
-            fontWeight: 700,
-            transition: 'color var(--duration-fast)',
-            opacity: 0.8,
-          }}
-          onMouseEnter={e => e.currentTarget.style.opacity = 1}
-          onMouseLeave={e => e.currentTarget.style.opacity = 0.8}
-        >
-          ← Back to sign in
-        </span>
-      </div>
     </AuthLayout>
   );
 }

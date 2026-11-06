@@ -1,0 +1,794 @@
+{
+  "environment": {
+    "llm_provider": "none",
+    "llm_available": false,
+    "embedding_backend": "hashing",
+    "adaptive_thresholds": {
+      "decrease_max": 4.0,
+      "increase_min": 8.0
+    },
+    "rubric_weights": {
+      "technical_correctness": 0.4,
+      "conceptual_understanding": 0.25,
+      "answer_completeness": 0.2,
+      "communication_clarity": 0.15
+    },
+    "timestamp": "2026-11-06 06:44:12"
+  },
+  "summary": {
+    "generic": {
+      "mean_resume_term_overlap": 0.032,
+      "mean_entity_mention_rate": 0.0,
+      "mean_citation_rate": 0.0
+    },
+    "structured": {
+      "mean_resume_term_overlap": 0.114,
+      "mean_entity_mention_rate": 0.48,
+      "mean_citation_rate": 0.0
+    },
+    "rag": {
+      "mean_resume_term_overlap": 0.11,
+      "mean_entity_mention_rate": 0.48,
+      "mean_citation_rate": 1.0
+    }
+  },
+  "questions_per_candidate": 5,
+  "candidates": 5,
+  "detail": [
+    {
+      "candidate": "ml_grad",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Pick a project from your resume: what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "generic",
+      "category": "machine_learning",
+      "question": "Explain the bias-variance trade-off and how regularisation affects it.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "generic",
+      "category": "deep_learning",
+      "question": "Explain backpropagation and why vanishing gradients happen.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "generic",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "generic",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Pick your project 'Traffic Sign Classifier': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.375,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "structured",
+      "category": "machine_learning",
+      "question": "Explain the bias-variance trade-off and how regularisation affects it.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "structured",
+      "category": "deep_learning",
+      "question": "Explain backpropagation and why vanishing gradients happen.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "structured",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "structured",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Pick your project 'Legal Document QA': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.286,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 1
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "rag",
+      "category": "machine_learning",
+      "question": "Explain the bias-variance trade-off and how regularisation affects it.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 4
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "rag",
+      "category": "deep_learning",
+      "question": "Explain backpropagation and why vanishing gradients happen.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 4
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "rag",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 3
+    },
+    {
+      "candidate": "ml_grad",
+      "condition": "rag",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 4
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Pick a project from your resume: what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "generic",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "generic",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "generic",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Walk me through one project on your resume: what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Pick your project 'LogPipe': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "structured",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "structured",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "structured",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'LogPipe': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Pick your project 'PayFlow': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 1
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "rag",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 3
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "rag",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 4
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "rag",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 4
+    },
+    {
+      "candidate": "backend_dev",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'PayFlow': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 1
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Pick a project from your resume: what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "generic",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "generic",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "generic",
+      "category": "machine_learning",
+      "question": "Explain the bias-variance trade-off and how regularisation affects it.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "generic",
+      "category": "deep_learning",
+      "question": "Explain backpropagation and why vanishing gradients happen.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Pick your project 'ShopLite': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'DesignKit': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Take 'DesignKit': how would you scale it to 100x the load and what would break first?",
+      "resume_term_overlap": 0.143,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Pick your project 'ShopLite': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Pick your project 'ShopLite': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Pick your project 'ShopLite': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'DesignKit': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Take 'ShopLite': how would you scale it to 100x the load and what would break first?",
+      "resume_term_overlap": 0.143,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Pick your project 'DesignKit': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "frontend_dev",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Pick your project 'ShopLite': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Pick a project from your resume: what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "generic",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "generic",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "generic",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Walk me through one project on your resume: what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Pick your project 'MetricsHub': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "structured",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "structured",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "structured",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'MetricsHub': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Pick your project 'LakeHouse': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "rag",
+      "category": "sql_dbms",
+      "question": "How does a B-tree index speed up queries, and when can an index hurt performance?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 4
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "rag",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 4
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "rag",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 3
+    },
+    {
+      "candidate": "data_eng",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'MetricsHub': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "devops",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Pick a project from your resume: what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.143,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "generic",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "generic",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "generic",
+      "category": "resume_projects",
+      "question": "Walk me through one project on your resume: what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "generic",
+      "category": "system_design",
+      "question": "Explain caching strategies and cache invalidation trade-offs.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Pick your project 'ObserveAll': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "structured",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "structured",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "structured",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'ZeroDowntime': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "structured",
+      "category": "system_design",
+      "question": "Explain caching strategies and cache invalidation trade-offs.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 0
+    },
+    {
+      "candidate": "devops",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Pick your project 'ZeroDowntime': what was the hardest technical decision and why did you make it?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "devops",
+      "condition": "rag",
+      "category": "system_design",
+      "question": "How would you design a rate limiter for an API?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 3
+    },
+    {
+      "candidate": "devops",
+      "condition": "rag",
+      "category": "python",
+      "question": "How does Python's garbage collection handle reference cycles?",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 3
+    },
+    {
+      "candidate": "devops",
+      "condition": "rag",
+      "category": "resume_projects",
+      "question": "Walk me through your project 'ObserveAll': what problem did it solve and what was your role?",
+      "resume_term_overlap": 0.167,
+      "names_resume_entity": true,
+      "generation_source": "bank",
+      "sources": 2
+    },
+    {
+      "candidate": "devops",
+      "condition": "rag",
+      "category": "system_design",
+      "question": "Explain caching strategies and cache invalidation trade-offs.",
+      "resume_term_overlap": 0.0,
+      "names_resume_entity": false,
+      "generation_source": "bank",
+      "sources": 3
+    }
+  ],
+  "metric_definitions": {
+    "resume_term_overlap": "share of question tokens that occur in the candidate's resume",
+    "entity_mention_rate": "share of questions naming a project/company/role from the resume",
+    "citation_rate": "share of questions with at least one retrieved resume chunk attached"
+  }
+}

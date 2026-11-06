@@ -1,383 +1,258 @@
-"""InterviewAI Backend - FastAPI Application."""
+"""InterviewAI Backend — FastAPI application entry point."""
 
 import warnings
-# Suppress the deprecation warning from google.generativeai
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-# Apply compatibility patches for Coqui TTS and transformers under PyTorch/Python 3.13
-try:
-    import torch
-    import transformers.pytorch_utils
-    if not hasattr(transformers.pytorch_utils, "isin_mps_friendly"):
-        transformers.pytorch_utils.isin_mps_friendly = torch.isin
-except Exception:
-    pass
-
-try:
-    import transformers.utils.import_utils as imp
-    if hasattr(imp, "is_torch_greater_or_equal"):
-        orig_check = imp.is_torch_greater_or_equal
-        def wrapped_check(version, *args, **kwargs):
-            if version == "2.9":
-                return False
-            return orig_check(version, *args, **kwargs)
-        imp.is_torch_greater_or_equal = wrapped_check
-except Exception:
-    pass
-
-
-import asyncio
 import logging
 import os
+import sys
 import tempfile
-
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import base64
-import secrets
-from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException as FastAPIHTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from api.routes.candidates import router as candidates_router
-from api.routes.interviews import router as interviews_router
-from api.routes.reports import router as reports_router
-from api.routes.dsa import router as dsa_router
 from api.routes.auth import router as auth_router
-from api.routes.debrief import router as debrief_router
+from api.routes.candidates import router as candidates_router
 from api.routes.dashboard import router as dashboard_router
+from api.routes.debrief import router as debrief_router
+from api.routes.dsa import router as dsa_router
+from api.routes.interviews import router as interviews_router
 from api.routes.practice import router as practice_router
-from api.websocket import router as ws_router
+from api.routes.reports import router as reports_router
+from api.websocket import router as ws_router, _orchestrator
 from core.config import settings
-from core.database import engine, Base
-from services.stt.deepgram_service import DeepgramSTT
-from services.tts.elevenlabs_service import ElevenLabsTTS
+from core.database import Base, engine
 from services.rate_limiter import RateLimitingMiddleware
-from agents.orchestrator import InterviewOrchestrator
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+# PostgreSQL-only idempotent column migrations for databases created before Alembic
+# revision 0003.  Each statement runs in its own transaction.  SQLite databases are
+# created fresh by ``create_all`` and skip this list.
+POSTGRES_MIGRATIONS: list[tuple[str, str]] = [
+    ("users.profile_image", "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image VARCHAR(512);"),
+    ("users.is_active", "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;"),
+    ("users.updated_at", "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();"),
+    ("users.last_login", "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;"),
+    ("users.reset_token", "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);"),
+    ("users.reset_token_expires_at", "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ;"),
+    ("users.verification_token", "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);"),
+    ("users.verification_token_expires_at", "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_expires_at TIMESTAMPTZ;"),
+    ("users.preferences", "ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB;"),
+    ("candidates.user_id", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;"),
+    ("candidates.resume_path", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_path VARCHAR(512);"),
+    ("candidates.target_role", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS target_role VARCHAR(255);"),
+    ("candidates.ats_score", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS ats_score FLOAT;"),
+    ("candidates.resume_structured", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_structured JSONB;"),
+    ("candidates.screening_result", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS screening_result JSONB;"),
+    ("candidates.resume_filename", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_filename VARCHAR(255);"),
+    ("candidates.resume_pages", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_pages INTEGER;"),
+    ("candidates.resume_word_count", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_word_count INTEGER;"),
+    ("candidates.resume_chunk_count", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_chunk_count INTEGER;"),
+    ("candidates.resume_parsed_at", "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_parsed_at TIMESTAMPTZ;"),
+    # candidates are unique per (user, email) — drop the legacy global unique on email
+    ("candidates.drop_global_email_unique", "ALTER TABLE candidates DROP CONSTRAINT IF EXISTS candidates_email_key;"),
+    ("candidates.uq_user_email", "CREATE UNIQUE INDEX IF NOT EXISTS uq_candidates_user_email ON candidates (user_id, email);"),
+    ("interview_sessions.round_scores", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS round_scores JSONB;"),
+    ("interview_sessions.overall_score", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS overall_score FLOAT;"),
+    ("interview_sessions.ended_at", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;"),
+    ("interview_sessions.config", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS config JSONB;"),
+    ("interview_sessions.mode", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS mode VARCHAR(20);"),
+    ("interview_sessions.target_role", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS target_role VARCHAR(255);"),
+    ("interview_sessions.total_questions", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS total_questions INTEGER;"),
+    ("interview_sessions.duration_seconds", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS duration_seconds INTEGER;"),
+    ("interview_sessions.persona", "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS persona JSONB;"),
+    ("sessionstatus.cancelled", "ALTER TYPE sessionstatus ADD VALUE IF NOT EXISTS 'CANCELLED';"),
+    ("interview_questions.generation_source", "ALTER TABLE interview_questions ADD COLUMN IF NOT EXISTS generation_source VARCHAR(20);"),
+    ("round_transcripts.ai_evaluation", "ALTER TABLE round_transcripts ADD COLUMN IF NOT EXISTS ai_evaluation JSONB;"),
+    ("round_transcripts.score", "ALTER TABLE round_transcripts ADD COLUMN IF NOT EXISTS score FLOAT;"),
+    ("refresh_tokens.device_name", "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS device_name VARCHAR(255);"),
+    ("refresh_tokens.browser", "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS browser VARCHAR(255);"),
+    ("refresh_tokens.ip_address", "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45);"),
+    ("refresh_tokens.revoked", "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS revoked BOOLEAN NOT NULL DEFAULT FALSE;"),
+]
+
+
+def _validate_startup(is_testing: bool) -> list[str]:
+    """Validate configuration. Returns warnings; raises only in strict mode."""
+    problems: list[str] = []
+    if not settings.llm_configured:
+        problems.append(
+            f"LLM provider '{settings.LLM_PROVIDER}' has no API key — question generation falls back to the "
+            f"question bank and answers are scored heuristically (flagged as such)."
+        )
+    if settings.JWT_SECRET_IS_FALLBACK:
+        problems.append("JWT_SECRET_KEY is not set — a random secret is used; all sessions are invalidated on restart.")
+    if settings.is_sqlite:
+        problems.append(f"Using SQLite ({settings.DATABASE_URL}) — fine for development; use PostgreSQL in production.")
+    if settings.embedding_backend == "hashing":
+        problems.append("Embeddings use the local hashing backend (lexical). Set GEMINI_API_KEY for semantic embeddings.")
+    if settings.VOICE_ENABLED and not (settings.DEEPGRAM_API_KEY and settings.ELEVENLABS_API_KEY):
+        problems.append("VOICE_ENABLED=true but Deepgram/ElevenLabs keys are missing — voice falls back where possible.")
+
+    if not is_testing and settings.strict_startup:
+        fatal = []
+        if not settings.llm_configured:
+            fatal.append("LLM API key missing")
+        if settings.JWT_SECRET_IS_FALLBACK:
+            fatal.append("JWT_SECRET_KEY missing")
+        if settings.is_sqlite and settings.is_production:
+            fatal.append("SQLite is not allowed in production")
+        if fatal:
+            raise ValueError("Strict startup failed: " + "; ".join(fatal))
+    return problems
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manage application startup and shutdown events."""
-    # Startup
-    logger.info("Starting InterviewAI backend...")
-
-    # Validate environment variables on startup
-    import sys
-    import os
+    logger.info("Starting InterviewAI backend (env=%s)…", settings.ENVIRONMENT)
     is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "true"
-    
-    # 1. Validate API Keys based on LLM Provider
-    if settings.LLM_PROVIDER == "gemini":
-        if not settings.GEMINI_API_KEY or settings.GEMINI_API_KEY in ("", "your_key_here"):
-            if is_testing:
-                logger.warning("GEMINI_API_KEY is not configured (ignored in testing environment).")
-            else:
-                logger.error("CRITICAL: GEMINI_API_KEY is not configured. Please set it in your .env file.")
-                raise ValueError("GEMINI_API_KEY is not configured. Please set it in your .env file.")
-    else:  # groq
-        if not settings.GROQ_API_KEY or settings.GROQ_API_KEY in ("", "your_key_here"):
-            if is_testing:
-                logger.warning("GROQ_API_KEY is not configured (ignored in testing environment).")
-            else:
-                logger.error("CRITICAL: GROQ_API_KEY is not configured. Please set it in your .env file.")
-                raise ValueError("GROQ_API_KEY is not configured. Please set it in your .env file.")
-        else:
-            logger.info("GROQ LLM Provider configuration validated successfully.")
 
-    # 2. Validate JWT_SECRET_KEY in production/non-testing environment
-    if not is_testing:
-        if settings.JWT_SECRET_IS_FALLBACK or not settings.JWT_SECRET_KEY or settings.JWT_SECRET_KEY.strip() in ("", "your_secret_here"):
-            logger.error("CRITICAL: JWT_SECRET_KEY is not configured. Please set a static token secret in your .env file.")
-            raise ValueError("JWT_SECRET_KEY is not configured. Please set it in your .env file.")
+    for warning in _validate_startup(is_testing):
+        logger.warning("CONFIG: %s", warning)
 
-        # 3. Validate DATABASE_URL (refuse memory DB in production/non-testing)
-        if "sqlite" in settings.DATABASE_URL and ":memory:" in settings.DATABASE_URL:
-            logger.error("CRITICAL: DATABASE_URL is set to in-memory SQLite. A real database is required for production.")
-            raise ValueError("DATABASE_URL is set to in-memory SQLite, which is invalid for production.")
-        if "postgresql" in settings.DATABASE_URL and not any(k in settings.DATABASE_URL for k in ("ssl=", "sslmode=")):
-            logger.warning("SECURITY WARNING: DATABASE_URL for PostgreSQL does not explicitly configure SSL/TLS. Please ensure sslmode=require is appended to the connection string in production.")
-
-    # 1. Create DB tables (creates any brand-new tables; does NOT add columns to existing ones)
-    logger.info("Creating database tables if not exist...")
+    # 1. Schema
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Base table structure verified.")
 
-    # 2. Idempotent column migrations — each ALTER runs in its own transaction so
-    #    a single failure never blocks the rest or crashes the application.
-    #
-    #    Rule: every column added AFTER the initial DB creation must appear here.
-    #    Use  ADD COLUMN IF NOT EXISTS  so re-runs are always safe.
-    #    Use JSONB (not JSON) for dict fields — better indexing & validation on PG.
-    from sqlalchemy import text
+    if not settings.is_sqlite:
+        applied = skipped = failed = 0
+        for label, sql in POSTGRES_MIGRATIONS:
+            try:
+                async with engine.begin() as conn:
+                    await conn.execute(text(sql))
+                applied += 1
+            except Exception as exc:  # noqa: BLE001
+                err = str(exc).lower()
+                if "already exists" in err or "duplicate" in err:
+                    skipped += 1
+                else:
+                    failed += 1
+                    logger.warning("Migration WARNING — could not apply [%s]: %s", label, exc)
+        logger.info("Schema migrations complete — applied: %d, skipped: %d, warnings: %d.", applied, skipped, failed)
 
-    migrations: list[tuple[str, str]] = [
-        # ── users table ───────────────────────────────────────────────────────
-        (
-            "users.profile_image",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_image VARCHAR(512);",
-        ),
-        (
-            "users.is_active",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;",
-        ),
-        (
-            "users.updated_at",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();",
-        ),
-        (
-            "users.last_login",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;",
-        ),
-        (
-            "users.reset_token",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token VARCHAR(255);",
-        ),
-        (
-            "users.reset_token_expires_at",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at TIMESTAMPTZ;",
-        ),
-        (
-            "users.verification_token",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);",
-        ),
-        (
-            "users.verification_token_expires_at",
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token_expires_at TIMESTAMPTZ;",
-        ),
-        # ── candidates table ──────────────────────────────────────────────────
-        (
-            "candidates.user_id",
-            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;",
-        ),
-        (
-            "candidates.resume_path",
-            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_path VARCHAR(512);",
-        ),
-        (
-            "candidates.target_role",
-            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS target_role VARCHAR(255);",
-        ),
-        (
-            "candidates.ats_score",
-            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS ats_score FLOAT;",
-        ),
-        (
-            "candidates.resume_structured",
-            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_structured JSONB;",
-        ),
-        # ── interview_sessions table ──────────────────────────────────────────
-        (
-            "interview_sessions.round_scores",
-            "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS round_scores JSONB;",
-        ),
-        (
-            "interview_sessions.overall_score",
-            "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS overall_score FLOAT;",
-        ),
-        (
-            "interview_sessions.ended_at",
-            "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS ended_at TIMESTAMPTZ;",
-        ),
-        # ── round_transcripts table ───────────────────────────────────────────
-        (
-            "round_transcripts.ai_evaluation",
-            "ALTER TABLE round_transcripts ADD COLUMN IF NOT EXISTS ai_evaluation JSONB;",
-        ),
-        (
-            "round_transcripts.score",
-            "ALTER TABLE round_transcripts ADD COLUMN IF NOT EXISTS score FLOAT;",
-        ),
-        # ── refresh_tokens table ──────────────────────────────────────────────
-        #    (entire table is new; create_all handles it, but guard extra cols)
-        (
-            "refresh_tokens.device_name",
-            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS device_name VARCHAR(255);",
-        ),
-        (
-            "refresh_tokens.browser",
-            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS browser VARCHAR(255);",
-        ),
-        (
-            "refresh_tokens.ip_address",
-            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS ip_address VARCHAR(45);",
-        ),
-        (
-            "refresh_tokens.revoked",
-            "ALTER TABLE refresh_tokens ADD COLUMN IF NOT EXISTS revoked BOOLEAN NOT NULL DEFAULT FALSE;",
-        ),
-    ]
-
-    success_count = 0
-    skip_count = 0
-    fail_count = 0
-
-    for label, sql in migrations:
-        try:
-            async with engine.begin() as conn:
-                logger.info("Running migration: %s", label)
-                await conn.execute(text(sql))
-            success_count += 1
-        except Exception as exc:
-            err_str = str(exc).lower()
-            # asyncpg / psycopg surface "already exists" errors even with IF NOT EXISTS
-            # on some PG versions — treat them as harmless skips.
-            if "already exists" in err_str or "duplicate column" in err_str:
-                logger.debug("Migration skipped (already applied): %s", label)
-                skip_count += 1
-            else:
-                logger.warning(
-                    "Migration WARNING — could not apply [%s]: %s. "
-                    "Application will continue; fix manually if needed.",
-                    label,
-                    exc,
-                )
-                fail_count += 1
-
-    logger.info(
-        "Schema migrations complete — applied: %d, skipped: %d, warnings: %d.",
-        success_count,
-        skip_count,
-        fail_count,
-    )
-    logger.info("Database initialisation finished.")
-
-    # 2. Initialize app states
-    app.state.orchestrator = InterviewOrchestrator()
-
+    # 2. Services
     from services.faiss_service import FAISSService
-    logger.info("Initializing FAISS vector store...")
-    logger.info("FAISS_PERSIST_DIR: %s", settings.FAISS_PERSIST_DIR)
+    from services.rag_service import RAGService
+
     app.state.faiss = FAISSService()
-    logger.info("FAISS ready. Stats: %s", app.state.faiss.get_stats())
+    app.state.rag = RAGService(app.state.faiss)
+    _orchestrator.attach_rag(app.state.rag)
+    app.state.orchestrator = _orchestrator
+    logger.info("Vector store ready: %s", app.state.faiss.get_stats())
 
+    from services.llm_service import llm_service
+    app.state.llm_available = llm_service.available
+    logger.info("LLM provider: %s (available=%s)", llm_service.provider_name, llm_service.available)
+
+    app.state.stt = None
+    app.state.tts = None
     if is_testing:
-        logger.info("Test environment detected. Skipping ML loaders.")
-        app.state.stt = None
-        app.state.tts = None
+        logger.info("Test environment — voice services disabled.")
     elif not settings.VOICE_ENABLED:
-        logger.info("VOICE_ENABLED=false — skipping STT/TTS model loading (text-only mode).")
-        app.state.stt = None
-        app.state.tts = None
+        logger.info("VOICE_ENABLED=false — text-only mode.")
     else:
-        logger.info("Loading Deepgram STT...")
-        app.state.stt = DeepgramSTT()
+        from services.stt.deepgram_service import DeepgramSTT
+        from services.tts.elevenlabs_service import ElevenLabsTTS
 
-        logger.info("Loading ElevenLabs TTS...")
-        app.state.tts = ElevenLabsTTS()
+        if settings.DEEPGRAM_API_KEY:
+            app.state.stt = DeepgramSTT()
+            logger.info("Deepgram STT ready.")
+        else:
+            logger.warning("DEEPGRAM_API_KEY missing — speech-to-text disabled, voice mode unavailable.")
+        app.state.tts = ElevenLabsTTS()  # has Google TTS fallback when the key is missing
+        logger.info("TTS ready (ElevenLabs key %s).", "set" if settings.ELEVENLABS_API_KEY else "missing → Google fallback")
 
-    logger.info("Application startup complete. Services initialized.")
+    Path(settings.UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
+    logger.info("Application startup complete.")
     yield
 
-    # Shutdown
-    logger.info("Shutting down InterviewAI backend...")
-    
-    # Clean up temp WAV files
-    logger.info("Cleaning up temporary WAV audio files...")
-    temp_dir = Path(tempfile.gettempdir())
-    deleted_count = 0
-    for p in temp_dir.glob("*.wav"):
+    logger.info("Shutting down InterviewAI backend…")
+    removed = 0
+    for p in Path(tempfile.gettempdir()).glob("interviewai_*.wav"):
         try:
             p.unlink(missing_ok=True)
-            deleted_count += 1
-        except Exception as exc:
-            logger.warning("Failed to delete temp file %s: %s", p, exc)
-    logger.info("Cleanup complete. Removed %d files.", deleted_count)
-    logger.info("Application shutdown complete.")
+            removed += 1
+        except Exception:  # noqa: BLE001
+            pass
+    logger.info("Cleanup complete (%d temp files removed).", removed)
 
 
-is_docs_enabled = os.environ.get("ENABLE_DOCS", "").lower() == "true" or getattr(settings, "ENABLE_DOCS", False)
+is_docs_enabled = os.environ.get("ENABLE_DOCS", "").lower() == "true" or settings.ENABLE_DOCS
 
 app = FastAPI(
-    title="Callback Agent API",
-    description="AI-powered interview preparation platform",
-    version="1.0.0",
+    title="Callback Rehearsal · InterviewAI API",
+    description="AI-powered personalised mock interview and adaptive candidate evaluation system.",
+    version="2.0.0",
     lifespan=lifespan,
     docs_url="/docs" if is_docs_enabled else None,
     redoc_url="/redoc" if is_docs_enabled else None,
     openapi_url="/openapi.json" if is_docs_enabled else None,
 )
 
-# CORS configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],
 )
 
 
-# Security headers middleware
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    
-    # Relax CSP dynamically for docs to load assets from CDN (e.g. jsdelivr)
+    response.headers["Referrer-Policy"] = "no-referrer"
+    if settings.is_production:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    else:
+        # keep header present for parity/tests but without forcing HTTPS on localhost
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     if request.url.path in ("/docs", "/redoc"):
         response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
-            "img-src 'self' data: cdn.jsdelivr.net fastapi.tiangolo.com;"
+            "default-src 'self'; script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; img-src 'self' data: cdn.jsdelivr.net fastapi.tiangolo.com;"
         )
     else:
         response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'"
     return response
 
-# Rate Limiting configuration
+
 app.add_middleware(RateLimitingMiddleware)
 
-
-# ── Global Exception Handlers ──────────────────────────────────────────────────
-from fastapi import Request
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import HTTPException as FastAPIHTTPException, RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from sqlalchemy.exc import SQLAlchemyError
-import uuid
 
 @app.exception_handler(SQLAlchemyError)
 async def sqlalchemy_exception_handler(request: Request, exc: SQLAlchemyError):
     correlation_id = str(uuid.uuid4())
-    logger.error("Database error occurred [Correlation ID: %s] at path %s: %s", correlation_id, request.url.path, exc, exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": "A database error occurred. Please try again later.",
-            "correlation_id": correlation_id
-        }
-    )
+    logger.error("Database error [%s] at %s: %s", correlation_id, request.url.path, exc, exc_info=True)
+    return JSONResponse(status_code=500, content={"detail": "A database error occurred. Please try again later.",
+                                                  "correlation_id": correlation_id})
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, (FastAPIHTTPException, StarletteHTTPException, RequestValidationError)):
         raise exc
     correlation_id = str(uuid.uuid4())
-    logger.error("Unhandled server exception [Correlation ID: %s] at path %s: %s", correlation_id, request.url.path, exc, exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": "An internal server error occurred. Please contact support.",
-            "correlation_id": correlation_id
-        }
-    )
+    logger.error("Unhandled exception [%s] at %s: %s", correlation_id, request.url.path, exc, exc_info=True)
+    return JSONResponse(status_code=500, content={"detail": "An internal server error occurred. Please contact support.",
+                                                  "correlation_id": correlation_id})
 
 
-
-# ── Routers ────────────────────────────────────────────────────────────────────
 app.include_router(candidates_router, prefix="/api")
 app.include_router(interviews_router, prefix="/api")
 app.include_router(reports_router, prefix="/api")
@@ -391,15 +266,29 @@ app.include_router(ws_router)
 
 @app.get("/", tags=["Health"])
 async def root():
-    return {
-        "status": "healthy",
-        "service": "Callback Agent API",
-        "docs": "/docs"
-    }
+    return {"status": "healthy", "service": "Callback Agent API", "docs": "/docs" if is_docs_enabled else None}
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint — returns minimal status only."""
     return {"status": "ok"}
 
+
+@app.get("/api/system/status", tags=["Health"])
+async def system_status(request: Request):
+    """Capability flags the frontend uses to explain degraded modes honestly."""
+    from services.llm_service import llm_service
+
+    faiss = getattr(request.app.state, "faiss", None)
+    return {
+        "environment": settings.ENVIRONMENT,
+        "llm": {"provider": llm_service.provider_name, "available": llm_service.available},
+        "embeddings": {"backend": getattr(faiss, "backend_name", None), "dim": settings.EMBEDDING_DIM},
+        "voice": {"enabled": settings.VOICE_ENABLED, "stt": getattr(request.app.state, "stt", None) is not None,
+                  "tts": getattr(request.app.state, "tts", None) is not None},
+        "database": "sqlite" if settings.is_sqlite else "postgresql",
+        "adaptive_policy": {"enabled": settings.ADAPTIVE_ENABLED, "decrease_max": settings.ADAPTIVE_DECREASE_MAX,
+                            "increase_min": settings.ADAPTIVE_INCREASE_MIN},
+        "rubric_weights": settings.rubric_weights,
+        "version": app.version,
+    }

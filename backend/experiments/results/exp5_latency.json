@@ -1,0 +1,42 @@
+{
+  "environment": {
+    "llm_provider": "none",
+    "llm_available": false,
+    "embedding_backend": "hashing",
+    "adaptive_thresholds": {
+      "decrease_max": 4.0,
+      "increase_min": 8.0
+    },
+    "rubric_weights": {
+      "technical_correctness": 0.4,
+      "conceptual_understanding": 0.25,
+      "answer_completeness": 0.2,
+      "communication_clarity": 0.15
+    },
+    "timestamp": "2026-11-06 06:44:15"
+  },
+  "database": "sqlite+aiosqlite:///./interviewai_dev.db",
+  "questions": 2,
+  "generation_latency_ms": {
+    "n": 2,
+    "mean": 7.5,
+    "p50": 0,
+    "p95": 0
+  },
+  "evaluation_latency_ms_by_source": {
+    "heuristic": {
+      "n": 2,
+      "mean": 0,
+      "p50": 0,
+      "p95": 0
+    }
+  },
+  "sessions_by_status": {
+    "pending": 0,
+    "active": 0,
+    "completed": 1,
+    "cancelled": 0
+  },
+  "interview_completion_rate": 1.0,
+  "voice_transcription_latency_ms": "no STT log provided"
+}

@@ -1,136 +1,73 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { MailCheck, LayoutDashboard } from 'lucide-react';
+import AuthLayout from '../components/layout/AuthLayout';
 import client from '../api/client';
-import AuthLayout from '../components/AuthLayout';
+import { Alert, Spinner, Button } from '../components/ui';
 
 export default function VerifyEmail() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  
-  const [status, setStatus] = useState('verifying'); // 'verifying' | 'success' | 'error'
+  const [params] = useSearchParams();
+  const token = params.get('token') || '';
+  const [status, setStatus] = useState(token ? 'loading' : 'missing'); // loading | success | error | missing
   const [message, setMessage] = useState('');
-  
-  // 0: idle, 1: loading, 2: success, 3: error
-  const [authState, setAuthState] = useState(1);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    if (!token) {
-      setStatus('error');
-      setAuthState(3);
-      setMessage('Verification token is missing from the URL.');
-      return;
-    }
-    
-    setAuthState(1); // processing
-    
-    client.post(`/auth/verify-email?token=${token}`)
-      .then(() => {
+    if (!token) return undefined;
+    let cancelled = false;
+    client.post('/auth/verify-email?token=' + encodeURIComponent(token))
+      .then((res) => {
+        if (cancelled) return;
+        setMessage(res.data?.message || 'Your email address has been verified.');
         setStatus('success');
-        setAuthState(2); // success
       })
-      .catch(err => {
+      .catch((err) => {
+        if (cancelled) return;
+        setMessage(err.message || 'The verification link is invalid or has expired.');
         setStatus('error');
-        setAuthState(3); // error
-        setMessage(err.message || 'Verification failed.');
       });
-  }, [searchParams]);
+    return () => { cancelled = true; };
+  }, [token, attempt]);
 
   return (
     <AuthLayout
-      title="Identity Verification"
-      subtitle="Verifying activation details with Callback OS..."
-      authState={authState}
-      error={status === 'error' ? message : ''}
+      title="Verify your email"
+      subtitle="Confirming the verification token from your link."
+      footer={<Link to="/signin" className="link">Back to sign in</Link>}
     >
-      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {status === 'verifying' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', padding: '20px 0' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              border: '3px solid rgba(255,255,255,0.06)',
-              borderTopColor: '#ffffff',
-              animation: 'spin 0.8s linear infinite',
-            }} />
-            <p style={{
-              color: 'rgba(255, 255, 255, 0.45)',
-              fontSize: '14px',
-              margin: 0,
-              lineHeight: 1.5,
-            }}>Checking activation details. Just a moment.</p>
+      {status === 'loading' && (
+        <div className="card card-pad flex items-center gap-3" role="status" aria-live="polite">
+          <Spinner size={20} />
+          <div>
+            <div className="text-sm font-medium text-fg">Verifying…</div>
+            <div className="t-meta">Checking your token with the server.</div>
           </div>
-        )}
-
-        {status === 'success' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.05)',
-              border: '1px solid rgba(16, 185, 129, 0.2)',
-              color: 'var(--prompter-green)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px',
-              fontWeight: 'bold',
-            }}>✓</div>
-            
-            <p style={{
-              color: 'rgba(255, 255, 255, 0.45)',
-              fontSize: '14px',
-              margin: 0,
-              lineHeight: 1.5,
-            }}>Your account is activated and ready. Welcome to Callback OS.</p>
-            
-            <button 
-              type="button" 
-              className="auth-button"
-              onClick={() => navigate('/upload')}
-              style={{ width: '100%' }}
-            >
-              GO TO DASHBOARD
-            </button>
+        </div>
+      )}
+      {status === 'success' && (
+        <div className="space-y-5">
+          <Alert tone="success" title="Email verified">{message}</Alert>
+          <Link to="/dashboard" className="btn btn-md btn-primary w-full"><LayoutDashboard size={16} /> Go to dashboard</Link>
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="space-y-5">
+          <Alert tone="error" title="Verification failed">{message}</Alert>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button variant="secondary" className="flex-1" onClick={() => { setStatus('loading'); setAttempt((a) => a + 1); }}>Try again</Button>
+            <Link to="/dashboard" className="btn btn-md btn-primary flex-1"><LayoutDashboard size={16} /> Go to dashboard</Link>
           </div>
-        )}
-
-        {status === 'error' && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '50%',
-              background: 'rgba(239, 68, 68, 0.05)',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              color: '#ef4444',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '24px',
-              fontWeight: 'bold',
-            }}>✕</div>
-            
-            <p style={{
-              color: 'rgba(255, 255, 255, 0.45)',
-              fontSize: '14px',
-              margin: 0,
-              lineHeight: 1.5,
-            }}>{message || 'The verification link is invalid or may have expired.'}</p>
-            
-            <button 
-              type="button" 
-              className="auth-button"
-              onClick={() => navigate('/signin')}
-              style={{ width: '100%', background: 'rgba(255, 255, 255, 0.05)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.1)' }}
-            >
-              BACK TO SIGN IN
-            </button>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+      {status === 'missing' && (
+        <div className="space-y-5">
+          <Alert tone="warning" title="No token found">
+            This page expects a <span className="font-mono">?token=</span> parameter from your verification link. Open the link exactly as it appears in the backend log or email.
+          </Alert>
+          <div className="flex items-center gap-2 t-meta"><MailCheck size={14} /> You can still use the app while unverified.</div>
+          <Link to="/dashboard" className="btn btn-md btn-primary w-full"><LayoutDashboard size={16} /> Go to dashboard</Link>
+        </div>
+      )}
     </AuthLayout>
   );
 }

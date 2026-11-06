@@ -77,7 +77,22 @@ Scoring guide:
 
 
 class HRInterviewAgent:
-    """Conducts a behavioural HR interview via multi-turn LLM conversation."""
+    """Conducts a behavioural HR interview via multi-turn LLM conversation (STAR-based evaluation).
+
+    The LangGraph interview graph uses this agent for persona framing; the
+    legacy multi-turn methods below remain available for direct use.
+    """
+
+    DEFAULT_PERSONA = {
+        "name": "HR Interviewer",
+        "description": "Warm and professional; asks for concrete situations, the candidate's own actions and measurable results.",
+    }
+
+    def persona_for_prompt(self, persona: dict | None) -> dict:
+        p = dict(persona or self.DEFAULT_PERSONA)
+        p["description"] = (p.get("description", "") + " Behavioural round: cover teamwork, conflict, failure/learning "
+                            "and motivation; probe for Situation, Task, Action, Result without naming STAR.").strip()
+        return p
 
     def __init__(self, llm_service=None, model_name: str = None) -> None:
         self.llm_service = llm_service or global_llm_service
@@ -339,18 +354,34 @@ Evaluate the candidate's latest response and generate the next turn in the inter
                 result["communication_analysis"] = comm_stats
                 return result
         except Exception as exc:
-            logger.warning("HR evaluation LLM call failed, returning local fallback evaluation: %s", exc)
-            fallback_res = {
-                "score": 88.0,
-                "communication": 9.0,
-                "star_quality": 8.0,
-                "culture_fit": 9.0,
-                "professionalism": 9.0,
-                "feedback": "Local Fallback Evaluation: Candidate communicated extremely well, displayed great emotional intelligence, structured their behavioral answers using the STAR format, and showed high alignment with company culture.",
-                "communication_score": 9.0,
-                "confidence_score": 8.5,
-                "behavioral_score": 8.0,
-                "recommendations": "Recommend hire based on strong behavioral fit."
-            }
-            fallback_res["communication_analysis"] = comm_stats
-            return fallback_res
+            logger.warning("HR evaluation LLM call failed — returning flagged heuristic evaluation: %s", exc)
+            return self._heuristic_round_evaluation(full_transcript, comm_stats, str(exc))
+        return self._heuristic_round_evaluation(full_transcript, comm_stats, "empty LLM result")
+
+    @staticmethod
+    def _heuristic_round_evaluation(full_transcript: str, comm_stats: dict, reason: str) -> dict:
+        """Used only when the LLM cannot evaluate. Communication metrics are real; fit/STAR are not assessed."""
+        from agents.evaluation_agent import EvaluationAgent, weighted_overall
+        from agents.tech_agent import _transcript_pairs
+        pairs = _transcript_pairs(full_transcript)
+        evals = [EvaluationAgent._heuristic_evaluation(q, a) for q, a in pairs if a.strip()]
+        for e in evals:
+            e["overall_score"] = weighted_overall(e)
+        summary = EvaluationAgent.aggregate_round(evals, "hr")
+        return {
+            "score": summary.get("score"),
+            "communication": comm_stats.get("communication_rating"),
+            "star_quality": None,
+            "culture_fit": None,
+            "professionalism": None,
+            "feedback": (
+                "Heuristic estimate only (AI evaluator unavailable: %s). STAR structure and culture fit were not "
+                "assessed; communication metrics come from filler-word analysis of the transcript." % reason
+            ),
+            "communication_score": comm_stats.get("communication_rating"),
+            "confidence_score": None,
+            "behavioral_score": None,
+            "recommendations": "Re-run the evaluation when the AI evaluator is available.",
+            "evaluation_source": "heuristic",
+            "communication_analysis": comm_stats,
+        }

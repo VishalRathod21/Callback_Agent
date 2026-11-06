@@ -1,4 +1,9 @@
-"""Async SQLAlchemy database setup."""
+"""Async SQLAlchemy database setup.
+
+PostgreSQL is the production target.  SQLite (via aiosqlite) is supported for
+local development and automated tests so the application can run without a
+database server.
+"""
 
 import sys
 import os
@@ -9,55 +14,49 @@ from sqlalchemy.orm import DeclarativeBase
 
 from core.config import settings
 
-# Async engine with SSL/TLS configuration for production databases (PostgreSQL/MySQL)
-connect_args = {}
+connect_args: dict = {}
 is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "true"
-is_localhost = "localhost" in settings.async_database_url or "127.0.0.1" in settings.async_database_url
+_url = settings.async_database_url
+is_localhost = "localhost" in _url or "127.0.0.1" in _url
+is_sqlite = "sqlite" in _url
 
-if "postgresql" in settings.async_database_url or "postgres" in settings.async_database_url:
+if "postgresql" in _url or "postgres" in _url:
     if (not is_testing and not is_localhost) or "sslmode" in settings.DATABASE_URL:
         connect_args["ssl"] = True
-elif "mysql" in settings.async_database_url:
+elif "mysql" in _url:
     connect_args["ssl"] = True
 
-is_sqlite = "sqlite" in settings.async_database_url
-
-engine_kwargs = {
+engine_kwargs: dict = {
     "echo": False,
     "future": True,
-    "connect_args": connect_args if connect_args else {},
+    "connect_args": connect_args,
 }
 
 if not is_sqlite:
-    engine_kwargs.update({
-        "pool_size": 20,
-        "max_overflow": 10,
-        "pool_timeout": 30,
-        "pool_recycle": 1800,
-        "pool_pre_ping": True,
-    })
+    engine_kwargs.update(
+        {
+            "pool_size": 20,
+            "max_overflow": 10,
+            "pool_timeout": 30,
+            "pool_recycle": 1800,
+            "pool_pre_ping": True,
+        }
+    )
 
-engine = create_async_engine(
-    settings.async_database_url,
-    **engine_kwargs
-)
+engine = create_async_engine(_url, **engine_kwargs)
 
-# Async session factory
-AsyncSessionLocal = async_sessionmaker(
-    bind=engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
 
 class Base(DeclarativeBase):
     """Declarative base for all ORM models."""
 
-    pass
-
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """FastAPI dependency that provides an async database session."""
+    """FastAPI dependency that provides an async database session.
+
+    Commits on success, rolls back on any exception raised by the route.
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session

@@ -1,184 +1,100 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, LogIn } from 'lucide-react';
+import AuthLayout from '../components/layout/AuthLayout';
 import { useAuth } from '../context/AuthContext';
-import AuthLayout from '../components/AuthLayout';
+import { Button, Input, Toggle, Alert } from '../components/ui';
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validate({ email, password }) {
+  const errors = {};
+  if (!email.trim()) errors.email = 'Email is required.';
+  else if (!EMAIL_RE.test(email.trim())) errors.email = 'Enter a valid email address.';
+  if (!password) errors.password = 'Password is required.';
+  else if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
+  return errors;
+}
 
 export default function SignIn() {
+  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
-  const from = location.state?.from?.pathname || '/upload';
-
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
+  const [form, setForm] = useState({ email: '', password: '' });
   const [remember, setRemember] = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  
-  // 0: idle, 1: loading, 2: success, 3: error
-  const [authState, setAuthState] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [serverError, setServerError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !password) { 
-      setError('Please fill in all fields.'); 
-      setAuthState(3);
-      return; 
-    }
-    
-    setLoading(true);
-    setError('');
-    setAuthState(1); // processing
-    
-    try {
-      await login(email, password, remember);
-      setAuthState(2); // success
-      
-      // Let the cinematic zoom animation play for 1.8 seconds before transition
-      setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 1800);
-    } catch (err) {
-      setError(err.message || 'Invalid email or password.');
-      setAuthState(3); // error
-      // Revert to idle after 3 seconds
-      setTimeout(() => {
-        setAuthState(0);
-      }, 3000);
-    } finally {
-      setLoading(false);
-    }
+  const setField = (name) => (e) => {
+    const next = { ...form, [name]: e.target.value };
+    setForm(next);
+    if (touched[name]) setErrors(validate(next));
+  };
+  const onBlur = (name) => () => {
+    setTouched((t) => ({ ...t, [name]: true }));
+    setErrors(validate(form));
   };
 
-  const handleInputChange = (setter) => (e) => {
-    setter(e.target.value);
-    if (authState === 3) {
-      setAuthState(0);
-      setError('');
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    const errs = validate(form);
+    setTouched({ email: true, password: true });
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
+    setServerError('');
+    setSubmitting(true);
+    try {
+      await login(form.email.trim(), form.password, remember);
+      navigate(location.state?.from?.pathname || '/dashboard', { replace: true });
+    } catch (err) {
+      setServerError(err.status === 401 ? 'Incorrect email or password.' : err.message || 'Could not sign in. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
     <AuthLayout
-      title="Welcome Back"
-      subtitle="Establish contact with Callback OS to continue your rehearsal."
-      authState={authState}
-      error={error}
+      title="Welcome back"
+      subtitle="Sign in to continue your interview practice."
+      footer={<>Don’t have an account? <Link to="/signup" className="link">Create one</Link></>}
     >
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        <div className="auth-field">
-          <label className="auth-label">Email Address</label>
-          <div className="auth-input-wrapper">
-            <input
-              type="email"
-              className="auth-input"
-              placeholder="you@example.com"
-              value={email}
-              onChange={handleInputChange(setEmail)}
-              disabled={loading}
-              autoComplete="email"
-              required
-            />
+      <form onSubmit={onSubmit} noValidate className="space-y-5">
+        {serverError && <Alert tone="error" title="Sign in failed">{serverError}</Alert>}
+        <Input
+          label="Email" name="email" type="email" autoComplete="email" placeholder="you@example.com"
+          value={form.email} onChange={setField('email')} onBlur={onBlur('email')}
+          error={touched.email ? errors.email : undefined} required
+        />
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label htmlFor="password" className="label mb-0">Password</label>
+            <Link to="/forgot-password" className="link text-xs">Forgot password?</Link>
           </div>
-        </div>
-
-        <div className="auth-field">
-          <label className="auth-label">Password</label>
-          <div className="auth-input-wrapper">
+          <div className="relative">
             <input
-              type="password"
-              className="auth-input"
-              placeholder="••••••••"
-              value={password}
-              onChange={handleInputChange(setPassword)}
-              disabled={loading}
-              autoComplete="current-password"
-              required
+              id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password"
+              placeholder="••••••••" value={form.password} onChange={setField('password')} onBlur={onBlur('password')}
+              className={`input pr-11 ${touched.password && errors.password ? 'input-error' : ''}`} required
             />
+            <button
+              type="button" onClick={() => setShowPassword((s) => !s)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost h-7 w-7 p-0 rounded"
+              aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </div>
+          {touched.password && errors.password && <p className="error-text">{errors.password}</p>}
         </div>
-
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '4px',
-        }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
-            <input
-              type="checkbox"
-              checked={remember}
-              onChange={e => setRemember(e.target.checked)}
-              disabled={loading}
-              style={{
-                accentColor: '#ffffff',
-                cursor: 'pointer',
-                width: '14px',
-                height: '14px',
-              }}
-            />
-            <span style={{ color: 'rgba(255, 255, 255, 0.45)', fontSize: '13.5px' }}>Remember identity</span>
-          </label>
-          <span 
-            onClick={() => !loading && navigate('/forgot-password')}
-            style={{
-              color: '#ffffff',
-              cursor: 'pointer',
-              fontSize: '13.5px',
-              fontWeight: 600,
-              opacity: loading ? 0.5 : 0.8,
-              transition: 'opacity 0.2s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.opacity = 1}
-            onMouseLeave={e => e.currentTarget.style.opacity = loading ? 0.5 : 0.8}
-          >
-            Forgot password?
-          </span>
-        </div>
-
-        <button 
-          type="submit" 
-          className="auth-button"
-          disabled={loading || authState === 2}
-          style={{ marginTop: '8px' }}
-        >
-          {loading ? 'ANALYZING CREDENTIALS...' : 'ESTABLISH LINK'}
-        </button>
+        <Toggle checked={remember} onChange={setRemember} label="Remember me" description="Keep me signed in on this device." />
+        <Button type="submit" size="lg" className="w-full" loading={submitting} icon={LogIn}>
+          {submitting ? 'Signing in…' : 'Sign in'}
+        </Button>
       </form>
-
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px',
-        margin: '28px 0',
-        color: 'rgba(255, 255, 255, 0.15)',
-        fontSize: '11px',
-        fontWeight: 600,
-        letterSpacing: '0.08em',
-      }}>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.06)' }} />
-        <span>OR</span>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255, 255, 255, 0.06)' }} />
-      </div>
-
-      <div style={{
-        textAlign: 'center',
-        fontSize: '14px',
-        color: 'rgba(255, 255, 255, 0.45)',
-      }}>
-        New identity?{' '}
-        <span 
-          onClick={() => !loading && navigate('/signup')}
-          style={{
-            color: '#ffffff',
-            cursor: 'pointer',
-            fontWeight: 600,
-            transition: 'color var(--duration-fast)',
-          }}
-        >
-          Initialize account
-        </span>
-      </div>
     </AuthLayout>
   );
 }

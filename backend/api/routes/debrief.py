@@ -3,13 +3,13 @@ from pydantic import BaseModel
 from sqlalchemy import select
 import uuid
 from core.database import AsyncSessionLocal
-from core.models import Candidate, InterviewSession, RoundTranscript, User
+from core.models import Candidate, InterviewSession, RoundTranscript, User, SessionStatus
 from api.routes.auth import get_current_user
 from agents.debrief_agent import DebriefAgent
 
 router = APIRouter(prefix="/api/debrief", tags=["debrief"])
 
-# In-memory conversation store (per candidate, cleared after 2 hours)
+# In-memory conversation store (per candidate; process-local, lost on restart)
 _conversations: dict = {}  # candidate_id → list of messages
 
 class ChatRequest(BaseModel):
@@ -47,7 +47,7 @@ async def get_debrief_context(
         result = await db.execute(
             select(InterviewSession)
             .where(InterviewSession.candidate_id == candidate_uuid)
-            .where(InterviewSession.status == "completed")
+            .where(InterviewSession.status == SessionStatus.COMPLETED)
             .order_by(InterviewSession.ended_at.desc())
             .limit(1)
         )
@@ -104,7 +104,7 @@ async def debrief_chat(
         result = await db.execute(
             select(InterviewSession)
             .where(InterviewSession.candidate_id == candidate_uuid)
-            .where(InterviewSession.status == "completed")
+            .where(InterviewSession.status == SessionStatus.COMPLETED)
             .order_by(InterviewSession.ended_at.desc())
             .limit(1)
         )

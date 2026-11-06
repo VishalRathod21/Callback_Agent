@@ -1,80 +1,72 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Auth Context & Route Protection
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
+import { ToastProvider, Spinner } from './components/ui';
 
-// Pages
-import Landing from './pages/Landing';
-import SignIn from './pages/SignIn';
-import SignUp from './pages/SignUp';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
-import VerifyEmail from './pages/VerifyEmail';
-import Upload from './pages/Upload';
-import Lobby from './pages/Lobby';
-import InterviewRoom from './pages/InterviewRoom';
-import DSARound from './pages/DSARound';
-import Report from './pages/Report';
-import Dashboard from './pages/Dashboard';
-import QuickPractice from './pages/QuickPractice';
+const Landing = lazy(() => import('./pages/Landing'));
+const SignIn = lazy(() => import('./pages/SignIn'));
+const SignUp = lazy(() => import('./pages/SignUp'));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const VerifyEmail = lazy(() => import('./pages/VerifyEmail'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Resume = lazy(() => import('./pages/Resume'));
+const InterviewSetup = lazy(() => import('./pages/InterviewSetup'));
+const InterviewRoom = lazy(() => import('./pages/InterviewRoom'));
+const DSARound = lazy(() => import('./pages/DSARound'));
+const Results = lazy(() => import('./pages/Results'));
+const History = lazy(() => import('./pages/History'));
+const Profile = lazy(() => import('./pages/Profile'));
+const QuickPractice = lazy(() => import('./pages/QuickPractice'));
 
-import './App.css';
+function Fallback() {
+  return (
+    <div className="min-h-screen bg-bg grid place-items-center">
+      <Spinner size={22} />
+    </div>
+  );
+}
 
-function App() {
+const P = ({ children }) => <ProtectedRoute>{children}</ProtectedRoute>;
+
+export default function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg)' }}>
-          <main style={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+      <ToastProvider>
+        <Router>
+          <Suspense fallback={<Fallback />}>
             <Routes>
-              {/* Public Routes */}
+              {/* Public */}
               <Route path="/" element={<Landing />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
-              <Route path="/practice" element={<QuickPractice />} />
 
-              {/* Protected Routes */}
-              <Route path="/upload" element={
-                <ProtectedRoute>
-                  <Upload />
-                </ProtectedRoute>
-              } />
-              <Route path="/lobby/:candidateId" element={
-                <ProtectedRoute>
-                  <Lobby />
-                </ProtectedRoute>
-              } />
-              <Route path="/interview/:sessionId" element={
-                <ProtectedRoute>
-                  <InterviewRoom />
-                </ProtectedRoute>
-              } />
-              <Route path="/interview/:sessionId/dsa" element={
-                <ProtectedRoute>
-                  <DSARound />
-                </ProtectedRoute>
-              } />
-              <Route path="/report/:candidateId" element={
-                <ProtectedRoute>
-                  <Report />
-                </ProtectedRoute>
-              } />
-              <Route path="/dashboard/:candidateId" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
+              {/* Authenticated */}
+              <Route path="/dashboard" element={<P><Dashboard /></P>} />
+              <Route path="/dashboard/:candidateId" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/resume" element={<P><Resume /></P>} />
+              <Route path="/resume/:candidateId" element={<P><Resume /></P>} />
+              <Route path="/upload" element={<Navigate to="/resume" replace />} />
+              <Route path="/interview/setup" element={<P><InterviewSetup /></P>} />
+              <Route path="/interview/setup/:candidateId" element={<P><InterviewSetup /></P>} />
+              <Route path="/lobby/:candidateId" element={<P><InterviewSetup /></P>} />
+              <Route path="/interview/:sessionId" element={<P><InterviewRoom /></P>} />
+              <Route path="/interview/:sessionId/dsa" element={<P><DSARound /></P>} />
+              <Route path="/results/:sessionId" element={<P><Results /></P>} />
+              <Route path="/report/:candidateId" element={<P><Results byCandidate /></P>} />
+              <Route path="/history" element={<P><History /></P>} />
+              <Route path="/profile" element={<P><Profile /></P>} />
+              <Route path="/practice" element={<P><QuickPractice /></P>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
-          </main>
-        </div>
-      </Router>
+          </Suspense>
+        </Router>
+      </ToastProvider>
     </AuthProvider>
   );
 }
-
-export default App;

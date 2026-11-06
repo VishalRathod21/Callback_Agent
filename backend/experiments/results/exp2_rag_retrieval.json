@@ -1,0 +1,45 @@
+{
+  "environment": {
+    "llm_provider": "none",
+    "llm_available": false,
+    "embedding_backend": "hashing",
+    "adaptive_thresholds": {
+      "decrease_max": 4.0,
+      "increase_min": 8.0
+    },
+    "rubric_weights": {
+      "technical_correctness": 0.4,
+      "conceptual_understanding": 0.25,
+      "answer_completeness": 0.2,
+      "communication_clarity": 0.15
+    },
+    "timestamp": "2026-11-06 06:44:13"
+  },
+  "section": {
+    "precision@1": 0.944,
+    "precision@2": 0.639,
+    "precision@3": 0.426,
+    "recall@1": 0.778,
+    "recall@2": 0.944,
+    "recall@3": 0.944,
+    "queries": 18,
+    "cross_candidate_leakage": 0,
+    "latency_ms_mean": 2.36,
+    "latency_ms_p95": 3.34,
+    "chunks_total": 30
+  },
+  "naive": {
+    "precision@1": 0.333,
+    "precision@2": 0.278,
+    "precision@3": 0.222,
+    "recall@1": 0.25,
+    "recall@2": 0.444,
+    "recall@3": 0.528,
+    "queries": 18,
+    "cross_candidate_leakage": 0,
+    "latency_ms_mean": 2.54,
+    "latency_ms_p95": 3.43,
+    "chunks_total": 15
+  },
+  "notes": "Relevance labels are section-level (a hit is relevant if its chunk belongs to a labelled section). Numbers reflect the embedding backend recorded in `environment`."
+}

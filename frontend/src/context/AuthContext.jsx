@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import client from '../api/client';
 
 const AuthContext = createContext(null);
@@ -36,6 +36,7 @@ export function AuthProvider({ children }) {
     }
   };
 
+  const scheduleRefreshRef = useRef(null);
   const scheduleRefresh = useCallback((delayMs = 14 * 60 * 1000) => {
     if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
     refreshTimerRef.current = setTimeout(async () => {
@@ -43,7 +44,7 @@ export function AuthProvider({ children }) {
         const res = await client.post('/auth/refresh');
         setAccessToken(res.data.access_token);
         setUser(res.data.user);
-        scheduleRefresh(); // re-schedule for next cycle
+        scheduleRefreshRef.current?.(); // re-schedule for next cycle
       } catch {
         // refresh failed — treat as logged out
         setUser(null);
@@ -51,6 +52,7 @@ export function AuthProvider({ children }) {
       }
     }, delayMs);
   }, []);
+  useEffect(() => { scheduleRefreshRef.current = scheduleRefresh; }, [scheduleRefresh]);
 
   // ── bootstrap: restore session on page load ────────────────────────────────
 
@@ -128,6 +130,7 @@ export function AuthProvider({ children }) {
     logout,
     forgotPassword,
     resetPassword,
+    updateUser: (patch) => setUser((u) => ({ ...(u || {}), ...patch })),
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

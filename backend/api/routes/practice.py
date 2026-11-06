@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from typing import Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import AsyncSessionLocal
 from core.models import Candidate, InterviewSession, RoundName, SessionStatus, User
@@ -73,7 +73,7 @@ async def start_practice(
         "questions": questions,
         "current_index": 0,
         "completed": False,
-        "started_at": datetime.utcnow().isoformat()
+        "started_at": datetime.now(timezone.utc).isoformat()
     }
     
     return {
@@ -203,7 +203,7 @@ async def save_practice(
         try:
             started_time = datetime.fromisoformat(session_data["started_at"])
         except Exception:
-            started_time = datetime.utcnow()
+            started_time = datetime.now(timezone.utc)
 
         new_session = InterviewSession(
             candidate_id=candidate_uuid,
@@ -212,7 +212,7 @@ async def save_practice(
             overall_score=score_100,
             status=SessionStatus.COMPLETED,
             started_at=started_time,
-            ended_at=datetime.utcnow()
+            ended_at=datetime.now(timezone.utc)
         )
         db.add(new_session)
         await db.commit()

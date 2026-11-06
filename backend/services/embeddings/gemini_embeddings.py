@@ -1,78 +1,87 @@
+"""Gemini embedding service (text-embedding-004, 768 dimensions)."""
+
 import os
 import asyncio
 import logging
-from google import genai
+
 from core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
 class GeminiEmbeddingService:
+    name = "gemini"
+    MODEL = settings.GEMINI_EMBEDDING_MODEL
+    DIM = settings.EMBEDDING_DIM
+
     def __init__(self):
-        # Read API key from environment variable GEMINI_API_KEY
-        self.api_key = os.environ.get("GEMINI_API_KEY")
+        self.api_key = os.environ.get("GEMINI_API_KEY") or getattr(settings, "GEMINI_API_KEY", "")
+        self.client = None
         if not self.api_key:
-            self.api_key = getattr(settings, "GEMINI_API_KEY", "")
-        
-        if not self.api_key:
-            logger.warning("GEMINI_API_KEY is not set.")
-            
-        # Initialize Google GenAI client
-        if self.api_key:
+            logger.warning("GEMINI_API_KEY is not set; Gemini embeddings unavailable.")
+            return
+        try:
+            from google import genai
             self.client = genai.Client(api_key=self.api_key)
-        else:
-            self.client = genai.Client()
+        except Exception as exc:  # pragma: no cover - import/runtime environment issue
+            logger.error("Failed to initialise Gemini client: %s", exc)
+            self.client = None
+
+    def _ensure_client(self) -> None:
+        if self.client is None and self.api_key:
+            try:
+                from google import genai
+                self.client = genai.Client(api_key=self.api_key)
+            except Exception as exc:  # pragma: no cover
+                logger.error("Failed to initialise Gemini client: %s", exc)
+
+    def _config(self):
+        from google.genai import types
+        return types.EmbedContentConfig(output_dimensionality=self.DIM)
+
+    def probe(self) -> bool:
+        """One real call at startup so a wrong model name degrades to the local backend instead of failing uploads."""
+        if not self.available:
+            return False
+        try:
+            resp = self.client.models.embed_content(model=self.MODEL, contents="probe", config=self._config())
+            return bool(resp.embeddings) and len(resp.embeddings[0].values) == self.DIM
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Gemini embedding probe failed (model=%s): %s", self.MODEL, exc)
+            return False
+
+    @property
+    def available(self) -> bool:
+        self._ensure_client()
+        return bool(self.api_key and self.client)
 
     async def embed(self, text: str) -> list[float]:
-        """
-        Generate embedding for a single text string using Gemini Embedding API.
-        """
+        """Generate an embedding for a single string. Raises on API failure."""
         if not text or not text.strip():
             return []
-
-        if not self.api_key:
-            logger.error("GEMINI_API_KEY is not configured.")
-            return []
+        if not self.available:
+            raise RuntimeError("Gemini embeddings are not configured.")
 
         def _embed():
-            response = self.client.models.embed_content(
-                model="text-embedding-004",
-                contents=text.strip()
-            )
+            response = self.client.models.embed_content(model=self.MODEL, contents=text.strip(), config=self._config())
             if response.embeddings:
-                return response.embeddings[0].values
+                return list(response.embeddings[0].values)
             return []
 
-        try:
-            return await asyncio.to_thread(_embed)
-        except Exception as e:
-            logger.error(f"Gemini embedding error: {e}")
-            return []
+        return await asyncio.to_thread(_embed)
 
     async def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """
-        Generate embeddings for a list of text strings in batch.
-        """
+        """Generate embeddings for a list of strings. Raises on API failure."""
         if not texts:
             return []
-
-        if not self.api_key:
-            logger.error("GEMINI_API_KEY is not configured.")
-            return [[] for _ in texts]
-
-        cleaned_texts = [t.strip() for t in texts]
+        if not self.available:
+            raise RuntimeError("Gemini embeddings are not configured.")
+        cleaned = [t.strip() for t in texts]
 
         def _embed_batch():
-            response = self.client.models.embed_content(
-                model="text-embedding-004",
-                contents=cleaned_texts
-            )
+            response = self.client.models.embed_content(model=self.MODEL, contents=cleaned, config=self._config())
             if response.embeddings:
-                return [emb.values for emb in response.embeddings]
-            return [[] for _ in cleaned_texts]
+                return [list(e.values) for e in response.embeddings]
+            return [[] for _ in cleaned]
 
-        try:
-            return await asyncio.to_thread(_embed_batch)
-        except Exception as e:
-            logger.error(f"Gemini batch embedding error: {e}")
-            # Fallback to empty embeddings
-            return [[] for _ in cleaned_texts]
+        return await asyncio.to_thread(_embed_batch)

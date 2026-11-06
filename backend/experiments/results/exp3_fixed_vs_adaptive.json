@@ -1,0 +1,223 @@
+{
+  "environment": {
+    "llm_provider": "none",
+    "llm_available": false,
+    "embedding_backend": "hashing",
+    "adaptive_thresholds": {
+      "decrease_max": 4.0,
+      "increase_min": 8.0
+    },
+    "rubric_weights": {
+      "technical_correctness": 0.4,
+      "conceptual_understanding": 0.25,
+      "answer_completeness": 0.2,
+      "communication_clarity": 0.15
+    },
+    "timestamp": "2026-11-06 06:44:14"
+  },
+  "adaptive": {
+    "spearman_rho": 0.978,
+    "mean_abs_error": 0.436,
+    "time_at_target_level": 0.707,
+    "example_traces": [
+      {
+        "theta": 4.09,
+        "trace": [
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "easy"
+        ],
+        "final": 4.86
+      },
+      {
+        "theta": 5.56,
+        "trace": [
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "easy"
+        ],
+        "final": 5.75
+      },
+      {
+        "theta": 2.49,
+        "trace": [
+          "medium",
+          "easy",
+          "easy",
+          "easy",
+          "easy",
+          "easy"
+        ],
+        "final": 3.22
+      }
+    ],
+    "n_candidates": 200,
+    "n_questions": 6,
+    "start_level": "medium",
+    "levels": [
+      "easy",
+      "medium",
+      "hard"
+    ]
+  },
+  "fixed_medium": {
+    "spearman_rho": 0.979,
+    "mean_abs_error": 0.379,
+    "time_at_target_level": 0.29,
+    "example_traces": [
+      {
+        "theta": 4.09,
+        "trace": [
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium"
+        ],
+        "final": 4.83
+      },
+      {
+        "theta": 5.56,
+        "trace": [
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium"
+        ],
+        "final": 5.77
+      },
+      {
+        "theta": 2.49,
+        "trace": [
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium",
+          "medium"
+        ],
+        "final": 2.89
+      }
+    ],
+    "n_candidates": 200,
+    "n_questions": 6,
+    "start_level": "medium",
+    "levels": [
+      "easy",
+      "medium",
+      "hard"
+    ]
+  },
+  "fixed_easy": {
+    "spearman_rho": 0.978,
+    "mean_abs_error": 0.513,
+    "time_at_target_level": 0.485,
+    "example_traces": [
+      {
+        "theta": 4.09,
+        "trace": [
+          "easy",
+          "easy",
+          "easy",
+          "easy",
+          "easy",
+          "easy"
+        ],
+        "final": 4.96
+      },
+      {
+        "theta": 5.56,
+        "trace": [
+          "easy",
+          "easy",
+          "easy",
+          "easy",
+          "easy",
+          "easy"
+        ],
+        "final": 5.75
+      },
+      {
+        "theta": 2.49,
+        "trace": [
+          "easy",
+          "easy",
+          "easy",
+          "easy",
+          "easy",
+          "easy"
+        ],
+        "final": 3.29
+      }
+    ],
+    "n_candidates": 200,
+    "n_questions": 6,
+    "start_level": "easy",
+    "levels": [
+      "easy",
+      "medium",
+      "hard"
+    ]
+  },
+  "fixed_hard": {
+    "spearman_rho": 0.978,
+    "mean_abs_error": 0.919,
+    "time_at_target_level": 0.225,
+    "example_traces": [
+      {
+        "theta": 4.09,
+        "trace": [
+          "hard",
+          "hard",
+          "hard",
+          "hard",
+          "hard",
+          "hard"
+        ],
+        "final": 3.83
+      },
+      {
+        "theta": 5.56,
+        "trace": [
+          "hard",
+          "hard",
+          "hard",
+          "hard",
+          "hard",
+          "hard"
+        ],
+        "final": 4.91
+      },
+      {
+        "theta": 2.49,
+        "trace": [
+          "hard",
+          "hard",
+          "hard",
+          "hard",
+          "hard",
+          "hard"
+        ],
+        "final": 1.89
+      }
+    ],
+    "n_candidates": 200,
+    "n_questions": 6,
+    "start_level": "hard",
+    "levels": [
+      "easy",
+      "medium",
+      "hard"
+    ]
+  },
+  "notes": "Simulation uses the production DifficultyPolicy with configured thresholds. Observed scores are synthetic (latent-ability model); this experiment measures the policy, not the LLM."
+}

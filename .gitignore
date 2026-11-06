@@ -166,3 +166,18 @@ frontend/build/
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+
+# ── Project-specific ──
+backend/.env
+backend/interviewai_dev.db*
+backend/faiss_store/
+backend/uploads/
+backend/experiments/_faiss_exp/
+backend/tests/_faiss_test_store/
+backend/tests/_uploads_test/
+backend/venv/
+frontend/dist/
+
+# Personal documents
+Vishal_Rathod_Resume.pdf
+Sample Project Report.docx

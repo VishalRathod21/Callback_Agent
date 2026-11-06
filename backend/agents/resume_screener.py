@@ -70,6 +70,10 @@ class ResumeScreenerAgent:
                 logger.info("ATS score: %.1f | decision: %s", result["ats_score"], result["decision"])
                 return result
         except Exception as exc:
+            from services.llm_service import LLMUnavailableError
+            if isinstance(exc, LLMUnavailableError):
+                logger.info("Resume screening skipped: %s", exc)
+                raise
             logger.error("LLM failed to screen resume: %s", exc)
             raise ValueError(f"Failed to obtain valid JSON from LLM: {exc}")
 
@@ -134,10 +138,10 @@ Extract ALL projects and experience entries you can find."""
                 text = text[:-3]
             return json.loads(text.strip())
         except Exception as e:
-            logger.error(f"Resume structure extraction failed: {e}")
-            # Return minimal fallback
-            return {
-                "name": "", "skills": [], "projects": [],
-                "experience": [], "education": [], "summary": ""
-            }
+            from services.llm_service import LLMUnavailableError
+            if isinstance(e, LLMUnavailableError):
+                logger.info("Resume structure extraction skipped: %s", e)
+            else:
+                logger.error("Resume structure extraction failed: %s", e)
+            raise
 

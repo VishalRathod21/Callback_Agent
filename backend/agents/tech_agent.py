@@ -89,8 +89,37 @@ Scoring guide:
 """
 
 
+def _transcript_pairs(transcript: str) -> list[tuple[str, str]]:
+    """Split an 'Interviewer: ... / Candidate: ...' transcript into (question, answer) pairs."""
+    pairs: list[tuple[str, str]] = []
+    question = None
+    for line in (transcript or "").splitlines():
+        line = line.strip()
+        if line.startswith("Interviewer:"):
+            question = line[len("Interviewer:"):].strip()
+        elif line.startswith("Candidate:") and question is not None:
+            pairs.append((question, line[len("Candidate:"):].strip()))
+            question = None
+    return pairs
+
+
 class TechInterviewAgent:
-    """Conducts a resume-aware, persona-driven technical interview via multi-turn LLM conversation."""
+    """Conducts a resume-aware, persona-driven technical interview via multi-turn LLM conversation.
+
+    The LangGraph interview graph uses this agent for persona framing; the
+    legacy multi-turn methods below remain available for direct use.
+    """
+
+    DEFAULT_PERSONA = {
+        "name": "Senior Staff Engineer",
+        "description": "Direct and rigorous. Focuses on code efficiency, correctness, cleanliness, and direct feedback.",
+    }
+
+    def persona_for_prompt(self, persona: dict | None) -> dict:
+        p = dict(persona or self.DEFAULT_PERSONA)
+        p["description"] = (p.get("description", "") + " Technical round: verify depth on resume claims, "
+                            "ask for trade-offs and concrete examples, follow up on shallow answers.").strip()
+        return p
 
     def __init__(self, llm_service=None, model_name: str = None) -> None:
         self.llm_service = llm_service or global_llm_service
@@ -578,27 +607,13 @@ Evaluate the candidate's latest response and generate the next turn in the inter
                     concept = "Concluded"
                     is_follow_up = False
                     should_continue = False
-                    latest_eval = {
-                        "correctness": 7.0,
-                        "depth": 7.0,
-                        "communication": 7.0,
-                        "practical_knowledge": 7.0,
-                        "reasoning": 7.0,
-                        "feedback": "Concluded technical round."
-                    }
+                    latest_eval = None  # no LLM judgement available — do not invent one
                 else:
                     reply = self._get_fallback_question(session_id, next_count)
                     concept = "Scalability & Reliability Fallback"
                     is_follow_up = False
                     should_continue = True
-                    latest_eval = {
-                        "correctness": 7.0,
-                        "depth": 7.0,
-                        "communication": 7.0,
-                        "practical_knowledge": 7.0,
-                        "reasoning": 7.0,
-                        "feedback": "Answer was noted. Transitioning to fallback question."
-                    }
+                    latest_eval = None  # no LLM judgement available — do not invent one
                 prev_question = asked_questions[-1] if asked_questions else "None"
                 logger.warning(
                     "--- Technical Interview Debug Fallback ---\n"
@@ -767,16 +782,32 @@ Return JSON only:
                 result["communication_analysis"] = comm_stats
                 return result
         except Exception as exc:
-            logger.warning("Tech evaluation LLM call failed, returning local fallback evaluation: %s", exc)
-            fallback_res = {
-                "score": 85.0,
-                "technical_depth": 8.0,
-                "system_thinking": 9.0,
-                "role_specific": 8.0,
-                "feedback": f"Local Fallback Evaluation: Candidate demonstrated strong technical knowledge suitable for the {target_role} role, particularly in database choices, caching architectures, and distributed systems.",
-                "strengths": "Strong knowledge in architectural patterns.",
-                "weaknesses": "Could improve on specific framework details.",
-                "recommendations": "Recommend proceeding to next stage."
-            }
-            fallback_res["communication_analysis"] = comm_stats
-            return fallback_res
+            logger.warning("Tech evaluation LLM call failed — returning flagged heuristic evaluation: %s", exc)
+            return self._heuristic_round_evaluation(full_transcript, target_role, comm_stats, str(exc))
+        return self._heuristic_round_evaluation(full_transcript, target_role, comm_stats, "empty LLM result")
+
+    @staticmethod
+    def _heuristic_round_evaluation(full_transcript: str, target_role: str, comm_stats: dict, reason: str) -> dict:
+        """Used only when the LLM cannot evaluate. Never claims technical correctness."""
+        from agents.evaluation_agent import EvaluationAgent, weighted_overall
+        pairs = _transcript_pairs(full_transcript)
+        evals = [EvaluationAgent._heuristic_evaluation(q, a) for q, a in pairs if a.strip()]
+        for e in evals:
+            e["overall_score"] = weighted_overall(e)
+        summary = EvaluationAgent.aggregate_round(evals, "technical")
+        return {
+            "score": summary.get("score"),
+            "technical_depth": None,
+            "system_thinking": None,
+            "role_specific": None,
+            "feedback": (
+                "Heuristic estimate only (AI evaluator unavailable: %s). Technical correctness for the %s role "
+                "could not be verified; the score reflects answer length, structure and relevance." % (reason, target_role)
+            ),
+            "strengths": "Not assessed (evaluator unavailable).",
+            "weaknesses": "Not assessed (evaluator unavailable).",
+            "recommendations": "Re-run the evaluation when the AI evaluator is available.",
+            "evaluation_source": "heuristic",
+            "rubric_averages": summary.get("rubric_averages"),
+            "communication_analysis": comm_stats,
+        }

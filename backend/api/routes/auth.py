@@ -13,7 +13,8 @@ from sqlalchemy.orm import selectinload
 
 from core.database import get_db
 from core.models import User, RefreshToken
-from core.schemas import UserSignup, UserLogin, UserResponse, UserUpdate, ChangePassword, ForgotPassword, ResetPassword, TokenResponse
+from core.schemas import (UserSignup, UserLogin, UserResponse, UserUpdate, ChangePassword, ForgotPassword,
+                          ResetPassword, TokenResponse, UserPreferences)
 from core.security import (
     hash_password,
     verify_password,
@@ -30,6 +31,16 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 # ── Dependency: Current User ──────────────────────────────────────────────────
 
+QUERY_TOKEN_PATH_PREFIXES = ("/api/reports/",)
+
+
+def _allows_query_token(path: str) -> bool:
+    """Only PDF download routes (opened via <a download>/window.open) may carry ?token=."""
+    if not path.startswith(QUERY_TOKEN_PATH_PREFIXES):
+        return False
+    return not path.rstrip("/").endswith("/data")
+
+
 async def get_current_user(
     request: Request,
     db: AsyncSession = Depends(get_db)
@@ -39,8 +50,10 @@ async def get_current_user(
     token = None
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.split(" ")[1]
-    else:
-        # Fallback to query parameter token (used by file downloads / window.open)
+    elif _allows_query_token(request.url.path):
+        # Query-string tokens are accepted ONLY for browser file downloads (PDF reports),
+        # where custom headers cannot be set. Everywhere else they are ignored so tokens
+        # never leak into logs/history through ordinary API calls.
         token = request.query_params.get("token")
         
     if not token:
@@ -96,7 +109,7 @@ def _set_refresh_cookie(response: Response, token: str, remember_me: bool = Fals
         max_age=max_age,
         expires=max_age,
         samesite="lax",
-        secure=not ("sqlite" in settings.DATABASE_URL or "localhost" in settings.DATABASE_URL or "127.0.0.1" in settings.DATABASE_URL),
+        secure=settings.cookie_secure,
         path="/api/auth", # Restricted path to protect token
     )
 
@@ -403,6 +416,25 @@ async def update_profile(
     return current_user
 
 
+@router.get("/me/preferences")
+async def get_preferences(current_user: User = Depends(get_current_user)):
+    """User preferences (default interview mode, difficulty, ...)."""
+    return {"preferences": current_user.preferences or {}}
+
+
+@router.patch("/me/preferences")
+async def update_preferences(
+    prefs: UserPreferences,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Merge the submitted preferences into the stored ones."""
+    merged = {**(current_user.preferences or {}), **prefs.model_dump(exclude_none=True)}
+    current_user.preferences = merged
+    await db.commit()
+    return {"preferences": merged}
+
+
 @router.delete("/me")
 async def delete_account(
     response: Response,
@@ -420,11 +452,18 @@ async def delete_account(
     candidates = result.scalars().all()
 
     # 2. Cleanup associated filesystem uploads and FAISS embeddings
-    faiss_service = request.app.state.faiss
+    faiss_service = getattr(request.app.state, "faiss", None)
+    rag_service = getattr(request.app.state, "rag", None)
     for candidate in candidates:
         candidate_id_str = str(candidate.id)
-        # Delete from FAISS
-        await faiss_service.delete(collection="resumes", doc_id=candidate_id_str)
+        # Delete from the vector store (full resume + chunks)
+        if faiss_service is not None:
+            await faiss_service.delete(collection="resumes", doc_id=candidate_id_str)
+        if rag_service is not None:
+            try:
+                await rag_service.delete_candidate(candidate_id_str)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("RAG cleanup failed for %s: %s", candidate_id_str, exc)
         # Delete from filesystem
         upload_dir = Path(settings.UPLOAD_DIR) / candidate_id_str
         if upload_dir.exists() and upload_dir.is_dir():

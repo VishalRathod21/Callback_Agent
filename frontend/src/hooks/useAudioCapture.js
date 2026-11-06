@@ -92,6 +92,7 @@ export function useAudioCapture({ onChunk, onSilenceDetected, onVolumeChange, mu
   }, [onVolumeChange, startSilTimer]);
 
   // ── Create and start a MediaRecorder ──────────────────────
+  const restartRef = useRef(null);
   const startRecorderOnStream = useCallback((stream) => {
     const mime = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus']
       .find(t => MediaRecorder.isTypeSupported(t)) || '';
@@ -115,14 +116,14 @@ export function useAudioCapture({ onChunk, onSilenceDetected, onVolumeChange, mu
       // Auto-restart recorder on error
       console.warn('[MIC] Recorder error — restarting');
       if (activeRef.current && streamRef.current) {
-        setTimeout(() => startRecorderOnStream(streamRef.current), 200);
+        setTimeout(() => restartRef.current?.(streamRef.current), 200);
       }
     };
 
     rec.onstop = () => {
       // If we still want to record, restart immediately
       if (activeRef.current && streamRef.current?.active) {
-        setTimeout(() => startRecorderOnStream(streamRef.current), 100);
+        setTimeout(() => restartRef.current?.(streamRef.current), 100);
       }
     };
 
@@ -159,7 +160,7 @@ export function useAudioCapture({ onChunk, onSilenceDetected, onVolumeChange, mu
 
       // Always restart volume analysis context for each turn
       if (audioCtxRef.current) {
-        try { audioCtxRef.current.close(); } catch (e) {}
+        try { audioCtxRef.current.close(); } catch { /* already closed */ }
         audioCtxRef.current = null;
       }
       startVolumeLoop(streamRef.current);

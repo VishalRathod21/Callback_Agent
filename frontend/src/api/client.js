@@ -116,8 +116,8 @@ client.interceptors.response.use(
         // Redirect to signin page if browser environment and not already on an auth page
         if (typeof window !== 'undefined') {
           const path = window.location.pathname;
-          const isAuthPage = ['/signin', '/signup', '/forgot-password', '/reset-password', '/verify-email'].some(p => path.includes(p));
-          if (!isAuthPage) {
+          const isPublic = path === '/' || ['/signin', '/signup', '/forgot-password', '/reset-password', '/verify-email'].some(p => path.startsWith(p));
+          if (!isPublic) {
             window.location.href = '/signin';
           }
         }

@@ -88,10 +88,8 @@ async def test_gemini_embeddings_success():
         # Test single text embedding
         result = await service.embed("hello text")
         assert result == [0.1, 0.2, 0.3]
-        mock_client.models.embed_content.assert_called_with(
-            model="text-embedding-004",
-            contents="hello text"
-        )
+        args, kwargs = mock_client.models.embed_content.call_args
+        assert kwargs["model"] == service.MODEL and kwargs["contents"] == "hello text"
         
         # Test batch embedding
         mock_embedding2 = MagicMock()
@@ -100,7 +98,5 @@ async def test_gemini_embeddings_success():
         
         result_batch = await service.embed_batch(["text1", "text2"])
         assert result_batch == [[0.1, 0.2, 0.3], [0.4, 0.5, 0.6]]
-        mock_client.models.embed_content.assert_called_with(
-            model="text-embedding-004",
-            contents=["text1", "text2"]
-        )
+        args, kwargs = mock_client.models.embed_content.call_args
+        assert kwargs["model"] == service.MODEL and kwargs["contents"] == ["text1", "text2"]

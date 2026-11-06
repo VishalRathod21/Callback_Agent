@@ -1,0 +1,2 @@
+question,answer,human_overall,human_technical,human_conceptual,human_completeness,human_communication
+Explain the difference between a list and a tuple in Python.,A list is mutable; a tuple is immutable and hashable so it can be a dict key.,,,,,
